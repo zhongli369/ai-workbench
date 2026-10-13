@@ -21,7 +21,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   (tier policy: structural guarantees vs measured behavior vs pending;
   includes the CC env-precedence addendum).
 - RELEASE_READINESS: G7 PASS(local)/PENDING(remote), G9 PASS(probe),
-  G10 task-type matrix (trivial 0.87× / bugfix 1.22× / feature 0.84×).
+  G10 task-type matrix (trivial 0.87× / bugfix 1.22× / feature 0.84× /
+  recovery honest-null).
+- Recovery controlled pair (r3c vs r4b): oracle arm made **zero queries**
+  because the noter bundle's `notes.py` docstring names both root causes —
+  the fail-triggered policy correctly skips the oracle when the answer is
+  code-visible (free-option behavior confirmed). The arm's −30% cost vs
+  control is disclosed as N=1 variance with the treatment unused, NOT as an
+  oracle benefit. Code-visible-bug scenarios are documented as unsuitable
+  for measuring oracle retrieval value.
 
 ### Fixed
 - failure-oracle skill claimed source-weighted query ranking; the

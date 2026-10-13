@@ -28,8 +28,13 @@ over the real session transcripts of every controlled arm.
 | vnext bugfix (STANDARD) | 39 | 0 | 0 | 0 | $0.5396 |
 | baseline feature (STANDARD) | 25 | 0 | 0 | 0 | $0.5874 |
 | vnext feature (STANDARD) | 29 | 0 | 0 | 0 | $0.4912 |
-| vnext recovery, oracle seeded (STANDARD) | see report | — | — | — | — |
-| vnext recovery, control (STANDARD) | see report | — | — | — | — |
+| vnext recovery r4b, oracle seeded (STANDARD) | 39 | 0 | 0 | **0 (never queried)** | $0.796 |
+| vnext recovery r3c, control empty store (STANDARD) | 66 | 0 | 0 | 0 (nothing to find) | $1.144 |
+
+Recovery-pair caveat: the noter bundle's `notes.py` docstring names both
+root causes, so skipping the query was correct policy execution; r4b's lower
+cost is N=1 variance with the treatment unused — not oracle benefit. Full
+analysis in the development repo `bench/R3R4_RECOVERY_REPORT.md`.
 
 **Negative evidence, kept:** the invalidated first A/B (2026-10-13, before
 the policy fix) ran a small task with **5 oracle calls + 1 skill load**
@@ -47,8 +52,12 @@ fresh tasks" policy now forbids — and the fix is visible in the rerun
   is therefore **unproven** (no run needed it).
 - **STANDARD** "fail-triggered oracle": policy corrected 2026-10-13 after
   the r2 arm showed "query on 2nd occurrence" can never fire in one
-  session. The r3/r3c controlled pair measures the corrected trigger —
-  results in the Phase 5 final report.
+  session. The r3c/r4b controlled pair then measured the corrected trigger:
+  **zero spurious queries when the root cause is code-visible** (the oracle
+  behaved as a free option), and zero missed opportunities observable in the
+  control. A scenario where querying is *forced* to pay off (root cause
+  outside the readable repo) has not been run — the load-branch of the
+  oracle, like the skill load-branch, is **unproven in-vivo**.
 - **DEEP** "planner first, reviewer after": **no measured sample**.
   Requires an architecture-class task (G10); claimed nowhere until then.
 - **Tier cost separation** is task-driven, not mechanism-driven: FAST-class

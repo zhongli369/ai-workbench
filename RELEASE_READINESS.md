@@ -42,7 +42,7 @@ Measured (same machine, same model, `--output-format json`):
 | Bugfix task T3+T4, first A/B (2026-10-13, kept as negative history) | $0.569 / 16 turns | $1.335 / 44 turns | **2.33×** |
 | Bugfix task T3+T4, rerun after permission+policy fix | $0.444 (1 denial) | $0.540 (3 denials) | **1.22×** |
 | Multi-file feature (search+edit subcommands, 4 selfchecks) | $0.587 / 25 turns (3 den) | $0.491 / 29 turns (3 den) | **0.84×** — vnext cheaper |
-| Repeat-error recovery, oracle seeded vs control | see G10 | see G10 | measuring |
+| Repeat-error recovery, oracle seeded vs control (r4b vs r3c) | $1.144 / 66 turns (0 queries) | $0.796 / 39 turns (**0 queries — seeds never read**) | not attributable — see G10 |
 
 Rerun analysis: both arms PASS selfcheck; **zero oracle queries, zero skill
 loads in both arms** (FAST policy held). vnext non-cached input was 62% LOWER
@@ -114,9 +114,22 @@ Task / Skill / harness-CLI counts.
 | trivial prompt (FAST tier) | baseline vs vnext | $0.0228 vs $0.0199 (0.87×), 2 turns each, 0 agent/skill/oracle calls both |
 | bugfix T3+T4 | baseline vs vnext | $0.444 vs $0.540 (1.22×), both PASS, 0 oracle calls both |
 | multi-file feature | baseline vs vnext | $0.587 vs $0.491 (0.84×), 4/4 selfchecks PASS both, 0 oracle calls both |
-| repeat-error recovery | oracle-seeded vs control | running — see final Phase 5 report |
+| repeat-error recovery | r4b (2 seeds) vs r3c (empty) | $0.796/39 turns vs $1.144/66 — **oracle arm made 0 queries**; difference is N=1 variance, NOT oracle benefit. Both arms 4/4 PASS. |
 | test-diagnosis | — | staged (arms arm-g2/arm-g2b prepared) |
 | architecture (DEEP tier) | — | PENDING (budget check first) |
+
+**Recovery-type verdict (r3/r3c/r4/r4b, full report in the development repo
+`bench/R3R4_RECOVERY_REPORT.md`):** the scenario cannot measure oracle value,
+because the noter task bundle documents both root causes in `notes.py`'s own
+docstring — reading the code answers everything, so the fail-triggered policy
+correctly produces zero queries. Secondary findings that DO survive:
+(a) the policy makes the oracle a free option — no spurious queries when the
+root cause is code-visible (the 2.33× waste class stays closed);
+(b) the isolated-store infrastructure works end-to-end — r3's query misses
+were root-caused to the CC settings-env precedence bug, fixed in the runner,
+and probe-verified; (c) a measurable oracle scenario requires the root cause
+to live OUTSIDE the readable repo (environment/config/permissions class) —
+an E4-type scenario design is the follow-up, not yet run (budget).
 
 Negative finding that reshaped the product on 2026-10-13: the seeded-history
 arm (r2) never queried the oracle (hCLI=0) because the task bundle's ISSUES.md
@@ -145,5 +158,6 @@ the corrected policy.
 | 2026-10-13 | G1–G6 (automated) | PASS | this document written from live runs |
 | 2026-10-13 | G7 local re-verify | PASS (local) | 71/71 files hash-identical to pinned clone; remote re-verify pending (network) |
 | 2026-10-13 | G9 isolation probe | PASS (probe) | contradictory rules, zero cross-talk, $0.113 |
-| 2026-10-13 | oracle policy fix | fail-triggered | r2 showed "2nd occurrence" unfireable; r3/r3c measuring the fix |
+| 2026-10-13 | oracle policy fix | fail-triggered | r2 showed "2nd occurrence" unfireable; corrected policy measured below |
+| 2026-10-13 | G10 recovery pair (r3c/r4b) | done, honest-null | oracle arm 0 queries (root causes code-visible); −30% cost = N=1 variance, not benefit; infrastructure fix (settings-env precedence) probe-verified |
 | — | G8 interactive | PENDING | awaiting user's first trusted launch |
