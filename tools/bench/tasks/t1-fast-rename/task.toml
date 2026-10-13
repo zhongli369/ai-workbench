@@ -1,0 +1,6 @@
+name = "t1-fast-rename"
+tier = "FAST"
+canary = "canary:AIWB-26B-7f3d9e2b15c8/t1"
+instruction_file = "instruction.md"
+verify = "verify.py"
+max_budget_usd = 0.75
