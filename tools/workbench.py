@@ -6,6 +6,7 @@ Commands:
   install    install workbench into a target dir (idempotent, dry-run, manifest)
   launch     print (or run) the exact claude launch command
   status     what is installed where, data stats
+  capability capability registry: list/inspect/enable/disable/doctor
   uninstall  remove ONLY files this distribution owns (manifest-driven)
   benchmark  structural resident-context estimate (no model needed)
 
@@ -24,6 +25,9 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from capability import cmd_capability  # noqa: E402
 
 RC_ROOT = Path(__file__).resolve().parent.parent
 RC_VERSION = "0.1.0-rc.1"
@@ -237,6 +241,8 @@ def cmd_install(args) -> int:
     _copytree(RC_ROOT / "workbench" / ".claude", target / ".claude", written, dry)
     _copytree(RC_ROOT / "vendor" / "ecc", target / "vendor" / "ecc", written, dry)
     _write(target / "CLAUDE.md", (RC_ROOT / "workbench" / "CLAUDE.md").read_text(encoding="utf-8"), written, dry)
+    _write(target / "capabilities" / "registry.json",
+           (RC_ROOT / "capabilities" / "registry.json").read_text(encoding="utf-8"), written, dry)
     # 2) rendered configs
     _write(target / ".claude" / "settings.json",
            _render(json.dumps(SETTINGS_TMPL, indent=2), target), written, dry)
@@ -301,12 +307,21 @@ def cmd_status(args) -> int:
             gate_mode = json.loads(gj.read_text(encoding="utf-8")).get("mode", "?")
         except json.JSONDecodeError:
             gate_mode = "corrupt!"
+    caps = {}
+    try:
+        from capability import load_registry, load_state, effective_enabled
+        reg = load_registry(target)  # 安装后的 registry 在目标内
+        st = load_state(target)
+        caps = {"total": len(reg["capabilities"]),
+                "enabled": sum(1 for c in reg["capabilities"] if effective_enabled(c, st))}
+    except Exception:
+        caps = {"total": "?", "enabled": "?"}
     print(json.dumps({
         "installed": True, "version": manifest.get("version"),
         "target": str(target), "scope": manifest.get("scope"),
         "installed_at": manifest.get("installed_at"), "ecc_pin": manifest.get("ecc_pin"),
         "files_owned": len(manifest.get("files", [])),
-        "feedback_records": n_fb, "gate_mode": gate_mode,
+        "feedback_records": n_fb, "gate_mode": gate_mode, "capabilities": caps,
     }, ensure_ascii=False, indent=2))
     return 0
 
@@ -390,11 +405,20 @@ def main(argv=None) -> int:
     l = sub.add_parser("launch")
     l.add_argument("--run", action="store_true", help="直接启动而非仅打印命令")
     sub.add_parser("status")
+    c = sub.add_parser("capability", help="能力注册中心: list/inspect/enable/disable/doctor")
+    c.add_argument("cap_cmd", choices=["list", "inspect", "enable", "disable", "doctor"])
+    c.add_argument("id", nargs="?", default=None)
+    c.add_argument("--json", action="store_true")
     u = sub.add_parser("uninstall")
     u.add_argument("--yes", action="store_true")
     u.add_argument("--purge-data", action="store_true")
     sub.add_parser("benchmark")
     args = p.parse_args(argv)
+    if args.cmd == "capability":
+        target = Path(args.target).resolve() if args.target else _default_target()
+        # 已安装目标用目标内 registry (随安装版本冻结); 未安装则用仓库内 registry
+        reg_root = target if (target / "capabilities" / "registry.json").is_file() else RC_ROOT
+        return cmd_capability(args, target, reg_root)
     return {"doctor": cmd_doctor, "install": cmd_install, "launch": cmd_launch,
             "status": cmd_status, "uninstall": cmd_uninstall,
             "benchmark": cmd_benchmark}[args.cmd](args)
