@@ -47,7 +47,7 @@ tools/workbench.py    ← 安装器 / doctor / 启动器 / 卸载器
 | 1 | 一个入口操作多项目 | 启动一次, 免 cd 跨项目工作 (绝对路径, `git -C`) |
 | 2 | 目标项目规则正确加载 | 项目级 `claudeMdExcludes` 防止全局规则包遮蔽目标项目自己的 CLAUDE.md |
 | 3 | ECC 能力按需调用 | 27 skills / 16 agents 来自 everything-claude-code, 按任务加载非常驻 |
-| 4 | 跨会话失败记忆 | `harness-core` 记录失败原因; 同一错误第二次出现时 oracle 先查历史 |
+| 4 | 跨会话失败记忆 | `harness-core` 记录失败原因; 遇到失败时 (fail-triggered) oracle 先查历史 |
 | 5 | 复杂度匹配的 token 策略 | FAST / STANDARD / DEEP: 小修不规划、不起 agent、不记账 |
 | 6 | 确定性质量与安全 | 37 项离线契约; 三档闸门 (DISABLED / AUDIT / ENFORCE) 管不可逆命令 |
 | 7 | 目标项目零侵入 | 工作台装一次, 目标项目不被修改 |
@@ -98,7 +98,7 @@ python harness-core/harness/cli.py feedback query --project-id demo --keyword al
 # → 历史修复方案浮现; 同一次调试不付两次费
 ```
 
-oracle 只在**重复**错误或用户明确要求时查询, 不是每个任务都查。
+oracle 只在**遇到失败时** (fail-triggered) 或用户明确要求时查询, 不是每个任务开始都查。
 (实测: 新鲜单缺陷任务默认先查 oracle 会使成本约翻倍且质量无增益。策略已固化这一点。)
 
 ## 诚实的性能说明

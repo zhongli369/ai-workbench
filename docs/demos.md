@@ -59,8 +59,9 @@ prompt → open both f1.py side by side → show the commit message line.
 network) surfaces in a *later, separate* session when the same error class
 appears — and the second session doesn't pay the debugging cost again.
 
-**Why it's honest.** The oracle is consulted on **repeat** errors or explicit
-request — never by default on fresh tasks (measured: default-oracle doubles
+**Why it's honest.** The oracle is consulted **when a failure is actually
+encountered** (before debugging/retrying) or on explicit request — never by
+default on fresh tasks (measured: default-oracle doubles
 cost on fresh single-defect work with zero quality gain; that negative
 result is why the policy exists).
 

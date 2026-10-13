@@ -3,6 +3,30 @@
 All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Changed (policy, evidence-driven)
+- Failure-oracle trigger corrected from "query on 2nd occurrence of the same
+  error" to **fail-triggered** (query before debugging/retrying an actual
+  failure; never by default on a fresh task). The old condition was
+  unfireable in a single session — the model cannot know an error is a
+  repeat without querying first (r2 arm, transcript hCLI=0). The 2.33×
+  lesson (never query by default) is preserved.
+
+### Added
+- `experiment-seed` feedback source: synthetic benchmark fixtures, writable
+  and queryable, explicitly barred from promotion into production evidence
+  (+1 harness-core contract → 27).
+- docs: `demos.md` (three reproducible demos), `POLICY_VERIFICATION.md`
+  (tier policy: structural guarantees vs measured behavior vs pending;
+  includes the CC env-precedence addendum).
+- RELEASE_READINESS: G7 PASS(local)/PENDING(remote), G9 PASS(probe),
+  G10 task-type matrix (trivial 0.87× / bugfix 1.22× / feature 0.84×).
+
+### Fixed
+- failure-oracle skill claimed source-weighted query ranking; the
+  implementation is time-ordered. Documentation corrected to match reality.
+
 ## [0.1.0-rc.1] — 2026-10-13
 
 First release candidate. Feature set:

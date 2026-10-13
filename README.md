@@ -53,7 +53,7 @@ tools/workbench.py    ← installer / doctor / launcher / uninstaller
 | 1 | One entry, many projects | Launch once, then `cd`-free cross-project work (absolute paths, `git -C`) |
 | 2 | Correct rules per target | Project-level `claudeMdExcludes` keeps global rule packs from shadowing a target project's own CLAUDE.md |
 | 3 | ECC capabilities on demand | 27 skills / 16 agents from everything-claude-code, loaded per-task, not resident |
-| 4 | Cross-session failure memory | `harness-core` records why approaches failed; the oracle is queried on repeat errors |
+| 4 | Cross-session failure memory | `harness-core` records why approaches failed; the oracle is queried when a failure is hit (fail-triggered) |
 | 5 | Complexity-matched tokens | FAST / STANDARD / DEEP policy: small fixes skip planning, agents, and bookkeeping |
 | 6 | Deterministic quality & safety | 37 offline contracts; three-tier gate (DISABLED / AUDIT / ENFORCE) for irreversible commands |
 | 7 | No per-project harness install | Install the workbench once; target projects stay untouched |
@@ -105,7 +105,7 @@ python harness-core/harness/cli.py feedback query --project-id demo --keyword al
 # → the past fix surfaces; you don't pay for the same debugging twice
 ```
 
-The oracle is consulted on **repeat** errors or explicit request — not on every
+The oracle is consulted when a failure is actually **encountered** (fail-triggered) or on explicit request — not on every
 task. (Measured: consulting it on a fresh single-defect bugfix roughly doubled
 cost with zero quality gain. The policy now encodes that.)
 
