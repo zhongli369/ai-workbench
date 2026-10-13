@@ -61,3 +61,23 @@ The tier system is a policy the model follows with auditable side-effects,
 backed by structural properties that make the expensive paths opt-in. It is
 **not** a runtime governor. Claims are scoped exactly to the cells above;
 empty cells are PENDING, not assumed.
+
+## Addendum 2026-10-13 — Claude Code env precedence (measured, cost us one invalid arm)
+
+When a session is launched with `--settings FILE` from a cwd that also has
+`.claude/settings.json`, the **project-level `env` block is applied to tool
+subprocesses and overrides the launching process's own env** for the same
+keys. `--settings` content outranks the project file. Measured with an
+in-session probe (`python -c "import os; print(os.environ[...])"`, $0.044):
+
+- `HARNESS_DATA_DIR` injected via `subprocess env=` → **lost** to the project
+  settings env block (`workbench-vnext/harness-data`).
+- Same key injected via a generated `--settings` file → **won**
+  (`_bench-data/r3`, probe-verified).
+- `CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD` is read by CC at startup —
+  settings env is too late for it; it must stay a real process env var.
+
+Rule of thumb: **CC-startup vars → process env; tool-subprocess vars →
+settings file.** The r3 arm's oracle queries all missed because of this
+(store pinned to the workbench's own empty-for-that-project dir); the arm is
+kept as negative evidence and the measurement rerun as r4.
