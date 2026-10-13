@@ -104,7 +104,7 @@ repeat-error recovery, architecture) in G10.
   rule packs; project-settings env block does NOT work — encoded in the
   launcher.
 
-### G10 — Five-task-type cost matrix: **IN PROGRESS**
+### G10 — Five-task-type cost matrix: **MEASURED — results mixed, all disclosed (architecture cell PENDING budget)**
 Runner `bench/run_arm.py` + transcript forensics `bench/analyze_transcript.py`
 (both in the development repo) produce per-arm cost / turns / denials /
 Task / Skill / harness-CLI counts.
@@ -115,7 +115,8 @@ Task / Skill / harness-CLI counts.
 | bugfix T3+T4 | baseline vs vnext | $0.444 vs $0.540 (1.22×), both PASS, 0 oracle calls both |
 | multi-file feature | baseline vs vnext | $0.587 vs $0.491 (0.84×), 4/4 selfchecks PASS both, 0 oracle calls both |
 | repeat-error recovery | r4b (2 seeds) vs r3c (empty) | $0.796/39 turns vs $1.144/66 — **oracle arm made 0 queries**; difference is N=1 variance, NOT oracle benefit. Both arms 4/4 PASS. |
-| test-diagnosis | — | staged (arms arm-g2/arm-g2b prepared) |
+| env-class recovery (E4) | e4o (1 seed) vs e4c (empty) | $0.307/25 turns (0 den) vs $0.565/32 turns (1 den) — **oracle arm again 0 queries** (seed `fb-3c39129847bd` never read; control queried the empty store 3×). Both arms PASS/PASS builder re-verified. Full report: dev repo `bench/E4_ENVRECOVERY_REPORT.md`. |
+| test-diagnosis | g2 (vnext) vs g2b (baseline) | $0.754/48 turns (1 den, Skill×2, hCLI×4) vs $0.417/23 turns (0/0/0) — **1.81×**: fail-triggered policy on an EMPTY store costs ~$0.34 (2 skill loads + 2 queries + bookkeeping). Both arms cache+durability PASS. Offset observation: g2 organically RECORDED its diagnosis back (`model-inference`, correct cause) — first in-vivo capture-loop write. |
 | architecture (DEEP tier) | — | PENDING (budget check first) |
 
 **Recovery-type verdict (r3/r3c/r4/r4b, full report in the development repo
@@ -127,9 +128,23 @@ correctly produces zero queries. Secondary findings that DO survive:
 root cause is code-visible (the 2.33× waste class stays closed);
 (b) the isolated-store infrastructure works end-to-end — r3's query misses
 were root-caused to the CC settings-env precedence bug, fixed in the runner,
-and probe-verified; (c) a measurable oracle scenario requires the root cause
-to live OUTSIDE the readable repo (environment/config/permissions class) —
-an E4-type scenario design is the follow-up, not yet run (budget).
+and probe-verified.
+
+**E4 verdict (env-class scenario purpose-built to force the oracle):** root
+cause moved into DATA state (`"text": null` record in a shuffled 60-line
+JSONL, crash in the CLI formatter, no code/docstring hints). Result:
+**honest-null again** — the seeded arm self-diagnosed for $0.307 without a
+single query, independently choosing the seed's recommended fix, while the
+control queried its empty store 3× before self-diagnosing for $0.565.
+Meta-finding across all three seeded arms (r3/r4b/e4o): **a model-issued
+query that hits a reachable seed has never been observed.** The advisory
+policy permits queries; the model takes them only when uncertain, and on
+small self-contained repos it is confident enough to read code+data. The
+oracle's necessary domain narrows to root causes not readable anywhere in
+the project (service/env/world-knowledge class). Evidence-based v1.1
+proposal recorded: a hook-time nudge on failing verification commands
+("query history once before debugging") — structural salience, budgeted
+against the 2.33× lesson; NOT built.
 
 Negative finding that reshaped the product on 2026-10-13: the seeded-history
 arm (r2) never queried the oracle (hCLI=0) because the task bundle's ISSUES.md
@@ -160,4 +175,6 @@ the corrected policy.
 | 2026-10-13 | G9 isolation probe | PASS (probe) | contradictory rules, zero cross-talk, $0.113 |
 | 2026-10-13 | oracle policy fix | fail-triggered | r2 showed "2nd occurrence" unfireable; corrected policy measured below |
 | 2026-10-13 | G10 recovery pair (r3c/r4b) | done, honest-null | oracle arm 0 queries (root causes code-visible); −30% cost = N=1 variance, not benefit; infrastructure fix (settings-env precedence) probe-verified |
+| 2026-10-13 | G10 E4 pair (e4c/e4o) | done, honest-null | data-state root cause; seeded arm 0 queries again ($0.307 self-fix); control 3 queries on empty store; 3 seeded arms total, 0 retrieval hits ever observed |
+| 2026-10-13 | G10 diagnosis pair (g2/g2b) | done, vnext 1.81× | policy overhead on empty store ≈$0.34 (Skill×2+queries); offset: g2 organically recorded correct diagnosis back (first in-vivo capture write) |
 | — | G8 interactive | PENDING | awaiting user's first trusted launch |

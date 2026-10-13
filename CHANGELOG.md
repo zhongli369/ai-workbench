@@ -30,6 +30,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   control is disclosed as N=1 variance with the treatment unused, NOT as an
   oracle benefit. Code-visible-bug scenarios are documented as unsuitable
   for measuring oracle retrieval value.
+- E4 env-class pair (e4c vs e4o, purpose-built data-state root cause):
+  honest-null again — seeded arm self-diagnosed for $0.307 with zero
+  queries; control burned 3 queries on an empty store. Across all three
+  seeded arms, a model-issued query hitting a reachable seed has never been
+  observed. The oracle's necessary domain narrows to root causes not
+  readable anywhere in the project; hook-time query nudge recorded as a
+  v1.1 proposal (not built).
+- G10 diagnosis pair (g2 vs g2b): vnext 1.81× ($0.754 vs $0.417) — the
+  fail-triggered policy is NOT free when the store is empty (2 skill loads
+  + 2 queries + bookkeeping ≈ $0.34). Offset observed in-vivo: the vnext
+  arm organically recorded its correct diagnosis back to the store — the
+  first unscripted capture-loop write.
 
 ### Fixed
 - failure-oracle skill claimed source-weighted query ranking; the

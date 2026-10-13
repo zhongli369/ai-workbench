@@ -30,11 +30,22 @@ over the real session transcripts of every controlled arm.
 | vnext feature (STANDARD) | 29 | 0 | 0 | 0 | $0.4912 |
 | vnext recovery r4b, oracle seeded (STANDARD) | 39 | 0 | 0 | **0 (never queried)** | $0.796 |
 | vnext recovery r3c, control empty store (STANDARD) | 66 | 0 | 0 | 0 (nothing to find) | $1.144 |
+| vnext env-recovery e4o, oracle seeded (STANDARD) | 25 | 0 | 0 | **0 (seed never read)** | $0.307 |
+| vnext env-recovery e4c, control empty store (STANDARD) | 32 | 0 | 1 | 3 (all empty) | $0.565 |
+| vnext test-diagnosis g2 (STANDARD) | 48 | 0 | 2 | 4 (empty store; incl. 1 organic record-back) | $0.754 |
+| baseline test-diagnosis g2b | 23 | 0 | 0 | 0 | $0.417 |
 
 Recovery-pair caveat: the noter bundle's `notes.py` docstring names both
 root causes, so skipping the query was correct policy execution; r4b's lower
 cost is N=1 variance with the treatment unused — not oracle benefit. Full
 analysis in the development repo `bench/R3R4_RECOVERY_REPORT.md`.
+
+E4-pair caveat: purpose-built data-state scenario (root cause NOT visible in
+code) still produced zero seeded-arm queries — the model self-diagnosed for
+$0.307 and independently chose the seed's recommended fix, while the control
+burned 3 queries on an empty store. Across all three seeded arms
+(r3/r4b/e4o), a model-issued query hitting a reachable seed has never been
+observed. Full analysis in `bench/E4_ENVRECOVERY_REPORT.md`.
 
 **Negative evidence, kept:** the invalidated first A/B (2026-10-13, before
 the policy fix) ran a small task with **5 oracle calls + 1 skill load**
@@ -52,17 +63,26 @@ fresh tasks" policy now forbids — and the fix is visible in the rerun
   is therefore **unproven** (no run needed it).
 - **STANDARD** "fail-triggered oracle": policy corrected 2026-10-13 after
   the r2 arm showed "query on 2nd occurrence" can never fire in one
-  session. The r3c/r4b controlled pair then measured the corrected trigger:
-  **zero spurious queries when the root cause is code-visible** (the oracle
-  behaved as a free option), and zero missed opportunities observable in the
-  control. A scenario where querying is *forced* to pay off (root cause
-  outside the readable repo) has not been run — the load-branch of the
-  oracle, like the skill load-branch, is **unproven in-vivo**.
+  session. The r3c/r4b pair measured the corrected trigger on a
+  code-visible scenario (oracle correctly unused = free option); the
+  e4c/e4o pair measured it on a data-state scenario built to force a
+  query — the seeded arm STILL never queried (self-diagnosis $0.307),
+  while the control queried its empty store 3×. In-vivo, the query-branch
+  fires only when the model feels stuck; on small self-contained repos it
+  does not. The oracle's load-branch is therefore **unproven in-vivo** and
+  its necessary domain is narrowed to root causes not readable anywhere in
+  the project (service/env/world-knowledge class).
 - **DEEP** "planner first, reviewer after": **no measured sample**.
   Requires an architecture-class task (G10); claimed nowhere until then.
 - **Tier cost separation** is task-driven, not mechanism-driven: FAST-class
-  runs land at ~$0.02, STANDARD-class at ~$0.5–0.8 on this reference
+  runs land at ~$0.02, STANDARD-class at ~$0.4–0.8 on this reference
   machine. The tiers steer behavior; they do not cap spend.
+- **Fail-triggered policy cost when the store is empty** (g2 arm): the
+  policy is NOT free in this cell — 2 skill loads + 2 queries + bookkeeping
+  drove $0.754 vs the baseline's $0.417 (1.81×) for equal acceptance.
+  Offset: the same arm organically recorded its (correct) diagnosis back,
+  the first in-vivo capture-loop write — the empty-store tax is exactly
+  what populates the store for the next occurrence.
 
 ## Honest bottom line
 
