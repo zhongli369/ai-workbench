@@ -40,7 +40,7 @@ Measured results, including the ones we're not proud of: [Performance](#honest-p
 
 ```
 workbench/            ← launch Claude Code here; it loads this workspace's CLAUDE.md
-harness-core/         ← self-developed: failure store, gate, telemetry (stdlib, 26 contracts)
+harness-core/         ← self-developed: failure store, gate, telemetry (stdlib, 27 contracts)
 hooks/                ← PreToolUse gate hook (fail-closed in ENFORCE mode)
 vendor/ecc/           ← third-party: everything-claude-code snapshot (MIT, pin recorded)
 tools/workbench.py    ← installer / doctor / launcher / uninstaller
@@ -55,7 +55,7 @@ tools/workbench.py    ← installer / doctor / launcher / uninstaller
 | 3 | ECC capabilities on demand | 27 skills / 16 agents from everything-claude-code, loaded per-task, not resident |
 | 4 | Cross-session failure memory | `harness-core` records why approaches failed; the oracle is queried when a failure is hit (fail-triggered) |
 | 5 | Complexity-matched tokens | FAST / STANDARD / DEEP policy: small fixes skip planning, agents, and bookkeeping |
-| 6 | Deterministic quality & safety | 37 offline contracts; three-tier gate (DISABLED / AUDIT / ENFORCE) for irreversible commands |
+| 6 | Deterministic quality & safety | 42 offline contracts; three-tier gate (DISABLED / AUDIT / ENFORCE) for irreversible commands |
 | 7 | No per-project harness install | Install the workbench once; target projects stay untouched |
 
 ## Install
@@ -126,13 +126,28 @@ Measured on the reference machine (Claude Code 2.1.x, `--output-format json` usa
   residual gap is turn-count behavior, not resident context (vnext non-cached
   input was 62% *lower*). Not yet "≈ baseline" — tracked in
   `RELEASE_READINESS.md` (G4). We publish negative results, we don't delete them.
+- **Full task-type matrix** (all N=1 per arm, transcripts audited; details in
+  `RELEASE_READINESS.md` G10 and `docs/POLICY_VERIFICATION.md`):
+  trivial **0.87×** · bugfix **1.22×** · multi-file feature **0.84×** ·
+  test-diagnosis **1.81×** (the fail-triggered policy costs ≈$0.34 when the
+  store is empty — that tax is also what populates the store; the same arm
+  organically recorded its correct diagnosis back).
+- **Repeat-error oracle: honest-null, disclosed.** Across three controlled
+  pairs with seeded failure history (including one purpose-built scenario
+  whose root cause lived in data state, not code), the seeded arm **never
+  queried the oracle** — the model self-diagnosed, once independently
+  choosing the seed's own recommended fix. The mechanism (record → store →
+  query → project isolation) is contract-verified and the policy never
+  produced wasteful queries, but an in-vivo retrieval benefit is **unproven**
+  and we say so. The oracle's plausible domain is failures whose root cause
+  is not readable anywhere in the project (environment/config/history).
 
 ## What is inherited vs self-developed
 
 | Component | Origin |
 |---|---|
 | Skills / agents / commands (27+16+14) | **Inherited** — [everything-claude-code](https://github.com/affaan-m/everything-claude-code), MIT, pinned snapshot in `vendor/ecc/` (see `NOTICE`) |
-| harness-core (feedback, gate, report, telemetry) | **Self-developed**, stdlib-only, deterministic, 26 contracts |
+| harness-core (feedback, gate, report, telemetry) | **Self-developed**, stdlib-only, deterministic, 27 contracts |
 | Installer / launcher / uninstaller | **Self-developed** |
 | FAST/STANDARD/DEEP cost policy | **Self-developed**, driven by measurements above |
 

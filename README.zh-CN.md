@@ -34,7 +34,7 @@ python tools/workbench.py install && python tools/workbench.py launch
 
 ```
 workbench/            ← 在此启动 Claude Code; 自动加载工作台 CLAUDE.md
-harness-core/         ← 自研: 失败存储 / 闸门 / telemetry (纯 stdlib, 26 项契约)
+harness-core/         ← 自研: 失败存储 / 闸门 / telemetry (纯 stdlib, 27 项契约)
 hooks/                ← PreToolUse 闸门 hook (ENFORCE 模式 fail-closed)
 vendor/ecc/           ← 第三方: everything-claude-code 快照 (MIT, pin 已记录)
 tools/workbench.py    ← 安装器 / doctor / 启动器 / 卸载器
@@ -49,7 +49,7 @@ tools/workbench.py    ← 安装器 / doctor / 启动器 / 卸载器
 | 3 | ECC 能力按需调用 | 27 skills / 16 agents 来自 everything-claude-code, 按任务加载非常驻 |
 | 4 | 跨会话失败记忆 | `harness-core` 记录失败原因; 遇到失败时 (fail-triggered) oracle 先查历史 |
 | 5 | 复杂度匹配的 token 策略 | FAST / STANDARD / DEEP: 小修不规划、不起 agent、不记账 |
-| 6 | 确定性质量与安全 | 37 项离线契约; 三档闸门 (DISABLED / AUDIT / ENFORCE) 管不可逆命令 |
+| 6 | 确定性质量与安全 | 42 项离线契约; 三档闸门 (DISABLED / AUDIT / ENFORCE) 管不可逆命令 |
 | 7 | 目标项目零侵入 | 工作台装一次, 目标项目不被修改 |
 
 ## 安装
@@ -114,13 +114,23 @@ oracle 只在**遇到失败时** (fail-triggered) 或用户明确要求时查询
   两项修复后受控复测 = **1.22 倍** ($0.540 vs $0.444, 双臂 PASS, 零 oracle 调用)。
   残余差距来自轮次行为, 非常驻上下文 (vnext 非缓存输入反低 62%)。尚未达到
   "≈ baseline" — 追踪在 `RELEASE_READINESS.md` (G4)。不利证据我们保留, 不删除。
+- **全任务类型矩阵** (全部 N=1, transcript 已审计; 详见 `RELEASE_READINESS.md` G10
+  与 `docs/POLICY_VERIFICATION.md`): 琐碎 **0.87×** · bugfix **1.22×** ·
+  多文件特性 **0.84×** · 测试诊断 **1.81×** (fail-triggered 策略在空库上的成本
+  ≈$0.34 — 这笔税同时也在为库填充经验; 同一臂把正确诊断自然写回了库)。
+- **重复错误 oracle: honest-null, 如实披露。** 三组带预置失败史的受控对
+  (含一组专为逼迫 oracle 设计的数据态根因场景) 中, 种子臂**从未查询过 oracle** —
+  模型全部自诊修复, 有一次还独立选中了种子自己推荐的修法。机制
+  (记录→存储→查询→项目隔离) 契约级验证通过, 策略也从未产生浪费性查询, 但
+  in-vivo 检索收益**尚未证明**, 我们如实写明。oracle 的合理适用面 = 根因不在
+  项目内任何可读之处的失败 (环境/配置/历史决策类)。
 
 ## 继承 vs 自研
 
 | 组件 | 来源 |
 |---|---|
 | Skills / agents / commands (27+16+14) | **继承** — [everything-claude-code](https://github.com/affaan-m/everything-claude-code), MIT, pin 快照在 `vendor/ecc/` (见 `NOTICE`) |
-| harness-core (feedback / gate / report / telemetry) | **自研**, 纯 stdlib, 确定性, 26 项契约 |
+| harness-core (feedback / gate / report / telemetry) | **自研**, 纯 stdlib, 确定性, 27 项契约 |
 | 安装器 / 启动器 / 卸载器 | **自研** |
 | FAST/STANDARD/DEEP 成本策略 | **自研**, 由上述实测驱动 |
 
