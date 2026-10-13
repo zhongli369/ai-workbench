@@ -195,3 +195,14 @@ def test_cli_gate_check_and_report_roundtrip(tmp_path):
     rep = json.loads(run("report", "--project-id", "p1").stdout)
     assert rep["recurring"][0]["cause"] == "cache_stale"
     assert "user-correction" in rep["recurring"][0]["sources"]
+
+
+def test_experiment_seed_source_roundtrip(tmp_path):
+    """experiment-seed records: writable, queryable, clearly marked synthetic."""
+    rec = feedback.record(tmp_path, project_id="p1", cause="stale_cache",
+                          summary="synthetic fixture", source="experiment-seed",
+                          confidence=1.0)
+    assert rec["source"] == "experiment-seed"
+    hits = feedback.query(tmp_path, project_id="p1", keyword="stale_cache")
+    assert [h["record_id"] for h in hits] == [rec["record_id"]]
+    assert hits[0]["source"] == "experiment-seed"

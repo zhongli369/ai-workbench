@@ -5,6 +5,8 @@ Write schema (v2, superset of v1):
    source, confidence, status}
   - source: "user-correction" | "model-inference" | "human-verified" (user
     correction outranks model inference; free-form non-empty strings tolerated)
+    | "experiment-seed" (synthetic benchmark fixture — MUST NOT be promoted
+    or treated as production evidence)
   - confidence: 0..1 (clamped)
   - status: "candidate" (default) | "verified" | "promoted" | "retired"
     Status changes are append-only via promotions.jsonl (last write wins);

@@ -29,7 +29,7 @@ def _build_parser() -> argparse.ArgumentParser:
     r.add_argument("--project-id", default=None)
     r.add_argument("--redact", action="store_true")
     r.add_argument("--source", default="model-inference",
-                   help="user-correction | model-inference | human-verified")
+                   help="user-correction | model-inference | human-verified | experiment-seed")
     r.add_argument("--confidence", type=float, default=0.5)
 
     q = rec.add_parser("query", help="recent failures for this project")

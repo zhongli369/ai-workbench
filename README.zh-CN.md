@@ -1,13 +1,36 @@
 # AI 工作台
 
-**你的 AI 编码工作台跨会话记住失败、跨项目工作。**
+*面向 Claude Code 的统一、带记忆的工程工作台。*
 
-AI 工作台是一个面向 [Claude Code](https://claude.com/claude-code) 的统一、带记忆的工程工作台。
-它**不是**又一个 Skills 大合集, 而是一个薄编排层, 组合了三件事:
+**这是什么。** 一层安装在 [Claude Code](https://claude.com/claude-code) 之上的薄工作台 — 不是又一个 Skills 大合集。一次启动, 指向任意项目; 它记住过去失败的原因; 小任务保持便宜。
 
-1. **单一入口** — 从一个地方操作任意项目,
-2. **失败记忆** — 本地、只追加、零网络, 同一个错误不付第二次学费,
-3. **复杂度匹配的成本策略** — 小修改不为重型机制买单。
+**解决的痛点。** ①多个仓库来回切换, 每次会话都要重建上下文; ②同一个 bug 调试两遍, 因为上周的根因没人记下来; ③能力包让每条提示词都为今天用不上的规则付费。
+
+**区别在哪** — 按来源诚实拆分:
+
+| | 原生 Claude Code | everything-claude-code (ECC) | AI 工作台 |
+|---|---|---|---|
+| 单项目内改代码/测试/交付 | ✔ (CC 本身) | | |
+| 60+ agents / 240+ skills 目录 | | ✔ (上游项目) | |
+| 精选 ECC 子集, 按需非常驻 | | | ✔ (27 skills / 16 agents, 已 pin) |
+| 一个工作台操作多项目 | | | ✔ (自研) |
+| 跨会话失败记忆 + 重错 oracle | | | ✔ (自研, harness-core) |
+| FAST/STANDARD/DEEP 成本策略 | | | ✔ (自研) |
+| 不可逆命令三档闸门 | | | ✔ (自研) |
+
+**安装** (Python ≥ 3.10 + Claude Code CLI; Windows 主测, Linux/macOS 走 CI):
+
+```bash
+git clone <本仓库> && cd ai-workbench-rc
+python tools/workbench.py doctor
+python tools/workbench.py install && python tools/workbench.py launch
+```
+
+**看真实演示** — 三个可复现 demo (离线可验收):
+[1 · 一个工作台, 两个规则冲突的项目](docs/demos.md#demo-1) ·
+[2 · 会话 A 记录的失败在会话 B 被复用](docs/demos.md#demo-2) ·
+[3 · 多文件功能 + 按需能力](docs/demos.md#demo-3)。
+实测数字(包括不好看的): [性能](#诚实的性能说明)。
 
 ```
 workbench/            ← 在此启动 Claude Code; 自动加载工作台 CLAUDE.md
