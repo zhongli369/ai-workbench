@@ -1,0 +1,83 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# No secrets, no network services, no Claude Code login, no machine-specific
+# paths — every job runs on a bare GitHub-hosted runner.
+
+jobs:
+  contracts:
+    name: contracts (${{ matrix.os }} / py${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+        python-version: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: harness-core contracts (26)
+        run: python -m pytest harness-core/tests/ -q
+      - name: clean-room install contracts (11)
+        run: python -m pytest tests/ -q
+
+  static:
+    name: static checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: compileall (syntax gate)
+        run: python -m compileall -q tools/ harness-core/harness/ hooks/
+      - name: no personal paths / secrets in tree
+        run: python tools/check_hygiene.py
+      - name: third-party license files present
+        run: |
+          test -f LICENSE
+          test -f vendor/ecc/LICENSE
+          test -f NOTICE
+
+  cli-smoke:
+    name: CLI smoke (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: doctor runs without mutating
+        run: python tools/workbench.py --target "$RUNNER_TEMP/wb-smoke" doctor
+      - name: install dry-run writes nothing
+        run: |
+          python tools/workbench.py --target "$RUNNER_TEMP/wb-smoke" install --scope standalone --dry-run --yes
+          test ! -e "$RUNNER_TEMP/wb-smoke"
+      - name: real install + status + benchmark + uninstall (owns-only)
+        run: |
+          python tools/workbench.py --target "$RUNNER_TEMP/wb-smoke" install --yes
+          python tools/workbench.py --target "$RUNNER_TEMP/wb-smoke" status
+          python tools/workbench.py --target "$RUNNER_TEMP/wb-smoke" benchmark
+          python tools/workbench.py --target "$RUNNER_TEMP/wb-smoke" uninstall --yes --purge-data
+          test ! -e "$RUNNER_TEMP/wb-smoke"
+
+  package:
+    name: source package builds
+    runs-on: ubuntu-latest
+    needs: [contracts, static]
+    steps:
+      - uses: actions/checkout@v4
+      - name: build zipapp of the installer CLI
+        run: |
+          python -m zipapp tools -m "workbench:main" -o dist/workbench.pyz -p "/usr/bin/env python3"
+          python dist/workbench.pyz --help

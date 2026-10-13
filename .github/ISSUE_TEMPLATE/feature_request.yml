@@ -1,0 +1,42 @@
+name: Feature Request
+description: Propose an improvement or new capability
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This project optimizes for **reliability over feature count**.
+        Requests that come with a measurement (cost, failure rate, time saved)
+        are far more likely to land than requests for more agents/skills.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the pain, not the solution. When did you last hit it?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: What should exist that doesn't today?
+    validations:
+      required: true
+  - type: dropdown
+    id: evidence
+    attributes:
+      label: What evidence can you provide?
+      options:
+        - Measured cost/time comparison
+        - A reproducible failure case
+        - A workflow description only
+        - None yet
+    validations:
+      required: true
+  - type: checkboxes
+    id: fit
+    attributes:
+      label: I have checked that this
+      options:
+        - label: is not already covered by an existing skill/agent (see README capability table)
+        - label: does not require harness-core to auto-modify user config (a project invariant)

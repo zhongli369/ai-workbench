@@ -1,0 +1,51 @@
+name: Bug Report
+description: Something installed, ran, or behaved incorrectly
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. The most useful bug reports include the
+        **doctor output** and the **exact command** that failed.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, what did you get?
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Doctor output
+      description: Paste the full output of `python tools/workbench.py doctor`
+      render: text
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - install / uninstall
+        - launch / interactive session
+        - harness-core (feedback / gate / report / telemetry)
+        - skills / agents (ECC content)
+        - performance / token cost
+        - documentation
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      description: OS, Python version, Claude Code version (`claude --version`)
+      placeholder: "Windows 11, Python 3.12, Claude Code 2.1.x"
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant output / logs
+      description: Terminal output, error text, gate log rows. Remove anything private.
+      render: text

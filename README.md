@@ -1,0 +1,160 @@
+# AI Workbench
+
+*A unified, memory-aware engineering workspace for Claude Code.*
+
+**What it is.** A thin, install-once workspace layer on top of
+[Claude Code](https://claude.com/claude-code) — not another skills mega-pack.
+You launch one workspace and point it at any project; it remembers why
+previous approaches failed; small tasks stay cheap.
+
+**The pain it fixes.** ① juggling several repos means re-establishing context
+in every session; ② the same bug gets debugged twice because last week's
+root cause lives in nobody's notes; ③ capability packs charge every prompt
+for rules you don't need today.
+
+**How it's different** — honestly split by origin:
+
+| | native Claude Code | everything-claude-code (ECC) | AI Workbench |
+|---|---|---|---|
+| Edit, test, ship in one project | ✔ (this is CC itself) | | |
+| 60+ agents / 240+ skills catalog | | ✔ (upstream project) | |
+| Curated ECC subset, on-demand not resident | | | ✔ (27 skills / 16 agents, pinned) |
+| One workspace operating many projects | | | ✔ (self-developed) |
+| Cross-session failure memory + repeat-error oracle | | | ✔ (self-developed, harness-core) |
+| FAST/STANDARD/DEEP cost policy | | | ✔ (self-developed) |
+| Three-tier gate for irreversible commands | | | ✔ (self-developed) |
+
+**Install** (Python ≥ 3.10 + Claude Code CLI; Windows primary, Linux/macOS via CI):
+
+```bash
+git clone <this repo> && cd ai-workbench-rc
+python tools/workbench.py doctor
+python tools/workbench.py install && python tools/workbench.py launch
+```
+
+**See it work** — three reproducible demos (offline verifiable):
+[1 · one workspace, two projects with conflicting rules](docs/demos.md#demo-1) ·
+[2 · a failure recorded in session A is reused in session B](docs/demos.md#demo-2) ·
+[3 · multi-file feature with on-demand capabilities](docs/demos.md#demo-3).
+Measured results, including the ones we're not proud of: [Performance](#honest-performance-notes).
+
+```
+workbench/            ← launch Claude Code here; it loads this workspace's CLAUDE.md
+harness-core/         ← self-developed: failure store, gate, telemetry (stdlib, 26 contracts)
+hooks/                ← PreToolUse gate hook (fail-closed in ENFORCE mode)
+vendor/ecc/           ← third-party: everything-claude-code snapshot (MIT, pin recorded)
+tools/workbench.py    ← installer / doctor / launcher / uninstaller
+```
+
+## What you get
+
+| # | Differentiator | How |
+|---|---|---|
+| 1 | One entry, many projects | Launch once, then `cd`-free cross-project work (absolute paths, `git -C`) |
+| 2 | Correct rules per target | Project-level `claudeMdExcludes` keeps global rule packs from shadowing a target project's own CLAUDE.md |
+| 3 | ECC capabilities on demand | 27 skills / 16 agents from everything-claude-code, loaded per-task, not resident |
+| 4 | Cross-session failure memory | `harness-core` records why approaches failed; the oracle is queried on repeat errors |
+| 5 | Complexity-matched tokens | FAST / STANDARD / DEEP policy: small fixes skip planning, agents, and bookkeeping |
+| 6 | Deterministic quality & safety | 37 offline contracts; three-tier gate (DISABLED / AUDIT / ENFORCE) for irreversible commands |
+| 7 | No per-project harness install | Install the workbench once; target projects stay untouched |
+
+## Install
+
+Requirements: **Python ≥ 3.10**, Claude Code CLI. Windows is the primary tested
+platform; Linux/macOS use the POSIX code paths exercised in CI.
+
+```bash
+git clone <this repo>
+cd ai-workbench-rc
+python tools/workbench.py doctor                      # preflight, never mutates
+python tools/workbench.py install --scope standalone  # default: platform data dir
+python tools/workbench.py launch                      # prints the exact launch command
+```
+
+Scopes: `standalone` (default, single dir) · `project` (`.ai-workbench/` inside a
+repo) · `user` (prints manual global-config steps — **never** edits your global
+config silently).
+
+Uninstall removes only files this distribution owns (tracked in
+`install-manifest.json`) and preserves your feedback data unless `--purge-data`:
+
+```bash
+python tools/workbench.py uninstall --yes
+```
+
+## 5-minute quickstart
+
+1. `python tools/workbench.py install --yes`
+2. Run the command printed by `python tools/workbench.py launch`
+3. Inside the session, point at any project: *"fix the failing test in D:\some\other\repo"*
+4. Deliberately trigger a guardrail: *"git push"* — watch the gate log an AUDIT entry
+   (switch to ENFORCE with `python harness-core/harness/cli.py gate mode --set enforce`)
+5. Next session, the failure store is still there: `status` shows your accumulated records.
+
+## The failure-reuse demo (the point of the memory)
+
+```bash
+# session 1 — a failure happens and is recorded
+python harness-core/harness/cli.py feedback record \
+  --project-id demo --cause permission_tool_mismatch \
+  --summary "allowedTools listed Bash(python:*) but the model used the PowerShell tool" \
+  --source human-verified --confidence 1.0
+
+# session 2 — the same error class appears; query before retrying
+python harness-core/harness/cli.py feedback query --project-id demo --keyword allowedTools --json
+# → the past fix surfaces; you don't pay for the same debugging twice
+```
+
+The oracle is consulted on **repeat** errors or explicit request — not on every
+task. (Measured: consulting it on a fresh single-defect bugfix roughly doubled
+cost with zero quality gain. The policy now encodes that.)
+
+## Honest performance notes
+
+Measured on the reference machine (Claude Code 2.1.x, `--output-format json` usage):
+
+- **Resident context** (structural, model-independent, `workbench benchmark`):
+  workbench L0 ≈ 1.7 k chars; L0 + full skill index ≈ 9.0 k chars vs the
+  equivalent global rule layer at ≈ 20.7 k chars → **−57%** (L0 alone −92%).
+- **Fixed trivial prompt**: vnext $0.0199 vs baseline $0.0228 (same model, same
+  prompt, N=1 each).
+- **Task-level cost is the hard part**: our first controlled bugfix A/B
+  measured vnext at **2.33×** baseline cost ($1.335 vs $0.569). Root-caused to
+  (a) permission-pattern trial-and-error and (b) oracle consultation on fresh
+  defects. After shipping both fixes, the controlled rerun measured **1.22×**
+  ($0.540 vs $0.444, both arms PASS, zero oracle calls in either arm). The
+  residual gap is turn-count behavior, not resident context (vnext non-cached
+  input was 62% *lower*). Not yet "≈ baseline" — tracked in
+  `RELEASE_READINESS.md` (G4). We publish negative results, we don't delete them.
+
+## What is inherited vs self-developed
+
+| Component | Origin |
+|---|---|
+| Skills / agents / commands (27+16+14) | **Inherited** — [everything-claude-code](https://github.com/affaan-m/everything-claude-code), MIT, pinned snapshot in `vendor/ecc/` (see `NOTICE`) |
+| harness-core (feedback, gate, report, telemetry) | **Self-developed**, stdlib-only, deterministic, 26 contracts |
+| Installer / launcher / uninstaller | **Self-developed** |
+| FAST/STANDARD/DEEP cost policy | **Self-developed**, driven by measurements above |
+
+## Safety semantics (read before relying on the gate)
+
+- `DISABLED`: gate does nothing.
+- `AUDIT`: records and prompts — **this is observability, not protection**.
+- `ENFORCE`: configured high-risk patterns are blocked unless pre-approved
+  (TTL approvals); unreadable config fails **closed**.
+- `claude --print` (non-interactive) does not execute PreToolUse hooks — gate
+  enforcement applies to interactive sessions. Verified 2026-10 on CC 2.1.x.
+
+## Docs
+
+- [README.zh-CN.md](README.zh-CN.md) — 中文说明
+- [NOTICE](NOTICE) — third-party attribution & ECC pin rationale
+- [SECURITY.md](SECURITY.md) — threat model & reporting
+- [CHANGELOG.md](CHANGELOG.md) — release history
+- [RELEASE_READINESS.md](RELEASE_READINESS.md) — gate-by-gate PASS/FAIL/PENDING status
+- [harness-core/README.md](harness-core/README.md) — the memory/safety toolkit, usable standalone
+
+## License
+
+MIT (this distribution's own code). everything-claude-code is MIT by its
+respective authors — see `vendor/ecc/LICENSE` and `NOTICE`.

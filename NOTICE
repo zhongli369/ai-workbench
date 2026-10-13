@@ -1,0 +1,36 @@
+THIRD-PARTY NOTICES
+===================
+
+This distribution bundles a snapshot of third-party material. The licenses of
+those components govern their use; nothing here grants rights beyond them.
+
+----------------------------------------------------------------------
+everything-claude-code (ECC)
+----------------------------------------------------------------------
+Source:    https://github.com/affaan-m/everything-claude-code
+License:   MIT (full text: vendor/ecc/LICENSE)
+Bundled:   vendor/ecc/ (provenance files) plus the skills/agents/commands
+           snapshot installed under workbench/.claude/ (27 skills, 16 agents,
+           14 commands selected from the pinned revision)
+Pin:       commit 928076cc08cbb31e8549cea2883b4f51811de1c8
+           (upstream tag v2.0.0-rc.1, dated 2026-05-25)
+
+Why a pinned snapshot instead of "latest":
+  1. Reproducibility — an installer whose payload moves upstream cannot be
+     regression-tested. The pin makes every install byte-identical.
+  2. Reviewability — the snapshot was reviewed for machine-specific paths,
+     secrets, and unsafe auto-executing hooks before inclusion.
+  3. Known compatibility risk — upstream may have published fixes after
+     2026-05-25. At the time of this RC the maintainer's network could not
+     reach github.com (TLS handshake failure through the local proxy), so
+     "current stable" could not be re-verified online. Before v1.0 the pin
+     MUST be re-checked against upstream and either bumped or re-justified.
+     Track: RELEASE_READINESS.md, gate G7.
+
+What was NOT taken from ECC:
+  - The Node.js hook runtime (per-tool-call spawn cost conflicts with the
+    token budget; the self-developed Python gate replaces that function).
+  - Install scripts and profiles (this distribution has its own installer).
+
+----------------------------------------------------------------------
+Everything else in this repository is original work licensed MIT (see LICENSE).

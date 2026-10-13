@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/OWNER/REPO/security/policy
+    about: Do NOT open a public issue — see SECURITY.md for private reporting.
+  - name: Usage question
+    url: https://github.com/OWNER/REPO/discussions
+    about: Questions about installing or using the workbench belong in Discussions.
