@@ -19,12 +19,16 @@ REGISTRY = RC_ROOT / "capabilities" / "registry.json"
 OSI_ALLOWED = {"MIT", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "ISC"}
 
 
-def run_wb(*args, target=None):
+def run_wb(*args, target=None, env_extra=None):
+    import os
     cmd = [sys.executable, str(WB)]
     if target is not None:
         cmd += ["--target", str(target)]
     cmd += list(args)
-    return subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+    env = dict(os.environ)
+    if env_extra:
+        env.update(env_extra)
+    return subprocess.run(cmd, capture_output=True, text=True, timeout=60, env=env)
 
 
 @pytest.fixture()
@@ -97,15 +101,28 @@ def test_enable_disable_roundtrip_isolated(tmp_path):
 
 
 def test_mutex_enforced_on_enable(tmp_path):
+    import os
+    import shutil as _sh
     (tmp_path / "capabilities").mkdir()
     (tmp_path / "capabilities" / "registry.json").write_text(
         REGISTRY.read_text(encoding="utf-8"), encoding="utf-8")
-    assert run_wb("capability", "enable", "agent-browser", target=tmp_path).returncode == 0
-    r = run_wb("capability", "enable", "playwright-mcp", target=tmp_path)
+    _sh.copytree(RC_ROOT / "capabilities" / "wiring",
+                 tmp_path / "capabilities" / "wiring")
+    # wiring v1.1: agent-browser has wiring_action, so enable requires its
+    # health check — provide a fake user-installed CLI on PATH.
+    bin_dir = tmp_path / "fakebin"
+    bin_dir.mkdir()
+    (bin_dir / "agent-browser.exe").write_text("@echo off\r\n", encoding="utf-8")
+    env = {"PATH": str(bin_dir) + os.pathsep + os.environ.get("PATH", "")}
+    assert run_wb("capability", "enable", "agent-browser",
+                  target=tmp_path, env_extra=env).returncode == 0
+    r = run_wb("capability", "enable", "playwright-mcp", target=tmp_path, env_extra=env)
     assert r.returncode == 1
     assert "互斥" in r.stdout
-    assert run_wb("capability", "disable", "agent-browser", target=tmp_path).returncode == 0
-    assert run_wb("capability", "enable", "playwright-mcp", target=tmp_path).returncode == 0
+    assert run_wb("capability", "disable", "agent-browser",
+                  target=tmp_path, env_extra=env).returncode == 0
+    assert run_wb("capability", "enable", "playwright-mcp",
+                  target=tmp_path, env_extra=env).returncode == 0
 
 
 def test_unknown_capability_rejected(tmp_path):

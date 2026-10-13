@@ -31,13 +31,23 @@ def _build_parser() -> argparse.ArgumentParser:
     r.add_argument("--source", default="model-inference",
                    help="user-correction | model-inference | human-verified | experiment-seed")
     r.add_argument("--confidence", type=float, default=0.5)
+    r.add_argument("--valid-until", default=None,
+                   help="ISO date/datetime; record hidden from default query after this (never deleted)")
 
     q = rec.add_parser("query", help="recent failures for this project")
     q.add_argument("--project-id", default=None)
     q.add_argument("--last", type=int, default=10)
     q.add_argument("--archetype", default=None)
-    q.add_argument("--keyword", default=None, help="substring over summary+cause (failure oracle)")
+    q.add_argument("--keyword", default=None,
+                   help="substring filter over summary+cause, BM25-ranked (failure oracle)")
+    q.add_argument("--include-expired", action="store_true")
+    q.add_argument("--include-superseded", action="store_true")
     q.add_argument("--json", action="store_true")
+
+    sup = rec.add_parser("supersede", help="mark a record as replaced by a newer one (append-only)")
+    sup.add_argument("--record-id", required=True, help="old record to hide by default")
+    sup.add_argument("--superseded-by", required=True, help="newer replacement record")
+    sup.add_argument("--project-id", default=None)
 
     s = rec.add_parser("stats", help="aggregate per cause")
     s.add_argument("--project-id", default=None)
@@ -95,6 +105,7 @@ def main(argv: list[str] | None = None) -> int:
             redact=args.redact,
             source=args.source,
             confidence=args.confidence,
+            valid_until=args.valid_until,
         )
         print(json.dumps(rec, ensure_ascii=False))
         print(f"project_id={pid} (source: {source})", file=sys.stderr)
@@ -103,7 +114,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "feedback" and args.fcmd == "query":
         telemetry.log(data_dir, cmd="feedback.query", project_id=pid, argv=sys.argv)
         rows = feedback.query(data_dir, project_id=pid, last=args.last,
-                              archetype=args.archetype, keyword=args.keyword)
+                              archetype=args.archetype, keyword=args.keyword,
+                              include_expired=args.include_expired,
+                              include_superseded=args.include_superseded)
         if args.json:
             print(json.dumps(rows, ensure_ascii=False, indent=2))
         else:
@@ -124,6 +137,14 @@ def main(argv: list[str] | None = None) -> int:
         telemetry.log(data_dir, cmd="feedback.promote", project_id=pid, argv=sys.argv)
         entry = feedback.promote(data_dir, project_id=pid,
                                  record_id=args.record_id, status=args.status)
+        print(json.dumps(entry, ensure_ascii=False))
+        return 0
+
+    if args.cmd == "feedback" and args.fcmd == "supersede":
+        telemetry.log(data_dir, cmd="feedback.supersede", project_id=pid, argv=sys.argv)
+        entry = feedback.supersede(data_dir, project_id=pid,
+                                   record_id=args.record_id,
+                                   superseded_by=args.superseded_by)
         print(json.dumps(entry, ensure_ascii=False))
         return 0
 

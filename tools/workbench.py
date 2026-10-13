@@ -243,6 +243,7 @@ def cmd_install(args) -> int:
     _write(target / "CLAUDE.md", (RC_ROOT / "workbench" / "CLAUDE.md").read_text(encoding="utf-8"), written, dry)
     _write(target / "capabilities" / "registry.json",
            (RC_ROOT / "capabilities" / "registry.json").read_text(encoding="utf-8"), written, dry)
+    _copytree(RC_ROOT / "capabilities" / "wiring", target / "capabilities" / "wiring", written, dry)
     # 2) rendered configs
     _write(target / ".claude" / "settings.json",
            _render(json.dumps(SETTINGS_TMPL, indent=2), target), written, dry)

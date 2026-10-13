@@ -8,13 +8,19 @@
       "origin": "self",
       "version": "0.1.0",
       "license": "MIT",
-      "applies_to": ["recovery", "diagnosis"],
+      "applies_to": [
+        "recovery",
+        "diagnosis"
+      ],
       "deps": [],
       "cost_hint": "zero resident; per-query CLI call only",
       "trigger": "fail-triggered only (query before debugging an actual failure; never by default on a fresh task)",
       "mutex": [],
       "security": "local JSONL only; no network; project-isolated",
-      "health": {"type": "file", "path": "harness-core/harness/feedback.py"},
+      "health": {
+        "type": "file",
+        "path": "harness-core/harness/feedback.py"
+      },
       "wiring": "active (fail-triggered policy in workbench CLAUDE.md + failure-oracle skill)",
       "default_enabled": true,
       "evidence": "mechanism contract-verified; in-vivo retrieval benefit UNPROVEN (honest-null x3, see docs/POLICY_VERIFICATION.md)"
@@ -25,13 +31,18 @@
       "origin": "self",
       "version": "0.1.0",
       "license": "MIT",
-      "applies_to": ["all"],
+      "applies_to": [
+        "all"
+      ],
       "deps": [],
       "cost_hint": "zero resident; PreToolUse hook subprocess per Bash call",
       "trigger": "every Bash tool call in interactive sessions (hook)",
       "mutex": [],
       "security": "ENFORCE fails closed on unreadable config; AUDIT is observability not protection",
-      "health": {"type": "file", "path": "hooks/harness_gate.py"},
+      "health": {
+        "type": "file",
+        "path": "hooks/harness_gate.py"
+      },
       "wiring": "active (project settings.json PreToolUse hook); mode via harness CLI gate mode",
       "default_enabled": true,
       "evidence": "42 contracts incl. fail-closed; --print sessions do not execute hooks (disclosed)"
@@ -42,13 +53,19 @@
       "origin": "everything-claude-code (pinned snapshot)",
       "version": "2.0.0-rc.1",
       "license": "MIT",
-      "applies_to": ["standard", "deep"],
+      "applies_to": [
+        "standard",
+        "deep"
+      ],
       "deps": [],
       "cost_hint": "frontmatter index only until invoked; full skill body on demand",
       "trigger": "model invokes Skill tool per task need",
       "mutex": [],
       "security": "static markdown; reviewed snapshot; pin recorded in NOTICE",
-      "health": {"type": "dir", "path": ".claude/skills"},
+      "health": {
+        "type": "dir",
+        "path": ".claude/skills"
+      },
       "wiring": "active (installed into target .claude/skills)",
       "default_enabled": true,
       "evidence": "resident-context benchmark (workbench benchmark)"
@@ -59,13 +76,18 @@
       "origin": "everything-claude-code (pinned snapshot)",
       "version": "2.0.0-rc.1",
       "license": "MIT",
-      "applies_to": ["deep"],
+      "applies_to": [
+        "deep"
+      ],
       "deps": [],
       "cost_hint": "zero until Task tool invokes one",
       "trigger": "STANDARD+/DEEP tasks only; never by default",
       "mutex": [],
       "security": "static markdown; same pin as ecc-skills",
-      "health": {"type": "dir", "path": ".claude/agents"},
+      "health": {
+        "type": "dir",
+        "path": ".claude/agents"
+      },
       "wiring": "active (installed into target .claude/agents)",
       "default_enabled": true,
       "evidence": "multi-agent only where net-positive; A/B evidence pending (G10 architecture cell)"
@@ -76,13 +98,18 @@
       "origin": "self",
       "version": "0.2.0",
       "license": "MIT",
-      "applies_to": ["all"],
+      "applies_to": [
+        "all"
+      ],
       "deps": [],
       "cost_hint": "resident in L0 CLAUDE.md (~policy text only)",
       "trigger": "model self-classifies per task",
       "mutex": [],
       "security": "policy never disables safety checks",
-      "health": {"type": "file", "path": "CLAUDE.md"},
+      "health": {
+        "type": "file",
+        "path": "CLAUDE.md"
+      },
       "wiring": "active (policy text in workbench CLAUDE.md)",
       "default_enabled": true,
       "evidence": "driven by measured matrix: trivial 0.87x / bugfix 1.22x / feature 0.84x / diagnosis 1.81x (all disclosed)"
@@ -93,13 +120,20 @@
       "origin": "codelike (optional, external to this distribution)",
       "version": "unpinned",
       "license": "MIT",
-      "applies_to": ["deep"],
-      "deps": ["python>=3.10"],
+      "applies_to": [
+        "deep"
+      ],
+      "deps": [
+        "python>=3.10"
+      ],
       "cost_hint": "zero until explicitly invoked via its CLI",
       "trigger": "DEEP tasks only, on explicit request; NEVER a required step",
       "mutex": [],
       "security": "set AIWB_CODELIKE_CLI to the absolute path of brain/cli.py; not bundled",
-      "health": {"type": "env", "var": "AIWB_CODELIKE_CLI"},
+      "health": {
+        "type": "env",
+        "var": "AIWB_CODELIKE_CLI"
+      },
       "wiring": "recorded-intent (v1): enable/disable records operator intent; invocation stays manual",
       "default_enabled": false,
       "evidence": "516 tests green upstream; 0 external pulls in telemetry — value unproven, optional"
@@ -110,16 +144,29 @@
       "origin": "external-optional (yamadashy/repomix)",
       "version": "unpinned",
       "license": "MIT",
-      "applies_to": ["deep", "large-repo navigation"],
-      "deps": ["node"],
+      "applies_to": [
+        "deep",
+        "large-repo navigation"
+      ],
+      "deps": [
+        "node"
+      ],
       "cost_hint": "zero resident; CLI output injected on demand",
       "trigger": "large-repo orientation when built-in search is insufficient",
       "mutex": [],
       "security": "fully local; no external service",
-      "health": {"type": "cli", "bin": "repomix"},
-      "wiring": "recorded-intent (v1): enable/disable records operator intent; invocation stays manual",
+      "health": {
+        "type": "cli",
+        "bin": "repomix"
+      },
+      "wiring": "skill-file (v1.1): enable requires health ok, then writes managed .claude/skills/aiwb-<id>/SKILL.md (never auto-installs the tool itself)",
       "default_enabled": false,
-      "evidence": "M1 recon 2026-10-13; not yet benchmarked in-product"
+      "evidence": "M1 recon 2026-10-13; not yet benchmarked in-product",
+      "wiring_action": {
+        "type": "skill-file",
+        "template": "repomix.skill.md",
+        "dest": ".claude/skills/aiwb-repomix/SKILL.md"
+      }
     },
     {
       "id": "agent-browser",
@@ -127,16 +174,32 @@
       "origin": "external-optional (vercel-labs/agent-browser)",
       "version": "unpinned",
       "license": "Apache-2.0",
-      "applies_to": ["ui-acceptance", "e2e"],
-      "deps": ["node>=24", "chrome"],
+      "applies_to": [
+        "ui-acceptance",
+        "e2e"
+      ],
+      "deps": [
+        "node>=24",
+        "chrome"
+      ],
       "cost_hint": "~zero resident (CLI+skill form); browser download on first install",
       "trigger": "real software acceptance: launch app, click, assert DOM/console/network, screenshot evidence",
-      "mutex": ["playwright-mcp"],
+      "mutex": [
+        "playwright-mcp"
+      ],
       "security": "no telemetry; local Chrome for Testing",
-      "health": {"type": "cli", "bin": "agent-browser"},
-      "wiring": "recorded-intent (v1): enable/disable records operator intent; invocation stays manual",
+      "health": {
+        "type": "cli",
+        "bin": "agent-browser"
+      },
+      "wiring": "skill-file (v1.1): enable requires health ok, then writes managed .claude/skills/aiwb-<id>/SKILL.md (never auto-installs the tool itself)",
       "default_enabled": false,
-      "evidence": "M1 recon 2026-10-13; not yet benchmarked in-product"
+      "evidence": "M1 recon 2026-10-13; not yet benchmarked in-product",
+      "wiring_action": {
+        "type": "skill-file",
+        "template": "agent-browser.skill.md",
+        "dest": ".claude/skills/aiwb-agent-browser/SKILL.md"
+      }
     },
     {
       "id": "superpowers",
@@ -144,13 +207,20 @@
       "origin": "external-plugin (obra/superpowers via official CC marketplace)",
       "version": "unpinned",
       "license": "MIT",
-      "applies_to": ["standard", "deep"],
-      "deps": ["claude-code"],
+      "applies_to": [
+        "standard",
+        "deep"
+      ],
+      "deps": [
+        "claude-code"
+      ],
       "cost_hint": "SessionStart bootstrap + skill descriptions; skills on demand",
       "trigger": "user installs via /plugin install superpowers@claude-plugins-official",
       "mutex": [],
       "security": "installed by user into their own CC; this distribution never installs it",
-      "health": {"type": "manual"},
+      "health": {
+        "type": "manual"
+      },
       "wiring": "recorded-intent (v1): enable/disable records operator intent; installation stays user-side",
       "default_enabled": false,
       "evidence": "M1 recon 2026-10-13; method overlap with curated ECC skills noted"
@@ -161,13 +231,23 @@
       "origin": "external-optional (microsoft/playwright-mcp)",
       "version": "unpinned",
       "license": "Apache-2.0",
-      "applies_to": ["ui-acceptance", "e2e"],
-      "deps": ["node>=18", "chromium"],
+      "applies_to": [
+        "ui-acceptance",
+        "e2e"
+      ],
+      "deps": [
+        "node>=18",
+        "chromium"
+      ],
       "cost_hint": "HEAVY when resident: ~70 MCP tool schemas + accessibility-tree snapshots",
       "trigger": "only when a persistent browser session is required; prefer agent-browser otherwise",
-      "mutex": ["agent-browser"],
+      "mutex": [
+        "agent-browser"
+      ],
       "security": "local; no telemetry",
-      "health": {"type": "manual"},
+      "health": {
+        "type": "manual"
+      },
       "wiring": "recorded-intent (v1): enable/disable records operator intent; installation stays user-side",
       "default_enabled": false,
       "evidence": "M1 recon 2026-10-13; upstream itself recommends CLI+skill over MCP for coding agents"
