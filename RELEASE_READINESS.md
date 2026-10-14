@@ -237,6 +237,30 @@ the corrected policy.
 
 ---
 
+## PHASE P — discriminative task battery (2026-10-14)
+
+Directed by the Phase-P mandate (ship, prove, evolve): end the oracle value
+dispute with tasks whose root cause is NOT readable from the project, and
+prove complex-engineering value on deep/long-horizon tasks. All N=1 results
+are exploratory; the $3.00 shared ledger governs every run.
+
+| task | class | layer status |
+|---|---|---|
+| t6-external-config-drift | real-world failure recovery (root cause in EXTERNAL state: stale deploy config vs endpoint registry) | offline layer PASS (pristine fails with drift marker; fixed passes); four-arm paid run (native / ecc / fusion-empty / fusion-seeded) **IN FLIGHT** |
+| t7-validator-drift-refactor | deep multi-file refactor (two drifted validator copies, spec.md is authoritative, public API + CLI frozen, hash-pinned shipped suite) | offline layer PASS (pristine 6 suite failures across both drift classes; reference refactor VERIFY PASS); paid run PENDING |
+| t8-log-pipeline-resume | long-horizon engineering (three-stage pipeline + PIPELINE_STATE.json checkpoint contract; TWO sequential fresh sessions per arm — session B must resume from workspace state, not memory) | offline layer PASS (pristine / reference / stale-checkpoint / tampered-input all behave); paid run PENDING |
+
+Anti-cheat properties enforced by contract on every task: verifiers judge
+the fix CLASS not the shape; protected suites/inputs are sha256-pinned;
+verify scripts are self-contained (incident-B class: no `__file__`
+anchoring — t8 recomputes its golden values from the workspace's own
+pinned input); agents get identical instruction and budget across arms;
+the t6 seeded record names only the failure class and its generic
+diagnostic path (ban-list contract in `tests/test_bench_infra.py`), so
+the oracle can only ever be a shortcut, never the sole source of truth.
+
+---
+
 ## v1.0 gates (require real users)
 
 - External users install, use, and report (none yet — nothing fabricated).
