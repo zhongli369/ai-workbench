@@ -79,6 +79,14 @@ compile gates all green on the release commit.
   seeded arm with 0 queries: the in-vivo reuse benefit remains unproven by
   design on tasks agents solve without failing); verifier hashes identical
   pre/post on every run.
+- PHASE P discriminative task battery (offline layer, behaviorally
+  validated; paid runs pending/in flight — see RELEASE_READINESS):
+  t6-external-config-drift (root cause in external state, four arms incl.
+  oracle-seeded), t7-validator-drift-refactor (deep multi-file refactor,
+  hash-pinned shipped suite, shape-agnostic dedup check),
+  t8-log-pipeline-resume (long-horizon: two sequential fresh sessions per
+  arm resuming from a workspace checkpoint; self-contained verifier with
+  inlined oracle + LF-normalized input pin).
 
 ### Changed (policy, evidence-driven)
 - Failure-oracle trigger corrected from "query on 2nd occurrence of the same
