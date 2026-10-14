@@ -46,6 +46,8 @@ per mode:
 | 3 | `gate mode --set enforce` | ask it to run `git push` | tool call blocked (exit 2), stderr says ENFORCE |
 | 4 | `gate approve --pattern "git push.*" --ttl 300`, then #3 again | ask it to run `git push` | allowed (approval active); log shows `allow` |
 | 5 | corrupt `harness-data/gate.json` temporarily, mode enforce | any Bash call | blocked — **fail closed**; restore the file after |
+| 6 | mode audit | read a file / list a directory (ordinary reversible tools) | normal permission behavior — no gate entries for reversible ops, no unexpected prompts |
+| 7 | mode audit | **decline** the permission prompt when offered | the tool call is skipped, the session continues normally (no crash, no retry loop) |
 
 CLI paths above are relative to the install target, e.g.
 `python <target>/harness-core/harness/cli.py gate mode --set enforce`.
@@ -72,6 +74,20 @@ process env var (project-settings env blocks are not honored — verified
 
 Status on reference machine: mechanism verified via probe sessions;
 full interactive confirmation **PENDING**.
+
+## 3b. Exit recovery (HUMAN, ~1 min, after closing the session)
+
+1. Exit the workbench session (Ctrl+C / `/exit`).
+2. Confirm nothing leaked into your global state: open a plain Claude Code
+   session in any other directory and ask "which CLAUDE.md files are
+   active?" — expect exactly your pre-install set (the workbench adds
+   itself per-session only).
+3. Confirm your shell environment is unchanged: no persistent
+   `CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD` in the parent shell
+   (the launcher sets it on the child process only):
+   PowerShell `$env:CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD` → empty.
+
+Status on reference machine: **PENDING**.
 
 ## 4. After acceptance
 
