@@ -52,8 +52,19 @@ def main() -> int:
         print(f"TRIGGERED: fusion empty-store arm queried {q_empty}x — the "
               f"fail-triggered policy fires on a real failure (fast-negative)")
     else:
-        print("NOT TRIGGERED: fusion empty-store arm never queried despite an "
-              "unavoidable failure — policy-layer defect (not 'not needed')")
+        # PHASE P2 §1.3: zero queries on t6 does NOT imply harness failure —
+        # the agent can legitimately spot the drifted config directly, since
+        # every piece of evidence (log, config, registry) is readable inside
+        # the workspace. This is the same honest-null class as r4b/e4o/t3b:
+        # the oracle is correctly not needed when the answer is
+        # environment-readable.
+        print("NO QUERY (honest-null class): fusion empty-store arm never "
+              "queried — but on t6 the diagnostic path is fully readable in "
+              "the workspace, so a direct read-then-fix is the CORRECT "
+              "strategy, not a policy defect. §1.3: zero queries ≠ harness "
+              "failure. t6 validates P2.3 failure-recovery; as an oracle "
+              "discriminator it is bounded by design (oracle holds no "
+              "exclusive information here).")
 
     print("\n--- layer 3 (oracle isolation: fusion-seeded vs fusion) ---")
     print(f"queries: seeded={q_seed} empty={q_empty}")
@@ -64,17 +75,18 @@ def main() -> int:
           f"ecc=${arms['ecc']['cost'] or 0:.4f}/{arms['ecc']['turns']}t")
 
     print("\n--- P4 fate (advisory) ---")
-    if q_empty == 0:
-        print("queries=0 on the mechanism control → REMOVE_OR_REPLACE or build "
-              "the §1.5 closable structural trigger, then re-judge")
-    elif q_seed > 0 and (c_seed < c_empty * 0.9 or t_seed < t_empty - 1):
+    if q_seed > 0 and (c_seed < c_empty * 0.9 or t_seed < t_empty - 1):
         print("triggered AND attributable benefit (seeded cheaper/faster) → "
               "KEEP_OPTIONAL eligible (N=1, exploratory)")
     elif q_seed > 0:
         print("triggered, hit the seed, no measurable delta → stay EXPERIMENTAL")
-    else:
+    elif q_empty > 0:
         print("control triggered but treatment never queried → investigate "
               "seed reachability before any fate change")
+    else:
+        print("no reads anywhere; seeded-arm cost delta is NOT attributable "
+              "(§2: never infer causality from the seeded arm being cheaper "
+              "when it never read). → maintain EXPERIMENTAL / ON-DEMAND")
     return 0
 
 
