@@ -1,10 +1,10 @@
 # AI 工作台
 
-*面向 Claude Code 的统一、带记忆的工程工作台。*
+*面向 Claude Code 的轻量、受治理、按需增强的软件工程工作台。*
 
-**这是什么。** 一层安装在 [Claude Code](https://claude.com/claude-code) 之上的薄工作台 — 不是又一个 Skills 大合集。一次启动, 指向任意项目; 它记住过去失败的原因; 小任务保持便宜。
+**这是什么。** 一层安装在 [Claude Code](https://claude.com/claude-code) 之上的薄工作台 — 不是又一个 Skills 大合集。一次启动, 指向任意项目; 不可逆命令经过三档闸门; 专家能力按任务加载, 不给每条提示词加税; 小任务保持便宜。
 
-**解决的痛点。** ①多个仓库来回切换, 每次会话都要重建上下文; ②同一个 bug 调试两遍, 因为上周的根因没人记下来; ③能力包让每条提示词都为今天用不上的规则付费。
+**解决的痛点。** ①多个仓库来回切换, 每次会话都要重建上下文; ②能力包让每条提示词都为今天用不上的规则付费; ③一条误发的不可逆命令可能毁掉一天 — 闸门让它成为深思熟虑的动作。(另含跨会话失败记忆 oracle, 属**实验性**能力 — 机制已验证, in-vivo 检索收益尚未证明; 见诚实性能说明。)
 
 **区别在哪** — 按来源诚实拆分:
 
@@ -14,7 +14,7 @@
 | 60+ agents / 240+ skills 目录 | | ✔ (上游项目) | |
 | 精选 ECC 子集, 按需非常驻 | | | ✔ (30 skills / 16 agents, 已 pin) |
 | 一个工作台操作多项目 | | | ✔ (自研) |
-| 跨会话失败记忆 + 重错 oracle | | | ✔ (自研, harness-core) |
+| 跨会话失败记忆 + 重错 oracle *(实验性)* | | | ✔ (自研, harness-core — in-vivo 收益未证明) |
 | FAST/STANDARD/DEEP 成本策略 | | | ✔ (自研) |
 | 不可逆命令三档闸门 | | | ✔ (自研) |
 
@@ -47,7 +47,7 @@ tools/workbench.py    ← 安装器 / doctor / 启动器 / 卸载器
 | 1 | 一个入口操作多项目 | 启动一次, 免 cd 跨项目工作 (绝对路径, `git -C`) |
 | 2 | 目标项目规则正确加载 | 项目级 `claudeMdExcludes` 防止全局规则包遮蔽目标项目自己的 CLAUDE.md |
 | 3 | ECC 能力按需调用 | 30 skills / 16 agents 来自 everything-claude-code, 按任务加载非常驻 |
-| 4 | 跨会话失败记忆 | `harness-core` 记录失败原因; 遇到失败时 (fail-triggered) oracle 先查历史 |
+| 4 | 跨会话失败记忆 **(实验性)** | `harness-core` 记录失败原因; 遇到失败时 (fail-triggered) oracle 先查历史。机制契约级验证; 六轮受控实验 in-vivo 收益**未证明** — 见诚实说明 |
 | 5 | 复杂度匹配的 token 策略 | FAST / STANDARD / DEEP: 小修不规划、不起 agent、不记账; RECOVERY 模式用明确信号处理卡死状态 (单次测试失败永不触发恢复链, 恢复永不关闭安全护栏) |
 | 6 | 确定性质量与安全 | 174 项离线契约; 三档闸门 (DISABLED / AUDIT / ENFORCE) 管不可逆命令 |
 | 7 | 目标项目零侵入 | 工作台装一次, 目标项目不被修改 |
@@ -84,7 +84,7 @@ python tools/workbench.py uninstall --yes
    (切 ENFORCE: `python harness-core/harness/cli.py gate mode --set enforce`)
 5. 下个会话失败记忆还在: `status` 显示累积记录数。
 
-## 失败复用演示 (记忆的意义)
+## 失败记忆演示 (实验性 — 演示机制, 非已证明收益)
 
 ```bash
 # 会话 1 — 失败发生并被记录

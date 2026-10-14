@@ -1,4 +1,14 @@
-# RELEASE READINESS — 0.1.0-rc.1
+# RELEASE READINESS — 0.1.0-preview.1
+
+> **RELEASE CANDIDATE FREEZE — 2026-10-14, OPERATION SHIP IT.**
+> The publishable set is frozen at the `fusion` HEAD. From this point only
+> release-blocking defects may be fixed; no new features, agents, benchmark
+> tasks, or architecture. Frozen surface: CLI (`workbench.py` 7 commands),
+> install/uninstall/doctor, PreToolUse gate hook, 30 skills + 16 agents +
+> 14 commands (ECC pinned), harness-core (feedback/gate/report/telemetry),
+> capability registry, docs-drift / public-surface / hygiene / ECC-provenance
+> gates, one-time approval tokens, README EN/ZH, LICENSE, NOTICE, CHANGELOG —
+> 216 git-tracked files, 174 contracts green.
 
 Verdict per gate: **PASS** / **FAIL** / **PENDING** (with the exact evidence or
 the exact missing step). Nothing here is aspirational. Negative history is

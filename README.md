@@ -1,16 +1,19 @@
 # AI Workbench
 
-*A unified, memory-aware engineering workspace for Claude Code.*
+*A lightweight, governed, on-demand engineering workbench for Claude Code.*
 
 **What it is.** A thin, install-once workspace layer on top of
 [Claude Code](https://claude.com/claude-code) — not another skills mega-pack.
-You launch one workspace and point it at any project; it remembers why
-previous approaches failed; small tasks stay cheap.
+You launch one workspace and point it at any project; irreversible commands
+pass through a three-tier gate; expert capabilities load per-task instead of
+taxing every prompt; small tasks stay cheap.
 
 **The pain it fixes.** ① juggling several repos means re-establishing context
-in every session; ② the same bug gets debugged twice because last week's
-root cause lives in nobody's notes; ③ capability packs charge every prompt
-for rules you don't need today.
+in every session; ② capability packs charge every prompt for rules you don't
+need today; ③ one mistaken irreversible command can ruin your day — the gate
+makes it a deliberate act. (A cross-session failure-memory oracle is included
+as an **experimental** capability — mechanism verified, in-vivo retrieval
+benefit unproven; see [Honest performance notes](#honest-performance-notes).)
 
 **How it's different** — honestly split by origin:
 
@@ -20,7 +23,7 @@ for rules you don't need today.
 | 60+ agents / 240+ skills catalog | | ✔ (upstream project) | |
 | Curated ECC subset, on-demand not resident | | | ✔ (30 skills / 16 agents, pinned) |
 | One workspace operating many projects | | | ✔ (self-developed) |
-| Cross-session failure memory + repeat-error oracle | | | ✔ (self-developed, harness-core) |
+| Cross-session failure memory + repeat-error oracle *(experimental)* | | | ✔ (self-developed, harness-core — benefit unproven in vivo) |
 | FAST/STANDARD/DEEP cost policy | | | ✔ (self-developed) |
 | Three-tier gate for irreversible commands | | | ✔ (self-developed) |
 
@@ -53,7 +56,7 @@ tools/workbench.py    ← installer / doctor / launcher / uninstaller
 | 1 | One entry, many projects | Launch once, then `cd`-free cross-project work (absolute paths, `git -C`) |
 | 2 | Correct rules per target | Project-level `claudeMdExcludes` keeps global rule packs from shadowing a target project's own CLAUDE.md |
 | 3 | ECC capabilities on demand | 30 skills / 16 agents from everything-claude-code, loaded per-task, not resident |
-| 4 | Cross-session failure memory | `harness-core` records why approaches failed; the oracle is queried when a failure is hit (fail-triggered) |
+| 4 | Cross-session failure memory **(experimental)** | `harness-core` records why approaches failed; the oracle is queried when a failure is hit (fail-triggered). Mechanism contract-verified; in-vivo retrieval benefit **unproven** across six controlled experiments — see honest notes |
 | 5 | Complexity-matched tokens | FAST / STANDARD / DEEP policy: small fixes skip planning, agents, and bookkeeping; RECOVERY mode handles stuck states with explicit signals (a single test failure never triggers a recovery cascade, and safety rails are never disabled to get unstuck) |
 | 6 | Deterministic quality & safety | 174 offline contracts; three-tier gate (DISABLED / AUDIT / ENFORCE) for irreversible commands |
 | 7 | No per-project harness install | Install the workbench once; target projects stay untouched |
@@ -91,7 +94,7 @@ python tools/workbench.py uninstall --yes
    (switch to ENFORCE with `python harness-core/harness/cli.py gate mode --set enforce`)
 5. Next session, the failure store is still there: `status` shows your accumulated records.
 
-## The failure-reuse demo (the point of the memory)
+## The failure-memory demo (experimental — mechanism, not proven payoff)
 
 ```bash
 # session 1 — a failure happens and is recorded
