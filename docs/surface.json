@@ -1,0 +1,342 @@
+{
+  "surface_version": 1,
+  "generator": "tools/check_public_surface.py --accept-new",
+  "cli": {
+    "workbench.py": {
+      "global_flags": {
+        "--target": {
+          "choices": null
+        }
+      },
+      "commands": {
+        "benchmark": {
+          "flags": {},
+          "positionals": {}
+        },
+        "capability": {
+          "flags": {
+            "--json": {
+              "choices": null
+            }
+          },
+          "positionals": {
+            "cap_cmd": {
+              "choices": [
+                "list",
+                "inspect",
+                "enable",
+                "disable",
+                "doctor"
+              ]
+            },
+            "id": {
+              "choices": null
+            }
+          }
+        },
+        "doctor": {
+          "flags": {},
+          "positionals": {}
+        },
+        "install": {
+          "flags": {
+            "--scope": {
+              "choices": [
+                "standalone",
+                "project",
+                "user"
+              ]
+            },
+            "--dry-run": {
+              "choices": null
+            },
+            "--force": {
+              "choices": null
+            },
+            "--no-harness": {
+              "choices": null
+            },
+            "--yes": {
+              "choices": null
+            }
+          },
+          "positionals": {}
+        },
+        "launch": {
+          "flags": {
+            "--run": {
+              "choices": null
+            }
+          },
+          "positionals": {}
+        },
+        "status": {
+          "flags": {},
+          "positionals": {}
+        },
+        "uninstall": {
+          "flags": {
+            "--yes": {
+              "choices": null
+            },
+            "--purge-data": {
+              "choices": null
+            }
+          },
+          "positionals": {}
+        }
+      }
+    },
+    "harness/cli.py": {
+      "global_flags": {
+        "--data-dir": {
+          "choices": null
+        }
+      },
+      "commands": {
+        "feedback": {
+          "flags": {},
+          "positionals": {}
+        },
+        "feedback promote": {
+          "flags": {
+            "--record-id": {
+              "choices": null
+            },
+            "--status": {
+              "choices": null
+            },
+            "--project-id": {
+              "choices": null
+            }
+          },
+          "positionals": {}
+        },
+        "feedback query": {
+          "flags": {
+            "--project-id": {
+              "choices": null
+            },
+            "--last": {
+              "choices": null
+            },
+            "--archetype": {
+              "choices": null
+            },
+            "--keyword": {
+              "choices": null
+            },
+            "--include-expired": {
+              "choices": null
+            },
+            "--include-superseded": {
+              "choices": null
+            },
+            "--json": {
+              "choices": null
+            }
+          },
+          "positionals": {}
+        },
+        "feedback record": {
+          "flags": {
+            "--cause": {
+              "choices": null
+            },
+            "--summary": {
+              "choices": null
+            },
+            "--archetype": {
+              "choices": null
+            },
+            "--phases": {
+              "choices": null
+            },
+            "--project-id": {
+              "choices": null
+            },
+            "--redact": {
+              "choices": null
+            },
+            "--source": {
+              "choices": null
+            },
+            "--confidence": {
+              "choices": null
+            },
+            "--valid-until": {
+              "choices": null
+            }
+          },
+          "positionals": {}
+        },
+        "feedback stats": {
+          "flags": {
+            "--project-id": {
+              "choices": null
+            }
+          },
+          "positionals": {}
+        },
+        "feedback supersede": {
+          "flags": {
+            "--record-id": {
+              "choices": null
+            },
+            "--superseded-by": {
+              "choices": null
+            },
+            "--project-id": {
+              "choices": null
+            }
+          },
+          "positionals": {}
+        },
+        "gate": {
+          "flags": {},
+          "positionals": {}
+        },
+        "gate approve": {
+          "flags": {
+            "--pattern": {
+              "choices": null
+            },
+            "--once": {
+              "choices": null
+            },
+            "--action": {
+              "choices": null
+            },
+            "--scope": {
+              "choices": [
+                "command",
+                "pattern"
+              ]
+            },
+            "--ttl": {
+              "choices": null
+            },
+            "--note": {
+              "choices": null
+            }
+          },
+          "positionals": {}
+        },
+        "gate check": {
+          "flags": {
+            "--token": {
+              "choices": null
+            }
+          },
+          "positionals": {
+            "command": {
+              "choices": null
+            }
+          }
+        },
+        "gate mode": {
+          "flags": {
+            "--set": {
+              "choices": [
+                "disabled",
+                "audit",
+                "enforce"
+              ]
+            }
+          },
+          "positionals": {}
+        },
+        "report": {
+          "flags": {
+            "--project-id": {
+              "choices": null
+            },
+            "--min-count": {
+              "choices": null
+            }
+          },
+          "positionals": {}
+        },
+        "telemetry": {
+          "flags": {},
+          "positionals": {}
+        }
+      }
+    }
+  },
+  "jsonl_schemas": {
+    "feedback.jsonl:record": {
+      "archetype": "str",
+      "confidence": "float",
+      "failure_cause": "str",
+      "phases": "list",
+      "project_id": "str",
+      "record_id": "str",
+      "source": "str",
+      "status": "str",
+      "task_summary": "str",
+      "ts": "str"
+    },
+    "gate-approvals.jsonl:approval": {
+      "expires_epoch": "float",
+      "note": "str",
+      "pattern": "str",
+      "ts": "str"
+    },
+    "gate-audit.jsonl:decision": {
+      "command": "str",
+      "decision": "str",
+      "matched": "str",
+      "mode": "str",
+      "token": "str",
+      "ts": "str"
+    },
+    "gate-tokens.jsonl:grant": {
+      "action": "str",
+      "created": "str",
+      "expires_epoch": "float",
+      "grant_id": "str",
+      "note": "str",
+      "scope": "str",
+      "token_hash": "str",
+      "type": "str"
+    },
+    "gate-tokens.jsonl:consume": {
+      "command": "str",
+      "grant_id": "str",
+      "ts": "str",
+      "type": "str"
+    },
+    "telemetry.jsonl:entry": {
+      "argv": "list",
+      "cmd": "str",
+      "project_id": "str",
+      "ts": "str"
+    },
+    "gate.json:config": {
+      "audit_patterns": "list",
+      "enforce_patterns": "list",
+      "mode": "str"
+    }
+  },
+  "settings_template": {
+    "top_level_keys": [
+      "claudeMdExcludes",
+      "env",
+      "hooks"
+    ],
+    "env_keys": [
+      "HARNESS_DATA_DIR"
+    ],
+    "pre_tool_use_matchers": [
+      "Bash"
+    ]
+  },
+  "history": [
+    {
+      "ts": "2026-10-14T06:04:42+00:00",
+      "bump": "minor",
+      "rationale": "baseline: P1.1 drift gate + P1.3 one-time tokens landed; CLI/JSONL/settings surface at 123 contracts green"
+    }
+  ]
+}
