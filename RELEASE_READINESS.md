@@ -164,6 +164,41 @@ Task / Skill / harness-CLI counts.
 | test-diagnosis | g2 (vnext) vs g2b (baseline) | $0.754/48 turns (1 den, Skill×2, hCLI×4) vs $0.417/23 turns (0/0/0) — **1.81×**: fail-triggered policy on an EMPTY store costs ~$0.34 (2 skill loads + 2 queries + bookkeeping). Both arms cache+durability PASS. Offset observation: g2 organically RECORDED its diagnosis back (`model-inference`, correct cause) — first in-vivo capture-loop write. |
 | architecture (DEEP tier) | — | PENDING (budget check first) |
 
+**Benchmark batch 2 (2026-10-14, claude-haiku-4-5, 8/8 runs PASS, $0.355 this
+batch — cumulative ledger $0.822 of the $3.00 cap, N=1 per cell,
+exploratory).** Three-arm matrix (native / ecc-only / fusion) plus the
+experience-reuse pair and the stuck-recovery task:
+
+| task | native | ecc-only | fusion |
+|---|---|---|---|
+| t1 fast rename (FAST) | $0.0847 / 10t | $0.0561 / 8t | $0.0722 / 8t |
+| t2 failing test (STANDARD) | $0.0701 / 9t | $0.0457 / 6t | $0.0488 / 7t |
+| t4 multi-file feature | $0.1167 / 16t | $0.0449 / 8t | $0.0747 / 11t |
+| t5 stale build (stuck recovery) | $0.0603 / 4t | — | $0.0218 / 4t |
+| t3b legacy-state variant | $0.0509 / 7t (control) | — | $0.0230 / 5t (seeded store, **0 oracle queries**) |
+
+Batch-2 verdicts (all N=1, differences within haiku run variance):
+- **ECC-only vs fusion vs native**: ordering native > fusion ≥ ecc is
+  directionally consistent across t1/t2/t4, but no difference is statistically
+  established. The fusion harness layer adds ≈$0.00–0.03/run on small tasks —
+  the "no large fusion tax" reading from batch 1 survives a third arm.
+- **Zero capability invocations across all 8 runs**: no Skill call, no harness
+  CLI call, no oracle query. On green-run small tasks the agent never needs
+  the machinery — the harness is a free option that only activates on failure.
+- **Experience reuse (t3 pair)**: treatment solved the variant cheaper
+  ($0.0230 vs $0.0509) and in fewer turns (5 vs 7) with the seeded store
+  present, but made **0 oracle queries** — the benefit is NOT attributable to
+  the oracle (the fail-triggered policy correctly never fired: the agent never
+  failed). This is the third independent seeded arm with 0 queries
+  (r4b, e4o, t3b) — a robust pattern: on tasks agents solve without failing,
+  the oracle cannot show benefit by design. Synthetic seeds prove the
+  mechanism, not the payoff.
+- **Stuck recovery (t5)**: both arms escaped the stale-build trap in 4 turns;
+  fusion was cheaper (N=1, not significant). No rework differential measurable
+  at this task size.
+- Verifier integrity: `verify_sha256` identical pre/post on every run,
+  `verify_tampered=false` throughout.
+
 **Recovery-type verdict (r3/r3c/r4/r4b, full report in the development repo
 `bench/R3R4_RECOVERY_REPORT.md`):** the scenario cannot measure oracle value,
 because the noter task bundle documents both root causes in `notes.py`'s own

@@ -70,6 +70,15 @@ compile gates all green on the release commit.
 - Benchmark batch 1 (claude-haiku-4-5, 6/6 runs passing, $0.467 of $3.00 cap):
   fusion/native cost ratios 0.85× / 0.70× / 0.64× on three small tasks.
   Reading: "no large fusion tax on easy tasks". Larger controlled studies pending.
+- Benchmark batch 2 (claude-haiku-4-5, 8/8 runs passing, $0.355; cumulative
+  ledger $0.822 of the $3.00 cap): three-arm matrix native > fusion ≥ ecc-only
+  directionally consistent on t1/t2/t4 (no statistically established
+  difference); zero Skill/harness/oracle invocations across all 8 runs — the
+  harness is a free option on green-run tasks; the seeded-experience arm
+  solved its variant cheaper but made 0 oracle queries (third independent
+  seeded arm with 0 queries: the in-vivo reuse benefit remains unproven by
+  design on tasks agents solve without failing); verifier hashes identical
+  pre/post on every run.
 
 ### Changed (policy, evidence-driven)
 - Failure-oracle trigger corrected from "query on 2nd occurrence of the same
