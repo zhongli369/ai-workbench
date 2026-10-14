@@ -235,9 +235,11 @@ def cmd_install(args) -> int:
             shutil.move(str(target), str(bak))
 
     written: list[str] = []
-    # 1) static trees from RC
-    _copytree(RC_ROOT / "harness-core", target / "harness-core", written, dry)
-    _copytree(RC_ROOT / "hooks", target / "hooks", written, dry)
+    # 1) static trees from RC (--no-harness: ECC-only payload for bench arms —
+    #    no harness-core, no gate hook, no harness env in settings)
+    if not args.no_harness:
+        _copytree(RC_ROOT / "harness-core", target / "harness-core", written, dry)
+        _copytree(RC_ROOT / "hooks", target / "hooks", written, dry)
     _copytree(RC_ROOT / "workbench" / ".claude", target / ".claude", written, dry)
     _copytree(RC_ROOT / "vendor" / "ecc", target / "vendor" / "ecc", written, dry)
     _write(target / "CLAUDE.md", (RC_ROOT / "workbench" / "CLAUDE.md").read_text(encoding="utf-8"), written, dry)
@@ -245,8 +247,10 @@ def cmd_install(args) -> int:
            (RC_ROOT / "capabilities" / "registry.json").read_text(encoding="utf-8"), written, dry)
     _copytree(RC_ROOT / "capabilities" / "wiring", target / "capabilities" / "wiring", written, dry)
     # 2) rendered configs
+    settings = SETTINGS_TMPL if not args.no_harness else {
+        k: v for k, v in SETTINGS_TMPL.items() if k not in ("env", "hooks")}
     _write(target / ".claude" / "settings.json",
-           _render(json.dumps(SETTINGS_TMPL, indent=2), target), written, dry)
+           _render(json.dumps(settings, indent=2), target), written, dry)
     _write(target / "launch" / "vnext.settings.json",
            json.dumps(LAUNCH_SETTINGS_TMPL, indent=2), written, dry)
     _write(target / "launch" / "workbench.ps1", _render(PS1_TMPL, target), written, dry)
@@ -254,7 +258,7 @@ def cmd_install(args) -> int:
     _write(target / "VERSION", RC_VERSION + "\n", written, dry)
     # 3) data dir + gate default (never overwrite existing gate.json on reinstall)
     gate_path = target / "harness-data" / "gate.json"
-    if dry or not gate_path.is_file():
+    if not args.no_harness and (dry or not gate_path.is_file()):
         _write(gate_path, json.dumps(GATE_DEFAULT, indent=2), written, dry)
     # 4) manifest last
     manifest = {"version": RC_VERSION, "installed_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
@@ -402,6 +406,8 @@ def main(argv=None) -> int:
     i.add_argument("--scope", choices=["standalone", "project", "user"], default="standalone")
     i.add_argument("--dry-run", action="store_true")
     i.add_argument("--force", action="store_true", help="目标非空且无清单时备份后安装")
+    i.add_argument("--no-harness", action="store_true",
+                   help="ECC-only 负载 (基准臂用): 不装 harness-core/hooks, settings 无 gate")
     i.add_argument("--yes", action="store_true")
     l = sub.add_parser("launch")
     l.add_argument("--run", action="store_true", help="直接启动而非仅打印命令")

@@ -5,3 +5,6 @@ dist/
 *.pyz
 .hypothesis/
 tools/bench/results/
+
+# launch-sprint throwaway (machine-specific GitHub relay), never ships
+tools/_relay_github.py

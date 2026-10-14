@@ -58,7 +58,7 @@ def test_verify_is_not_vacuous_fails_on_pristine_seed(tmp_path, task_dir):
 
 def test_driver_dry_run_both_arms(tmp_path):
     task = _task_dirs()[0]
-    for arm in ("native", "fusion"):
+    for arm in ("native", "fusion", "ecc"):
         r = subprocess.run([sys.executable, str(DRIVER), "--task", str(task),
                             "--arm", arm, "--dry-run"],
                            capture_output=True, text=True, timeout=60)
@@ -68,6 +68,59 @@ def test_driver_dry_run_both_arms(tmp_path):
         assert plan["permission_mode"] == "bypassPermissions"
         assert plan["setting_sources"] == ["project"]
         assert plan["model"].startswith("claude-")
+
+
+def test_no_harness_install_is_ecc_only(tmp_path):
+    """--no-harness (the ecc bench arm): ECC payload, zero harness traces."""
+    target = tmp_path / "ecc_ws"
+    r = subprocess.run([sys.executable, str(RC_ROOT / "tools" / "workbench.py"),
+                        "--target", str(target), "install", "--scope", "project",
+                        "--no-harness", "--yes"],
+                       capture_output=True, text=True, timeout=120)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert (target / ".claude").is_dir(), "ECC payload missing"
+    assert not (target / "harness-core").exists(), "harness-core leaked into ecc arm"
+    assert not (target / "hooks").exists(), "gate hooks leaked into ecc arm"
+    assert not (target / "harness-data" / "gate.json").exists()
+    settings = json.loads((target / ".claude" / "settings.json").read_text(
+        encoding="utf-8"))
+    assert "hooks" not in settings, "ecc arm settings must not reference gate hooks"
+    assert "env" not in settings, "ecc arm settings must not set HARNESS_DATA_DIR"
+    # uninstall still owns-only sweeps the ecc payload
+    u = subprocess.run([sys.executable, str(RC_ROOT / "tools" / "workbench.py"),
+                        "--target", str(target), "uninstall", "--yes"],
+                       capture_output=True, text=True, timeout=120)
+    assert u.returncode == 0, u.stdout + u.stderr
+    assert not (target / ".claude").exists()
+
+
+def test_t3_record_template_has_no_answer_leak():
+    """The seeded experience must carry the failure CLASS only — nothing that
+    names t3b's files, fields, commands, or values (anti-cheat, §7)."""
+    import importlib.util
+    import re
+    spec = importlib.util.spec_from_file_location(
+        "run_t3_pair", RC_ROOT / "tools" / "bench" / "run_t3_pair.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    blob = json.dumps(mod.T3_RECORD, ensure_ascii=False).lower()
+    for banned in (r"\binv\b", r"inv_state", r"\brevision\b", r"\bsku\b",
+                   r"\btotal\b", r"\bnotes\b", r"\bversion\b", r"app\.py",
+                   r"inv\.py", r"state\.json", r"t3a", r"t3b"):
+        assert not re.search(banned, blob), f"answer leak in T3_RECORD: {banned}"
+    # synthetic experience is never labeled human-verified
+    assert mod.T3_RECORD["source"] == "experiment-seed"
+    assert mod.T3_RECORD["confidence"] < 1.0
+
+
+def test_t3_pair_dry_run(tmp_path):
+    r = subprocess.run([sys.executable, str(RC_ROOT / "tools" / "bench" / "run_t3_pair.py"),
+                        "--dry-run"], capture_output=True, text=True, timeout=60)
+    assert r.returncode == 0, r.stderr
+    plan = json.loads(r.stdout)
+    assert plan["phase1"]["arm"] == "fusion"
+    assert plan["experience_record"]["source"] == "experiment-seed"
+    assert [p["purpose"] for p in plan["phase2"]] == ["treatment", "control"]
 
 
 def test_driver_refuses_when_batch_cap_reached(tmp_path):

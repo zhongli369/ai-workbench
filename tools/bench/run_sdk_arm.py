@@ -9,6 +9,11 @@ Arms:
   native — bare workspace + instruction
   fusion — workspace with the full workbench installed (ECC pinned +
            harness-core + gate AUDIT + capability registry)
+  ecc    — workspace with the ECC-only workbench payload (install
+           --no-harness: skills/agents/commands + policy CLAUDE.md, but no
+           harness-core, no gate hook). Distinguishes "ECC rules did it"
+           from "harness did it". The record captures which Skill tool
+           calls actually happened — directory existence is NOT proof.
 
 --dry-run resolves and prints the run plan WITHOUT any API call.
 """
@@ -43,21 +48,24 @@ def load_task(task_dir: Path) -> dict:
 
 def prepare_workspace(task: dict, arm: str) -> Path:
     ws = Path(tempfile.mkdtemp(prefix=f"bench_{task['name']}_{arm}_")) / "ws"
-    if arm == "fusion":
+    if arm in ("fusion", "ecc"):
         # install into an EMPTY dir first (installer refuses foreign non-empty
         # dirs by design), then lay the task seed over it
         ws.mkdir(parents=True)
-        r = subprocess.run([sys.executable, str(WORKBENCH), "--target", str(ws),
-                            "install", "--scope", "project"],
-                           capture_output=True, text=True, timeout=300)
+        install_cmd = [sys.executable, str(WORKBENCH), "--target", str(ws),
+                       "install", "--scope", "project"]
+        if arm == "ecc":
+            install_cmd.append("--no-harness")
+        r = subprocess.run(install_cmd, capture_output=True, text=True, timeout=300)
         if r.returncode != 0:
             raise SystemExit(f"workbench install failed:\n{r.stdout}\n{r.stderr}")
-        env = {**os.environ, "HARNESS_DATA_DIR": str(ws / "harness-data")}
-        g = subprocess.run([sys.executable, str(ws / HARNESS_CLI_REL),
-                            "gate", "mode", "--set", "audit"],
-                           capture_output=True, text=True, timeout=60, env=env)
-        if g.returncode != 0:
-            raise SystemExit(f"gate set audit failed:\n{g.stdout}\n{g.stderr}")
+        if arm == "fusion":
+            env = {**os.environ, "HARNESS_DATA_DIR": str(ws / "harness-data")}
+            g = subprocess.run([sys.executable, str(ws / HARNESS_CLI_REL),
+                                "gate", "mode", "--set", "audit"],
+                               capture_output=True, text=True, timeout=60, env=env)
+            if g.returncode != 0:
+                raise SystemExit(f"gate set audit failed:\n{g.stdout}\n{g.stderr}")
     shutil.copytree(task["_dir"] / "seed", ws, dirs_exist_ok=True)
     return ws
 
@@ -88,13 +96,24 @@ async def run_agent(task: dict, ws: Path, args) -> dict:
         env=env,
     )
     result: dict = {"is_error": None}
+    skill_calls: list[str] = []
     async for msg in query(prompt=task["_instruction"], options=opts):
+        # Skill-tool invocations = what ECC actually loaded (directory
+        # existence on disk proves nothing)
+        content = getattr(msg, "content", None)
+        if isinstance(content, list):
+            for block in content:
+                if getattr(block, "name", None) == "Skill":
+                    skill = (getattr(block, "input", None) or {}).get("skill")
+                    if skill:
+                        skill_calls.append(str(skill))
         if isinstance(msg, ResultMessage):
             for f in dataclasses.fields(msg):
                 try:
                     result[f.name] = getattr(msg, f.name)
                 except AttributeError:
                     pass
+    result["skill_tool_calls"] = skill_calls
     return result
 
 
@@ -108,7 +127,7 @@ def run_verify(task: dict, ws: Path) -> tuple[bool, str]:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--task", required=True, type=Path)
-    ap.add_argument("--arm", required=True, choices=["native", "fusion"])
+    ap.add_argument("--arm", required=True, choices=["native", "fusion", "ecc"])
     ap.add_argument("--out", type=Path, default=None)
     ap.add_argument("--model", default=DEFAULT_MODEL)
     ap.add_argument("--ledger", type=Path, default=None,
@@ -143,6 +162,7 @@ def main() -> int:
         "num_turns": agent.get("num_turns"),
         "duration_ms": agent.get("duration_ms"),
         "is_error": agent.get("is_error"),
+        "skill_tool_calls": agent.get("skill_tool_calls", []),
         "workspace": str(ws),
         "exploratory": True,  # N=1 cells are never generalizable claims
     }
