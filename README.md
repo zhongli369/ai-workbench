@@ -27,7 +27,7 @@ for rules you don't need today.
 **Install** (Python ≥ 3.10 + Claude Code CLI; Windows primary, Linux/macOS via CI):
 
 ```bash
-git clone <this repo> && cd ai-workbench-rc
+git clone https://github.com/zhongli369/ai-workbench.git && cd ai-workbench
 python tools/workbench.py doctor
 python tools/workbench.py install && python tools/workbench.py launch
 ```
@@ -64,8 +64,8 @@ Requirements: **Python ≥ 3.10**, Claude Code CLI. Windows is the primary teste
 platform; Linux/macOS use the POSIX code paths exercised in CI.
 
 ```bash
-git clone <this repo>
-cd ai-workbench-rc
+git clone https://github.com/zhongli369/ai-workbench.git
+cd ai-workbench
 python tools/workbench.py doctor                      # preflight, never mutates
 python tools/workbench.py install --scope standalone  # default: platform data dir
 python tools/workbench.py launch                      # prints the exact launch command

@@ -21,7 +21,7 @@
 **安装** (Python ≥ 3.10 + Claude Code CLI; Windows 主测, Linux/macOS 走 CI):
 
 ```bash
-git clone <本仓库> && cd ai-workbench-rc
+git clone https://github.com/zhongli369/ai-workbench.git && cd ai-workbench
 python tools/workbench.py doctor
 python tools/workbench.py install && python tools/workbench.py launch
 ```
@@ -58,8 +58,8 @@ tools/workbench.py    ← 安装器 / doctor / 启动器 / 卸载器
 Linux/macOS 走 CI 覆盖的 POSIX 路径。
 
 ```bash
-git clone <本仓库>
-cd ai-workbench-rc
+git clone https://github.com/zhongli369/ai-workbench.git
+cd ai-workbench
 python tools/workbench.py doctor                      # 预检, 不做任何修改
 python tools/workbench.py install --scope standalone  # 默认装到平台数据目录
 python tools/workbench.py launch                      # 打印确切启动命令
