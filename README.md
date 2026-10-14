@@ -18,7 +18,7 @@ for rules you don't need today.
 |---|---|---|---|
 | Edit, test, ship in one project | ✔ (this is CC itself) | | |
 | 60+ agents / 240+ skills catalog | | ✔ (upstream project) | |
-| Curated ECC subset, on-demand not resident | | | ✔ (27 skills / 16 agents, pinned) |
+| Curated ECC subset, on-demand not resident | | | ✔ (30 skills / 16 agents, pinned) |
 | One workspace operating many projects | | | ✔ (self-developed) |
 | Cross-session failure memory + repeat-error oracle | | | ✔ (self-developed, harness-core) |
 | FAST/STANDARD/DEEP cost policy | | | ✔ (self-developed) |
@@ -52,10 +52,10 @@ tools/workbench.py    ← installer / doctor / launcher / uninstaller
 |---|---|---|
 | 1 | One entry, many projects | Launch once, then `cd`-free cross-project work (absolute paths, `git -C`) |
 | 2 | Correct rules per target | Project-level `claudeMdExcludes` keeps global rule packs from shadowing a target project's own CLAUDE.md |
-| 3 | ECC capabilities on demand | 27 skills / 16 agents from everything-claude-code, loaded per-task, not resident |
+| 3 | ECC capabilities on demand | 30 skills / 16 agents from everything-claude-code, loaded per-task, not resident |
 | 4 | Cross-session failure memory | `harness-core` records why approaches failed; the oracle is queried when a failure is hit (fail-triggered) |
 | 5 | Complexity-matched tokens | FAST / STANDARD / DEEP policy: small fixes skip planning, agents, and bookkeeping; RECOVERY mode handles stuck states with explicit signals (a single test failure never triggers a recovery cascade, and safety rails are never disabled to get unstuck) |
-| 6 | Deterministic quality & safety | 79 offline contracts; three-tier gate (DISABLED / AUDIT / ENFORCE) for irreversible commands |
+| 6 | Deterministic quality & safety | 106 offline contracts; three-tier gate (DISABLED / AUDIT / ENFORCE) for irreversible commands |
 | 7 | No per-project harness install | Install the workbench once; target projects stay untouched |
 
 ## Install
@@ -152,7 +152,7 @@ Measured on the reference machine (Claude Code 2.1.x, `--output-format json` usa
 
 | Component | Origin |
 |---|---|
-| Skills / agents / commands (27+16+14) | **Inherited** — [everything-claude-code](https://github.com/affaan-m/everything-claude-code), MIT, pinned snapshot in `vendor/ecc/` (see `NOTICE`) |
+| Skills / agents / commands (30+16+14) | **Inherited** — [everything-claude-code](https://github.com/affaan-m/everything-claude-code), MIT, pinned snapshot in `vendor/ecc/` (see `NOTICE`) |
 | harness-core (feedback, gate, report, telemetry) | **Self-developed**, stdlib-only, deterministic, 38 contracts |
 | Installer / launcher / uninstaller | **Self-developed** |
 | FAST/STANDARD/DEEP cost policy | **Self-developed**, driven by measurements above |

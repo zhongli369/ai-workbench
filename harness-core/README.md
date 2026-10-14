@@ -46,7 +46,7 @@ applies to interactive sessions (verified 2026-10, CC 2.1.x).
 ## Tests
 
 ```bash
-python -m pytest tests/ -q     # 26 contracts, stdlib + pytest only
+python -m pytest tests/ -q     # 38 contracts, stdlib + pytest only
 ```
 
 ## Honest limits

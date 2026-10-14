@@ -22,9 +22,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: harness-core contracts (26)
+      - name: harness-core contracts (38)
         run: python -m pytest harness-core/tests/ -q
-      - name: clean-room install contracts (11)
+      - name: clean-room install contracts (68)
         run: python -m pytest tests/ -q
 
   static:
@@ -39,6 +39,8 @@ jobs:
         run: python -m compileall -q tools/ harness-core/harness/ hooks/
       - name: no personal paths / secrets in tree
         run: python tools/check_hygiene.py
+      - name: docs drift gate (claims vs live sources)
+        run: python tools/check_docs_drift.py
       - name: third-party license files present
         run: |
           test -f LICENSE

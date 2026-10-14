@@ -12,7 +12,7 @@
 |---|---|---|---|
 | 单项目内改代码/测试/交付 | ✔ (CC 本身) | | |
 | 60+ agents / 240+ skills 目录 | | ✔ (上游项目) | |
-| 精选 ECC 子集, 按需非常驻 | | | ✔ (27 skills / 16 agents, 已 pin) |
+| 精选 ECC 子集, 按需非常驻 | | | ✔ (30 skills / 16 agents, 已 pin) |
 | 一个工作台操作多项目 | | | ✔ (自研) |
 | 跨会话失败记忆 + 重错 oracle | | | ✔ (自研, harness-core) |
 | FAST/STANDARD/DEEP 成本策略 | | | ✔ (自研) |
@@ -46,10 +46,10 @@ tools/workbench.py    ← 安装器 / doctor / 启动器 / 卸载器
 |---|---|---|
 | 1 | 一个入口操作多项目 | 启动一次, 免 cd 跨项目工作 (绝对路径, `git -C`) |
 | 2 | 目标项目规则正确加载 | 项目级 `claudeMdExcludes` 防止全局规则包遮蔽目标项目自己的 CLAUDE.md |
-| 3 | ECC 能力按需调用 | 27 skills / 16 agents 来自 everything-claude-code, 按任务加载非常驻 |
+| 3 | ECC 能力按需调用 | 30 skills / 16 agents 来自 everything-claude-code, 按任务加载非常驻 |
 | 4 | 跨会话失败记忆 | `harness-core` 记录失败原因; 遇到失败时 (fail-triggered) oracle 先查历史 |
 | 5 | 复杂度匹配的 token 策略 | FAST / STANDARD / DEEP: 小修不规划、不起 agent、不记账; RECOVERY 模式用明确信号处理卡死状态 (单次测试失败永不触发恢复链, 恢复永不关闭安全护栏) |
-| 6 | 确定性质量与安全 | 79 项离线契约; 三档闸门 (DISABLED / AUDIT / ENFORCE) 管不可逆命令 |
+| 6 | 确定性质量与安全 | 106 项离线契约; 三档闸门 (DISABLED / AUDIT / ENFORCE) 管不可逆命令 |
 | 7 | 目标项目零侵入 | 工作台装一次, 目标项目不被修改 |
 
 ## 安装
@@ -134,7 +134,7 @@ oracle 只在**遇到失败时** (fail-triggered) 或用户明确要求时查询
 
 | 组件 | 来源 |
 |---|---|
-| Skills / agents / commands (27+16+14) | **继承** — [everything-claude-code](https://github.com/affaan-m/everything-claude-code), MIT, pin 快照在 `vendor/ecc/` (见 `NOTICE`) |
+| Skills / agents / commands (30+16+14) | **继承** — [everything-claude-code](https://github.com/affaan-m/everything-claude-code), MIT, pin 快照在 `vendor/ecc/` (见 `NOTICE`) |
 | harness-core (feedback / gate / report / telemetry) | **自研**, 纯 stdlib, 确定性, 38 项契约 |
 | 安装器 / 启动器 / 卸载器 | **自研** |
 | FAST/STANDARD/DEEP 成本策略 | **自研**, 由上述实测驱动 |
