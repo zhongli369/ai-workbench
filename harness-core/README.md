@@ -13,7 +13,11 @@ No network, no upload, no machine-specific paths. Data lives in one local direct
   Promotion never auto-modifies any config or rules.
 - **gate** — three-tier irreversible-action gate: `disabled` / `audit` (logs only,
   NOT protection) / `enforce` (blocks without approval, fail-closed on config error).
-- **telemetry** — invocation ledger; the `telemetry` reader itself is never counted.
+- **telemetry** — invocation ledger with self-exclusion: reader commands
+  (`telemetry`, `feedback stats`, `report`, `gate check`) are never logged,
+  every row carries a source label (`cli` / `bench` via `HARNESS_BENCH=1` /
+  `synthetic`), and the summary's adoption view counts only real `cli`
+  invocations — benchmarks can never masquerade as product usage.
 
 ## Usage
 

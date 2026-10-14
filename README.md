@@ -163,6 +163,10 @@ Measured on the reference machine (Claude Code 2.1.x, `--output-format json` usa
 - `AUDIT`: records and prompts — **this is observability, not protection**.
 - `ENFORCE`: configured high-risk patterns are blocked unless pre-approved
   (TTL approvals); unreadable config fails **closed**.
+- One-time approvals: `gate approve --once --action "git push origin main"`
+  issues a single-use token (`awt-…`, SHA-256 stored, TTL-bound, replay-safe)
+  consumed by exactly one matching command; the raw token is printed once
+  and never written to the audit log.
 - `claude --print` (non-interactive) does not execute PreToolUse hooks — gate
   enforcement applies to interactive sessions. Verified 2026-10 on CC 2.1.x.
 
@@ -195,6 +199,11 @@ refresh) is tracked as gates in [RELEASE_READINESS.md](RELEASE_READINESS.md).
 - [CHANGELOG.md](CHANGELOG.md) — release history
 - [RELEASE_READINESS.md](RELEASE_READINESS.md) — gate-by-gate PASS/FAIL/PENDING status
 - [harness-core/README.md](harness-core/README.md) — the memory/safety toolkit, usable standalone
+- Maintainer gates: [docs/claims.json](docs/claims.json) (release claims verified
+  against live sources), [docs/surface.json](docs/surface.json) (frozen public
+  CLI/schema surface — additive changes are free, breaking changes require a
+  major bump), [docs/incidents/registry.json](docs/incidents/registry.json)
+  (named historical failures locked as permanent regression tests)
 
 ## License
 

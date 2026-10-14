@@ -144,6 +144,9 @@ oracle 只在**遇到失败时** (fail-triggered) 或用户明确要求时查询
 - `DISABLED`: 闸门不工作。
 - `AUDIT`: 记录并提示 — **这是可观测性, 不是防护**。
 - `ENFORCE`: 配置的高危 pattern 未预授权即拦截 (TTL 授权); 配置不可读时 fail-closed。
+- 一次性授权: `gate approve --once --action "git push origin main"` 签发单次令牌
+  (`awt-…`, 仅存 SHA-256, TTL 约束, 防重放), 被且仅被一条匹配命令消费;
+  原始令牌只打印一次, 从不写入审计日志。
 - `claude --print` (非交互) 不执行 PreToolUse hooks — 闸门强制只对交互会话生效。
   2026-10 在 CC 2.1.x 上实证。
 
@@ -172,6 +175,10 @@ oracle 只在**遇到失败时** (fail-triggered) 或用户明确要求时查询
 - [CHANGELOG.md](CHANGELOG.md) — 发布历史
 - [RELEASE_READINESS.md](RELEASE_READINESS.md) — 逐门禁 PASS/FAIL/PENDING 状态
 - [harness-core/README.md](harness-core/README.md) — 记忆/安全工具包, 可独立使用
+- 维护者门禁: [docs/claims.json](docs/claims.json) (发布声明对照实时证据源校验)、
+  [docs/surface.json](docs/surface.json) (冻结的公开 CLI/Schema 表面 — 新增自由,
+  破坏性变更必须 major 升级)、[docs/incidents/registry.json](docs/incidents/registry.json)
+  (具名历史故障锁定为永久回归测试)
 
 ## 许可证
 
