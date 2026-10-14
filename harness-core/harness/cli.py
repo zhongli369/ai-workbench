@@ -94,7 +94,21 @@ def _get_project_id(args: argparse.Namespace) -> tuple[str, str]:
     )
 
 
+def _force_utf8_stdio() -> None:
+    """JSON payloads are printed with ensure_ascii=False and may carry CJK
+    text; a cp1252 console (en-US Windows) would crash print() with
+    UnicodeEncodeError. Reconfigure to UTF-8 so output never raises."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            try:
+                reconfigure(encoding="utf-8", errors="replace")
+            except (ValueError, OSError):
+                pass
+
+
 def main(argv: list[str] | None = None) -> int:
+    _force_utf8_stdio()
     args = _build_parser().parse_args(argv)
     data_dir = _get_data_dir(args)
     pid, source = _get_project_id(args)

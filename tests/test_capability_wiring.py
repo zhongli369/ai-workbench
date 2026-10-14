@@ -40,10 +40,17 @@ def _bare_target(tmp_path):
 
 
 def _fake_cli(tmp_path, name="repomix"):
-    """Create a fake executable on a private PATH dir; return env override."""
+    """Create a fake executable on a private PATH dir; return env override.
+    Platform-aware: shutil.which() resolves name.exe via PATHEXT on Windows,
+    but on POSIX the file must be named exactly `name` with the exec bit."""
     bin_dir = tmp_path / "fakebin"
     bin_dir.mkdir(exist_ok=True)
-    (bin_dir / f"{name}.exe").write_text("@echo off\r\n", encoding="utf-8")
+    if os.name == "nt":
+        (bin_dir / f"{name}.exe").write_text("@echo off\r\n", encoding="utf-8")
+    else:
+        f = bin_dir / name
+        f.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        f.chmod(0o755)
     return {"PATH": str(bin_dir) + os.pathsep + os.environ.get("PATH", "")}
 
 

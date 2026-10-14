@@ -28,7 +28,11 @@ SELF_DEVELOPED = {  # not from upstream; everything else must pair
 
 
 def sha(p: Path) -> str:
-    return hashlib.sha256(p.read_bytes()).hexdigest()
+    # Hash LF-normalized bytes: git checks out text files with LF on POSIX but
+    # a Windows worktree may hold CRLF, and the snapshot is all-Markdown text.
+    # Without normalization the manifest only verifies on the machine that
+    # recorded it (CI drift on every other platform).
+    return hashlib.sha256(p.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
 
 
 def build_manifest() -> dict:
