@@ -1,0 +1,6 @@
+name = "t7-validator-drift-refactor"
+tier = "DEEP-lite"
+canary = "canary:AIWB-26B-8c2d47a1e905/t7"
+instruction_file = "instruction.md"
+verify = "verify.py"
+max_budget_usd = 0.75
