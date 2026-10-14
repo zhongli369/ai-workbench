@@ -35,8 +35,11 @@ def test_task_schema_and_canary_discipline():
         assert (d / "seed").is_dir()
         instr = (d / meta["instruction_file"]).read_text(encoding="utf-8")
         assert meta["canary"] in instr, f"{d.name}: canary not embedded in instruction"
+        # __pycache__/.pytest_cache are runtime artifacts, never publishable
+        # (gitignored) — scanning them is the incident-C mistake
         raw = "".join(p.read_text(encoding="utf-8", errors="ignore")
-                      for p in d.rglob("*") if p.is_file())
+                      for p in d.rglob("*") if p.is_file()
+                      and not {"__pycache__", ".pytest_cache"}.intersection(p.parts))
         for bad in ("F:\\", "C:\\Users", "/Users/", "/home/", "14679"):
             assert bad not in raw, f"{d.name}: machine-specific fragment {bad}"
 

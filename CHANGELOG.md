@@ -6,7 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [0.1.0-preview.1] — 2026-10-14
 
 First **Public Preview**. Everything from 0.1.0-rc.1 plus the FUSION OMEGA
-milestones M3–M5 below. 138 offline contracts, hygiene / ECC-provenance /
+milestones M3–M5 below. 151 offline contracts, hygiene / ECC-provenance /
 compile gates all green on the release commit.
 
 ### Added

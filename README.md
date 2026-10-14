@@ -55,7 +55,7 @@ tools/workbench.py    ← installer / doctor / launcher / uninstaller
 | 3 | ECC capabilities on demand | 30 skills / 16 agents from everything-claude-code, loaded per-task, not resident |
 | 4 | Cross-session failure memory | `harness-core` records why approaches failed; the oracle is queried when a failure is hit (fail-triggered) |
 | 5 | Complexity-matched tokens | FAST / STANDARD / DEEP policy: small fixes skip planning, agents, and bookkeeping; RECOVERY mode handles stuck states with explicit signals (a single test failure never triggers a recovery cascade, and safety rails are never disabled to get unstuck) |
-| 6 | Deterministic quality & safety | 138 offline contracts; three-tier gate (DISABLED / AUDIT / ENFORCE) for irreversible commands |
+| 6 | Deterministic quality & safety | 151 offline contracts; three-tier gate (DISABLED / AUDIT / ENFORCE) for irreversible commands |
 | 7 | No per-project harness install | Install the workbench once; target projects stay untouched |
 
 ## Install

@@ -17,7 +17,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-WB = Path(__file__).resolve().parent.parent  # workbench-vnext root
+WB = Path(__file__).resolve().parent.parent  # ai-workbench-rc tools/ root
 
 # identical permission surface for both arms; prefixes cover what a bugfix
 # session legitimately needs inside an isolated experiment copy

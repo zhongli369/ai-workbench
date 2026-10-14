@@ -1,0 +1,65 @@
+{
+  "comment": "Incident replay registry (P1.4). Every entry names a real, dated failure from the bench/launch era, its root cause, its fix, and the permanent regression tests that lock it. tests/test_incident_replay.py validates this registry's integrity AND replays each incident class against the live tree. Adding an incident without regression tests fails the suite.",
+  "incidents": [
+    {
+      "id": "INC-A-permission-probing",
+      "title": "Permission-pattern probing caused tool denials and cost blowup in bench arms",
+      "source": "workbench-vnext / ai-workbench-rc bench era, 2026-10 (run_arm.py ALLOWED evolution; r3 note '9 denials from cmd/cd retries'; first controlled A/B measured 2.33x baseline cost partly from permission trial-and-error)",
+      "root_cause": "Bench arms ran with asymmetric/incomplete allowedTools (Bash entries without PowerShell counterparts on Windows), so agents burned turns probing which shell spelling was permitted; every denial was a paid turn. The product-side risk twin: an over-broad allowlist would have 'fixed' it by disabling the permission model.",
+      "fix": "Paired Bash(x:*)/PowerShell(x:*) prefixes limited to what a bugfix session legitimately needs; no bare wildcards; SDK bench runner uses bypassPermissions (bench-only, documented); the installed product settings carry NO permissions key (Claude Code defaults stay in force).",
+      "reproduce": "Give one arm Bash(python:*) but not PowerShell(python:*) on Windows; count permission denials in the transcript.",
+      "regression_tests": [
+        "test_incident_replay.py::test_a_allowed_tools_bash_powershell_symmetric",
+        "test_incident_replay.py::test_a_no_bare_wildcards_in_allowed",
+        "test_incident_replay.py::test_a_product_settings_have_no_permissions_key",
+        "test_incident_replay.py::test_a_bypass_permissions_is_bench_only"
+      ],
+      "commits": ["pre-RC (vnext era, r3)", "P1.4 registry commit"],
+      "verified_in_payload": true
+    },
+    {
+      "id": "INC-B-verify-wrong-root",
+      "title": "verify.py resolved its workspace from __file__ and checked the wrong directory",
+      "source": "harness bench era, 2026-10 (task verify scripts)",
+      "root_cause": "A verify script that anchors on __file__ checks the repo/task directory, not the agent's workspace copy — it can PASS while the agent did nothing, or FAIL while the agent succeeded. Companion failure: the agent (with write access beyond the workspace) could rewrite its own examiner.",
+      "fix": "All task verify scripts resolve the workspace from Path.cwd() (the driver runs them with cwd=workspace) and carry the marker protocol (VERIFY PASS / VERIFY FAIL: <reason>) so a crash (traceback, no marker) is never confused with a real verification failure. run_sdk_arm.py hashes the verify script pre/post agent run; any modification voids the result (verify_tampered).",
+      "reproduce": "Point a verify script at Path(__file__).parent and run it against a modified workspace: it reports on the pristine task dir instead.",
+      "regression_tests": [
+        "test_incident_replay.py::test_b_verifiers_use_cwd_not_file",
+        "test_incident_replay.py::test_b_verifiers_fail_on_pristine_seed_with_marker",
+        "test_incident_replay.py::test_b_driver_hashes_verifier_pre_post"
+      ],
+      "commits": ["pre-RC (cwd fix already in tasks)", "P1.4 registry commit (driver hashing)"],
+      "verified_in_payload": true
+    },
+    {
+      "id": "INC-C-pycache-provenance",
+      "title": "__pycache__ artifacts polluted provenance/drift scans",
+      "source": "harness bench + ECC provenance era, 2026-10",
+      "root_cause": "Interpreter-generated __pycache__ directories appear and disappear with runtime, not with human edits; scanning them makes caches indistinguishable from real unauthorized changes (fake drift) and can hide real ones in the noise.",
+      "fix": "check_hygiene.py SKIP_DIRS excludes __pycache__ (and .pytest_cache etc.); behavioral contracts prove a planted cache file with forbidden content is ignored while the same content in a real source file is caught.",
+      "reproduce": "Drop a .pyc-adjacent text file containing a personal path into __pycache__/ and watch a naive scanner report drift; then put the same string into a real .py and watch it pass if the scanner over-skips.",
+      "regression_tests": [
+        "test_incident_replay.py::test_c_pycache_skipped_but_real_files_scanned",
+        "test_incident_replay.py::test_c_skip_dirs_cover_caches"
+      ],
+      "commits": ["pre-RC (SKIP_DIRS)", "P1.4 registry commit"],
+      "verified_in_payload": true
+    },
+    {
+      "id": "INC-D-user-path-leakage",
+      "title": "Builder-machine user paths risked leaking into the publish set",
+      "source": "launch sprint era, 2026-10 (F:\\Claude... builder paths; relay tooling had to be gitignored)",
+      "root_cause": "Docs and configs generated on the builder machine naturally contain absolute user paths; publishing them leaks personal directory structure. The inverse risk: a paranoid pattern false-positiving on documentation placeholders makes the gate useless.",
+      "fix": "check_hygiene.py scans exactly the publishable set (git ls-files, so local evidence like bench results stays out) for drive/project/user-profile/secret shapes, with a lookahead that exempts placeholders like C:\\Users\\...\\project; self-reference allowlist for the checkers themselves; the release archive (zipapp) contents are scanned too.",
+      "reproduce": "echo 'C:\\Users\\someone\\project' into a tracked file and run tools/check_hygiene.py.",
+      "regression_tests": [
+        "test_incident_replay.py::test_d_publish_set_clean_on_real_tree",
+        "test_incident_replay.py::test_d_placeholders_not_false_positived",
+        "test_incident_replay.py::test_d_release_archive_scanned"
+      ],
+      "commits": ["pre-RC (check_hygiene.py)", "P1.4 registry commit"],
+      "verified_in_payload": true
+    }
+  ]
+}

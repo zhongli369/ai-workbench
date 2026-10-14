@@ -20,6 +20,7 @@ Arms:
 import argparse
 import asyncio
 import dataclasses
+import hashlib
 import json
 import os
 import shutil
@@ -124,6 +125,10 @@ def run_verify(task: dict, ws: Path) -> tuple[bool, str]:
     return out.returncode == 0, tail
 
 
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--task", required=True, type=Path)
@@ -150,14 +155,27 @@ def main() -> int:
         return 1
 
     ws = prepare_workspace(task, args.arm)
+    # Incident-B lock: the verifier is the independent judge — hash it before
+    # and after the agent run. An agent (bypassPermissions, repo reachable)
+    # that rewrites its own examiner voids the result even if it restores
+    # content afterwards (final-state hash; documented residual).
+    verify_path = (task["_dir"] / task["verify"]).resolve()
+    verify_hash_pre = _sha256(verify_path)
     agent = asyncio.run(run_agent(task, ws, args))
-    success, verify_tail = run_verify(task, ws)
+    verify_hash_post = _sha256(verify_path)
+    verify_tampered = verify_hash_pre != verify_hash_post
+    if verify_tampered:
+        success, verify_tail = False, "verify script modified during agent run — result void"
+    else:
+        success, verify_tail = run_verify(task, ws)
 
     record = {
         **plan,
         "ts": datetime.now(timezone.utc).isoformat(),
         "success": success,
         "verify_tail": verify_tail,
+        "verify_sha256": verify_hash_post,
+        "verify_tampered": verify_tampered,
         "total_cost_usd": agent.get("total_cost_usd"),
         "num_turns": agent.get("num_turns"),
         "duration_ms": agent.get("duration_ms"),
