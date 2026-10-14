@@ -311,6 +311,7 @@
       "argv": "list",
       "cmd": "str",
       "project_id": "str",
+      "source": "str",
       "ts": "str"
     },
     "gate.json:config": {
@@ -337,6 +338,11 @@
       "ts": "2026-10-14T06:04:42+00:00",
       "bump": "minor",
       "rationale": "baseline: P1.1 drift gate + P1.3 one-time tokens landed; CLI/JSONL/settings surface at 123 contracts green"
+    },
+    {
+      "ts": "2026-10-14T06:33:40+00:00",
+      "bump": "minor",
+      "rationale": "telemetry.jsonl gains per-row source label (cli/bench/synthetic) for self-exclusion (P1.5); additive"
     }
   ]
 }

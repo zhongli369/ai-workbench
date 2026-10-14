@@ -33,8 +33,11 @@ PATTERNS = [
 # (they must name what they forbid), tests that assert the same (test_contracts
 # carries a SYNTHETIC sk-... fixture proving redaction works), and docs that
 # explain the rule.
+# test_incident_replay.py plants synthetic C:\Users\<name> fixtures to prove
+# the scanner catches real leaks (same exemption class as test_contracts.py's
+# synthetic secret).
 SELF_REFS = {"check_hygiene.py", "test_cleanroom_install.py", "test_contracts.py",
-             "SECURITY.md"}
+             "test_incident_replay.py", "SECURITY.md"}
 TEXT_SUFFIXES = {".py", ".md", ".json", ".ps1", ".sh", ".yml", ".yaml", ".txt", ".toml"}
 SKIP_DIRS = {".git", "__pycache__", ".pytest_cache", "node_modules", "dist"}
 

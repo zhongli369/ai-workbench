@@ -85,6 +85,7 @@ async def run_agent(task: dict, ws: Path, args) -> dict:
     from claude_agent_sdk import ClaudeAgentOptions, ResultMessage, query
 
     env = dict(os.environ)
+    env["HARNESS_BENCH"] = "1"  # bench traffic is labeled, never adoption
     if args.arm == "fusion":
         env["HARNESS_DATA_DIR"] = str(ws / "harness-data")
     opts = ClaudeAgentOptions(

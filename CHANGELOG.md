@@ -6,8 +6,35 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [0.1.0-preview.1] — 2026-10-14
 
 First **Public Preview**. Everything from 0.1.0-rc.1 plus the FUSION OMEGA
-milestones M3–M5 below. 151 offline contracts, hygiene / ECC-provenance /
+milestones M3–M5 below. 160 offline contracts, hygiene / ECC-provenance /
 compile gates all green on the release commit.
+
+### Added (post-RC hardening — legacy power-up P1)
+- **Docs Drift Gate** (`tools/check_docs_drift.py` + `docs/claims.json`):
+  release claims are structured data checked against live sources (pytest
+  collection, ECC payload counts, VERSION constant); performance figures must
+  carry their qualifier (N=1 / controlled / model-independent) in the same
+  paragraph block. Release statements are constrained by evidence, not memory.
+- **Frozen Public Surface Verifier** (`tools/check_public_surface.py` +
+  `docs/surface.json`): explicit manifest of the committed CLI commands/flags,
+  JSONL schemas and settings keys; removal/retype/choice-shrink = BREAKING
+  (requires `--accept-new --bump major` + rationale), additions are free.
+  Internal refactoring stays aggressive; the public API cannot break by accident.
+- **One-time approval tokens** (`gate approve --once --action …`): single-use,
+  TTL-bound, scope-limited (`awt-…`, SHA-256 stored only), atomic consumption
+  under a store lock, distinct replay/expiry/scope denials, raw token never in
+  the audit log. AUDIT mode never consults tokens.
+- **Incident replay contracts** (`docs/incidents/registry.json` +
+  `tests/test_incident_replay.py`): four named historical failures (permission
+  probing, verify-wrong-root, `__pycache__` provenance pollution, user-path
+  leakage) locked as permanent regression tests; the bench driver hashes each
+  task's verifier pre/post agent run and voids tampered results.
+- **Telemetry self-exclusion** (harness-core telemetry): reader commands
+  (`telemetry`, `feedback stats`, `report`, `gate check`) are never logged;
+  every row carries a source label (`cli` / `bench` / `synthetic`;
+  `HARNESS_BENCH=1` marks paid experiment traffic); `summarize()` is a pure
+  read and its adoption view counts only real `cli` invocations, so bench or
+  synthetic traffic can never masquerade as product usage.
 
 ### Added
 - **Capability Registry v1** (`capabilities/registry.json` + `tools/capability.py`):

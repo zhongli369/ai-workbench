@@ -134,7 +134,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.cmd == "feedback" and args.fcmd == "stats":
-        telemetry.log(data_dir, cmd="feedback.stats", project_id=pid, argv=sys.argv)
+        # pure reader — never logged (self-exclusion, P1.5)
         s = feedback.stats(data_dir, project_id=pid)
         print(json.dumps(s, ensure_ascii=False, indent=2))
         return 0
@@ -155,7 +155,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.cmd == "report":
-        telemetry.log(data_dir, cmd="report", project_id=pid, argv=sys.argv)
+        # pure reader — never logged (self-exclusion, P1.5)
         print(json.dumps(report_mod.report(data_dir, project_id=pid,
                                            min_count=args.min_count),
                          ensure_ascii=False, indent=2))

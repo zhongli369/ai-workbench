@@ -73,7 +73,8 @@ def _run_one(task: dict, arm: str, model: str, ws=None):
 
 
 def _seed_experience(ws: Path) -> dict:
-    env = {**os.environ, "HARNESS_DATA_DIR": str(ws / "harness-data")}
+    env = {**os.environ, "HARNESS_DATA_DIR": str(ws / "harness-data"),
+           "HARNESS_BENCH": "1"}  # seeded-experience writes are bench traffic
     cmd = [sys.executable, str(ws / drv.HARNESS_CLI_REL), "feedback", "record",
            "--project-id", T3_RECORD["project_id"],
            "--cause", T3_RECORD["cause"],

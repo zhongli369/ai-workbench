@@ -77,6 +77,9 @@ def main() -> int:
             base = _json.loads(settings.read_text(encoding="utf-8"))
             base.setdefault("env", {})["HARNESS_DATA_DIR"] = str(
                 Path(a.harness_data_dir).resolve())
+            # bench traffic must be labeled, never counted as product
+            # adoption (telemetry self-exclusion, P1.5)
+            base["env"]["HARNESS_BENCH"] = "1"
             tmp = WB / "bench" / f".arm-settings-{os.getpid()}.json"
             tmp.write_text(_json.dumps(base, indent=2), encoding="utf-8")
             settings = tmp
@@ -92,7 +95,8 @@ def main() -> int:
     if claude.lower().endswith((".cmd", ".bat")):
         cmd = ["cmd", "/c", *cmd]  # CreateProcess cannot exec batch shims
 
-    env = {**os.environ, "CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD": "1"}
+    env = {**os.environ, "CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD": "1",
+           "HARNESS_BENCH": "1"}  # every run_arm invocation is bench traffic
     if a.harness_data_dir:
         env["HARNESS_DATA_DIR"] = str(Path(a.harness_data_dir).resolve())
     if a.harness_project_id:
