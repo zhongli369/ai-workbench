@@ -104,6 +104,13 @@ compile gates all green on the release commit.
   seeded arms; no measured cost harm → no removal; no attributable benefit
   → no upgrade. The unbuilt §1.5 structural-trigger proposal stays unbuilt:
   the model's no-query choice was correct in every case so far.
+- Benchmark batch 4 / t7 (claude-haiku-4-5, 3/3 arms passing, $0.4307;
+  cumulative ledger $1.537 of the $3.00 cap): deep multi-file validator
+  refactor — native $0.1558/22t, ecc $0.1235/18t, fusion $0.1514/27t, verify
+  hashes untampered, all arms completed the dedup under the frozen API/CLI.
+  Zero skill/oracle calls on every arm (fail-triggered policy correctly
+  silent on a green-run task). Direction only (N=1, exploratory):
+  cost ecc < fusion < native; no measurable harness tax or benefit.
 
 ### Changed (policy, evidence-driven)
 - Failure-oracle trigger corrected from "query on 2nd occurrence of the same
