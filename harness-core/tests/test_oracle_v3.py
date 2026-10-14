@@ -20,7 +20,7 @@ CLI = str(Path(__file__).resolve().parent.parent / "harness" / "cli.py")
 def _run_cli(tmp_path, cmd: list[str]) -> subprocess.CompletedProcess:
     env = {**os.environ, "HARNESS_DATA_DIR": str(tmp_path / "data")}
     return subprocess.run(
-        [sys.executable, CLI, *cmd], capture_output=True, text=True, env=env,
+        [sys.executable, CLI, *cmd], capture_output=True, text=True, encoding="utf-8", env=env,
         cwd=tmp_path, timeout=60,
     )
 

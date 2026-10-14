@@ -95,9 +95,10 @@ def _get_project_id(args: argparse.Namespace) -> tuple[str, str]:
 
 
 def _force_utf8_stdio() -> None:
-    """JSON payloads are printed with ensure_ascii=False and may carry CJK
-    text; a cp1252 console (en-US Windows) would crash print() with
-    UnicodeEncodeError. Reconfigure to UTF-8 so output never raises."""
+    """Human-facing prints may carry CJK text; a cp1252 console (en-US
+    Windows) would crash print() with UnicodeEncodeError. Reconfigure to
+    UTF-8 so output never raises. (Machine-facing JSON uses ensure_ascii=True
+    and stays pure ASCII on any locale.)"""
     for stream in (sys.stdout, sys.stderr):
         reconfigure = getattr(stream, "reconfigure", None)
         if reconfigure is not None:
@@ -127,7 +128,7 @@ def main(argv: list[str] | None = None) -> int:
             confidence=args.confidence,
             valid_until=args.valid_until,
         )
-        print(json.dumps(rec, ensure_ascii=False))
+        print(json.dumps(rec, ensure_ascii=True))
         print(f"project_id={pid} (source: {source})", file=sys.stderr)
         return 0
 
@@ -138,7 +139,7 @@ def main(argv: list[str] | None = None) -> int:
                               include_expired=args.include_expired,
                               include_superseded=args.include_superseded)
         if args.json:
-            print(json.dumps(rows, ensure_ascii=False, indent=2))
+            print(json.dumps(rows, ensure_ascii=True, indent=2))
         else:
             for row in rows:
                 print(f"{row['ts'][:19]}  [{row['failure_cause']}]  {row['task_summary'][:80]}")
@@ -150,14 +151,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "feedback" and args.fcmd == "stats":
         # pure reader — never logged (self-exclusion, P1.5)
         s = feedback.stats(data_dir, project_id=pid)
-        print(json.dumps(s, ensure_ascii=False, indent=2))
+        print(json.dumps(s, ensure_ascii=True, indent=2))
         return 0
 
     if args.cmd == "feedback" and args.fcmd == "promote":
         telemetry.log(data_dir, cmd="feedback.promote", project_id=pid, argv=sys.argv)
         entry = feedback.promote(data_dir, project_id=pid,
                                  record_id=args.record_id, status=args.status)
-        print(json.dumps(entry, ensure_ascii=False))
+        print(json.dumps(entry, ensure_ascii=True))
         return 0
 
     if args.cmd == "feedback" and args.fcmd == "supersede":
@@ -165,19 +166,19 @@ def main(argv: list[str] | None = None) -> int:
         entry = feedback.supersede(data_dir, project_id=pid,
                                    record_id=args.record_id,
                                    superseded_by=args.superseded_by)
-        print(json.dumps(entry, ensure_ascii=False))
+        print(json.dumps(entry, ensure_ascii=True))
         return 0
 
     if args.cmd == "report":
         # pure reader — never logged (self-exclusion, P1.5)
         print(json.dumps(report_mod.report(data_dir, project_id=pid,
                                            min_count=args.min_count),
-                         ensure_ascii=False, indent=2))
+                         ensure_ascii=True, indent=2))
         return 0
 
     if args.cmd == "gate" and args.gcmd == "mode":
         cfg = gate.write_config(data_dir, mode=args.set)
-        print(json.dumps(cfg, ensure_ascii=False))
+        print(json.dumps(cfg, ensure_ascii=True))
         return 0
 
     if args.cmd == "gate" and args.gcmd == "approve":
@@ -188,18 +189,18 @@ def main(argv: list[str] | None = None) -> int:
             entry = gate.approve_once(data_dir, action=args.action,
                                       scope=args.scope, ttl=args.ttl, note=args.note)
             # the raw token is printed exactly here, exactly once
-            print(json.dumps(entry, ensure_ascii=False))
+            print(json.dumps(entry, ensure_ascii=True))
             return 0
         if not args.pattern:
             print("gate approve requires --pattern (or --once --action)", file=sys.stderr)
             return 2
         entry = gate.approve(data_dir, pattern=args.pattern, ttl=args.ttl, note=args.note)
-        print(json.dumps(entry, ensure_ascii=False))
+        print(json.dumps(entry, ensure_ascii=True))
         return 0
 
     if args.cmd == "gate" and args.gcmd == "check":
         print(json.dumps(gate.evaluate(data_dir, args.command, token=args.token),
-                         ensure_ascii=False))
+                         ensure_ascii=True))
         return 0
 
     if args.cmd == "telemetry":

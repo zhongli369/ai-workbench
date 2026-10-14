@@ -10,7 +10,7 @@ TOOL = RC / "tools" / "check_ecc_provenance.py"
 
 def test_snapshot_matches_recorded_manifest():
     """Bundled skills/agents/commands must equal the RC-recorded hashes."""
-    r = subprocess.run([sys.executable, str(TOOL)], capture_output=True, text=True)
+    r = subprocess.run([sys.executable, str(TOOL)], capture_output=True, text=True, encoding="utf-8")
     assert r.returncode == 0, r.stdout + r.stderr
 
 

@@ -128,7 +128,7 @@ def test_b_verifiers_fail_on_pristine_seed_with_marker(tmp_path):
         ws = tmp_path / vf.parent.name
         shutil.copytree(vf.parent / "seed", ws)
         out = subprocess.run([sys.executable, str(vf)], cwd=ws,
-                             capture_output=True, text=True, timeout=300)
+                             capture_output=True, text=True, encoding="utf-8", timeout=300)
         combined = out.stdout + out.stderr
         assert out.returncode != 0, f"{vf.parent.name}: passes on pristine seed"
         # the failure must be announced via the marker protocol — a verifier's
@@ -195,7 +195,7 @@ def test_d_release_archive_scanned(tmp_path):
     r = subprocess.run(
         [sys.executable, "-m", "zipapp", "tools", "-m", "workbench:main",
          "-o", str(out), "-p", "/usr/bin/env python3"],
-        cwd=REPO, capture_output=True, text=True, timeout=120)
+        cwd=REPO, capture_output=True, text=True, encoding="utf-8", timeout=120)
     assert r.returncode == 0, r.stderr
     bad = []
     with zipfile.ZipFile(out) as z:

@@ -22,7 +22,7 @@ def _run_hook(tmp_path, payload: dict, env_extra=None) -> subprocess.CompletedPr
         env.update(env_extra)
     return subprocess.run(
         [sys.executable, HOOK], input=json.dumps(payload),
-        capture_output=True, text=True, env=env, cwd=tmp_path, timeout=60,
+        capture_output=True, text=True, encoding="utf-8", env=env, cwd=tmp_path, timeout=60,
     )
 
 
@@ -182,9 +182,11 @@ def test_hook_ignores_non_bash_and_safe_commands(tmp_path):
 def test_cli_gate_check_and_report_roundtrip(tmp_path):
     env = {**os.environ, "HARNESS_DATA_DIR": str(tmp_path / "data")}
     def run(*args):
+        # CLI guarantees UTF-8 stdout (see cli._force_utf8_stdio); decode
+        # explicitly or a cp1252 locale crashes the reader thread.
         return subprocess.run([sys.executable, CLI, *args],
-                              capture_output=True, text=True, env=env,
-                              cwd=tmp_path, timeout=60)
+                              capture_output=True, text=True, encoding="utf-8",
+                              env=env, cwd=tmp_path, timeout=60)
     # Arrange: set enforce, record recurring cause
     assert run("gate", "mode", "--set", "enforce").returncode == 0
     out = json.loads(run("gate", "check", "git push").stdout)

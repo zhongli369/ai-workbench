@@ -31,6 +31,19 @@ import tomllib
 from datetime import datetime, timezone
 from pathlib import Path
 
+
+def _force_utf8_stdio() -> None:
+    """Prints may carry CJK / em-dashes; a cp1252 console (en-US Windows)
+    would crash print(). Reconfigure to UTF-8 so output never raises."""
+    for _s in (sys.stdout, sys.stderr):
+        _rc = getattr(_s, "reconfigure", None)
+        if _rc is not None:
+            try:
+                _rc(encoding="utf-8", errors="replace")
+            except (ValueError, OSError):
+                pass
+
+
 RC_ROOT = Path(__file__).resolve().parents[2]
 WORKBENCH = RC_ROOT / "tools" / "workbench.py"
 DEFAULT_MODEL = "claude-haiku-4-5-20251001"
@@ -201,4 +214,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    _force_utf8_stdio()
     sys.exit(main())

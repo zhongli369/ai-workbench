@@ -25,7 +25,7 @@ def run_wb(*args, target=None, env_extra=None):
     env = dict(os.environ)
     if env_extra:
         env.update(env_extra)
-    return subprocess.run(cmd, capture_output=True, text=True, timeout=120, env=env)
+    return subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", timeout=120, env=env)
 
 
 def _bare_target(tmp_path):

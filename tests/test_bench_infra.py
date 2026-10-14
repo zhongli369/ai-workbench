@@ -51,7 +51,7 @@ def test_verify_is_not_vacuous_fails_on_pristine_seed(tmp_path, task_dir):
     shutil.copytree(task_dir / "seed", ws)
     meta = tomllib.loads((task_dir / "task.toml").read_text(encoding="utf-8"))
     r = subprocess.run([sys.executable, str(task_dir / meta["verify"])],
-                       capture_output=True, text=True, timeout=180, cwd=ws)
+                       capture_output=True, text=True, encoding="utf-8", timeout=180, cwd=ws)
     assert r.returncode != 0, f"{task_dir.name}: verify passed on pristine seed (vacuous!)"
     # ...and it must fail for the RIGHT reason (a crash traceback proves nothing either)
     assert "VERIFY FAIL" in r.stdout, (
@@ -64,7 +64,7 @@ def test_driver_dry_run_both_arms(tmp_path):
     for arm in ("native", "fusion", "ecc"):
         r = subprocess.run([sys.executable, str(DRIVER), "--task", str(task),
                             "--arm", arm, "--dry-run"],
-                           capture_output=True, text=True, timeout=60)
+                           capture_output=True, text=True, encoding="utf-8", timeout=60)
         assert r.returncode == 0, r.stderr
         plan = json.loads(r.stdout)
         assert plan["arm"] == arm and plan["task"] == task.name
@@ -79,7 +79,7 @@ def test_no_harness_install_is_ecc_only(tmp_path):
     r = subprocess.run([sys.executable, str(RC_ROOT / "tools" / "workbench.py"),
                         "--target", str(target), "install", "--scope", "project",
                         "--no-harness", "--yes"],
-                       capture_output=True, text=True, timeout=120)
+                       capture_output=True, text=True, encoding="utf-8", timeout=120)
     assert r.returncode == 0, r.stdout + r.stderr
     assert (target / ".claude").is_dir(), "ECC payload missing"
     assert not (target / "harness-core").exists(), "harness-core leaked into ecc arm"
@@ -92,7 +92,7 @@ def test_no_harness_install_is_ecc_only(tmp_path):
     # uninstall still owns-only sweeps the ecc payload
     u = subprocess.run([sys.executable, str(RC_ROOT / "tools" / "workbench.py"),
                         "--target", str(target), "uninstall", "--yes"],
-                       capture_output=True, text=True, timeout=120)
+                       capture_output=True, text=True, encoding="utf-8", timeout=120)
     assert u.returncode == 0, u.stdout + u.stderr
     assert not (target / ".claude").exists()
 
@@ -146,7 +146,7 @@ def test_t6_record_template_has_no_answer_leak():
 
 def test_t6_quad_dry_run():
     r = subprocess.run([sys.executable, str(RC_ROOT / "tools" / "bench" / "run_t6_quad.py"),
-                        "--dry-run"], capture_output=True, text=True, timeout=60)
+                        "--dry-run"], capture_output=True, text=True, encoding="utf-8", timeout=60)
     assert r.returncode == 0, r.stderr
     plan = json.loads(r.stdout)
     assert [a["arm"] for a in plan["arms"]] == ["native", "ecc", "fusion",
@@ -170,7 +170,7 @@ def test_t6_fairness_same_instruction_all_arms():
 
 def test_t3_pair_dry_run(tmp_path):
     r = subprocess.run([sys.executable, str(RC_ROOT / "tools" / "bench" / "run_t3_pair.py"),
-                        "--dry-run"], capture_output=True, text=True, timeout=60)
+                        "--dry-run"], capture_output=True, text=True, encoding="utf-8", timeout=60)
     assert r.returncode == 0, r.stderr
     plan = json.loads(r.stdout)
     assert plan["phase1"]["arm"] == "fusion"
@@ -184,7 +184,7 @@ def test_driver_refuses_when_batch_cap_reached(tmp_path):
     r = subprocess.run([sys.executable, str(DRIVER), "--task", str(_task_dirs()[0]),
                         "--arm", "native", "--ledger", str(ledger),
                         "--batch-cap", "3.0"],
-                       capture_output=True, text=True, timeout=60)
+                       capture_output=True, text=True, encoding="utf-8", timeout=60)
     assert r.returncode == 1
     assert "[STOP]" in r.stdout
     # no workspace was prepared, no ledger growth

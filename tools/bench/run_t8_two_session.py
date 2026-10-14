@@ -34,6 +34,19 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import run_sdk_arm as drv  # noqa: E402
 
+
+def _force_utf8_stdio() -> None:
+    """Prints may carry CJK / em-dashes; a cp1252 console (en-US Windows)
+    would crash print(). Reconfigure to UTF-8 so output never raises."""
+    for _s in (sys.stdout, sys.stderr):
+        _rc = getattr(_s, "reconfigure", None)
+        if _rc is not None:
+            try:
+                _rc(encoding="utf-8", errors="replace")
+            except (ValueError, OSError):
+                pass
+
+
 TASKS = Path(__file__).resolve().parent / "tasks"
 ARMS = ["native", "ecc", "fusion"]
 STAGE_OUTPUTS = ["out/records.jsonl", "out/stats.json"]
@@ -167,4 +180,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    _force_utf8_stdio()
     sys.exit(main())

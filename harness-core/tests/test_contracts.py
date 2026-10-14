@@ -22,7 +22,7 @@ def _run_cli(tmp_path, cmd: list[str], env_extra=None) -> subprocess.CompletedPr
     if env_extra:
         env.update(env_extra)
     return subprocess.run(
-        [sys.executable, CLI, *cmd], capture_output=True, text=True, env=env,
+        [sys.executable, CLI, *cmd], capture_output=True, text=True, encoding="utf-8", env=env,
         cwd=tmp_path, timeout=60,
     )
 

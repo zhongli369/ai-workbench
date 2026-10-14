@@ -28,7 +28,7 @@ def run_wb(*args, target=None, env_extra=None):
     env = dict(os.environ)
     if env_extra:
         env.update(env_extra)
-    return subprocess.run(cmd, capture_output=True, text=True, timeout=60, env=env)
+    return subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", timeout=60, env=env)
 
 
 @pytest.fixture()
@@ -112,7 +112,12 @@ def test_mutex_enforced_on_enable(tmp_path):
     # health check — provide a fake user-installed CLI on PATH.
     bin_dir = tmp_path / "fakebin"
     bin_dir.mkdir()
-    (bin_dir / "agent-browser.exe").write_text("@echo off\r\n", encoding="utf-8")
+    if os.name == "nt":
+        (bin_dir / "agent-browser.exe").write_text("@echo off\r\n", encoding="utf-8")
+    else:
+        f = bin_dir / "agent-browser"
+        f.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        f.chmod(0o755)
     env = {"PATH": str(bin_dir) + os.pathsep + os.environ.get("PATH", "")}
     assert run_wb("capability", "enable", "agent-browser",
                   target=tmp_path, env_extra=env).returncode == 0

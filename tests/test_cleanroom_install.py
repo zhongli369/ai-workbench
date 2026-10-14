@@ -16,7 +16,7 @@ CLI = RC / "tools" / "workbench.py"
 
 def run_wb(*args, cwd=None):
     return subprocess.run([sys.executable, str(CLI), *args],
-                          capture_output=True, text=True, cwd=cwd or RC, timeout=120)
+                          capture_output=True, text=True, encoding="utf-8", cwd=cwd or RC, timeout=120)
 
 
 def install(target, *extra):
@@ -60,7 +60,7 @@ def test_installed_harness_cli_roundtrip_and_gate_enforce(tmp_path):
     env = {**os.environ, "HARNESS_DATA_DIR": str(target / "harness-data")}
     def h(*args):
         return subprocess.run([sys.executable, str(cli), *args],
-                              capture_output=True, text=True, env=env, timeout=60)
+                              capture_output=True, text=True, encoding="utf-8", env=env, timeout=60)
     # feedback roundtrip
     rec = json.loads(h("feedback", "record", "--project-id", "demo",
                        "--cause", "c", "--summary", "s").stdout)
@@ -74,7 +74,7 @@ def test_installed_harness_cli_roundtrip_and_gate_enforce(tmp_path):
     hook = target / "hooks" / "harness_gate.py"
     payload = json.dumps({"tool_name": "Bash", "tool_input": {"command": "git push origin main"}})
     r = subprocess.run([sys.executable, str(hook)], input=payload,
-                       capture_output=True, text=True, env=env, timeout=60)
+                       capture_output=True, text=True, encoding="utf-8", env=env, timeout=60)
     assert r.returncode == 2 and "ENFORCE" in r.stderr
 
 
@@ -197,7 +197,7 @@ def test_rc_tree_has_no_personal_paths_or_secrets():
     """
     import re
     import subprocess
-    r = subprocess.run(["git", "ls-files"], capture_output=True, text=True,
+    r = subprocess.run(["git", "ls-files"], capture_output=True, text=True, encoding="utf-8",
                        timeout=60, cwd=RC)
     assert r.returncode == 0, "hygiene contract requires a git checkout"
     bad = []
