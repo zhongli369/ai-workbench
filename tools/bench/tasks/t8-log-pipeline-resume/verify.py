@@ -19,7 +19,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path.cwd()
-RAW_LOG_SHA256 = "c5f2231e78998af4c984e05cc1f02b27f799feffec3ef158d5256397de95a6f5"
+# pinned over LF-normalized bytes: git may convert line endings on checkout
+RAW_LOG_SHA256 = "d7db60866d797d9184422df60b2053d6814e830923b89310bf278a95f869b258"
 
 
 def _fail(msg: str) -> int:
@@ -77,7 +78,8 @@ def main() -> int:
     raw_path = ROOT / "logs" / "raw.log"
     if not raw_path.is_file():
         return _fail("logs/raw.log missing")
-    if hashlib.sha256(raw_path.read_bytes()).hexdigest() != RAW_LOG_SHA256:
+    raw_bytes = raw_path.read_bytes().replace(b"\r\n", b"\n")
+    if hashlib.sha256(raw_bytes).hexdigest() != RAW_LOG_SHA256:
         return _fail("logs/raw.log modified — input is pinned")
     lines_raw = raw_path.read_text(encoding="utf-8").splitlines()
     golden_recs, golden_stats = _oracle(lines_raw)
