@@ -49,7 +49,7 @@ tools/workbench.py    ← 安装器 / doctor / 启动器 / 卸载器
 | 3 | ECC 能力按需调用 | 30 skills / 16 agents 来自 everything-claude-code, 按任务加载非常驻 |
 | 4 | 跨会话失败记忆 | `harness-core` 记录失败原因; 遇到失败时 (fail-triggered) oracle 先查历史 |
 | 5 | 复杂度匹配的 token 策略 | FAST / STANDARD / DEEP: 小修不规划、不起 agent、不记账; RECOVERY 模式用明确信号处理卡死状态 (单次测试失败永不触发恢复链, 恢复永不关闭安全护栏) |
-| 6 | 确定性质量与安全 | 165 项离线契约; 三档闸门 (DISABLED / AUDIT / ENFORCE) 管不可逆命令 |
+| 6 | 确定性质量与安全 | 166 项离线契约; 三档闸门 (DISABLED / AUDIT / ENFORCE) 管不可逆命令 |
 | 7 | 目标项目零侵入 | 工作台装一次, 目标项目不被修改 |
 
 ## 安装

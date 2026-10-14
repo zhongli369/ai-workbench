@@ -1,0 +1,6 @@
+name = "t8-log-pipeline-resume"
+tier = "DEEP"
+canary = "canary:AIWB-26C-3f1b9d42a7e8/t8"
+instruction_file = "instruction_a.md"
+verify = "verify.py"
+max_budget_usd = 0.4
