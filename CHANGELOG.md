@@ -6,7 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [0.1.0-preview.1] — 2026-10-14
 
 First **Public Preview**. Everything from 0.1.0-rc.1 plus the FUSION OMEGA
-milestones M3–M5 below. 166 offline contracts, hygiene / ECC-provenance /
+milestones M3–M5 below. 174 offline contracts, hygiene / ECC-provenance /
 compile gates all green on the release commit.
 
 ### Added (post-RC hardening — legacy power-up P1)
@@ -111,6 +111,19 @@ compile gates all green on the release commit.
   Zero skill/oracle calls on every arm (fail-triggered policy correctly
   silent on a green-run task). Direction only (N=1, exploratory):
   cost ecc < fusion < native; no measurable harness tax or benefit.
+- Benchmark batch 5 / t8 (claude-haiku-4-5, two-session resume protocol,
+  $0.7992; cumulative ledger $2.337 of the $3.00 cap): native PASS $0.2961
+  (A 18t / B 21t), ecc PASS $0.2713 (A 20t / B 16t), fusion FAIL $0.2318
+  (A 9t / B 22t). Two-session resume worked on all three arms (session B
+  never redid a stage). Checkpoint honesty: native/ecc truthful (certutil
+  uppercase hex / PowerShell BOM — platform-tool artifacts), fusion
+  corrupted (render hash truncated to 30 chars — honest agent failure).
+  The initial all-FAIL verdict was root-caused to two verifier
+  platform-tolerance defects (case-sensitive hex, strict utf-8 JSON) —
+  repaired once per directive §2.1 (t8.1), re-verified on the frozen
+  workspaces with zero re-billing, v1 verdicts preserved, and locked by
+  8 new offline contracts (tests/test_t8_verify.py). Zero oracle queries
+  everywhere: the failure was silent, so fail-triggered could not fire.
 
 ### Changed (policy, evidence-driven)
 - Failure-oracle trigger corrected from "query on 2nd occurrence of the same

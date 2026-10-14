@@ -146,7 +146,10 @@ def main() -> int:
     if not st_path.is_file():
         return _fail("PIPELINE_STATE.json missing")
     try:
-        state = json.loads(st_path.read_text(encoding="utf-8"))
+        # utf-8-sig: tolerate a BOM — Windows PowerShell's Out-File/Set-Content
+        # emits UTF-8-with-BOM by default; the JSON payload is semantically
+        # identical (t8.1 verifier fix, batch-5 forensic evidence).
+        state = json.loads(st_path.read_text(encoding="utf-8-sig"))
     except json.JSONDecodeError as e:
         return _fail(f"PIPELINE_STATE.json invalid: {e}")
     stages = state.get("stages")
@@ -158,7 +161,11 @@ def main() -> int:
         if not out.is_file():
             return _fail(f"checkpoint output missing: {g.get('output')}")
         digest = hashlib.sha256(out.read_bytes()).hexdigest()
-        if g.get("sha256") != digest:
+        # case-insensitive: Windows certutil -hashfile prints uppercase hex;
+        # hex case carries no semantics and the README spec says only "<hex>"
+        # (t8.1 verifier fix — batch-5 native arm recorded the correct hash
+        # in uppercase and was misjudged as stale).
+        if str(g.get("sha256") or "").lower() != digest:
             return _fail(f"checkpoint sha256 stale for stage {g['name']} "
                          f"(recorded hash does not match {g.get('output')})")
         if g.get("rows") != want_rows[g["name"]]:
