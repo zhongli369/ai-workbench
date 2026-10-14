@@ -24,7 +24,8 @@ python harness/cli.py feedback promote --record-id fb-xxx --status verified
 python harness/cli.py report --project-id demo
 python harness/cli.py gate mode --set enforce
 python harness/cli.py gate approve --pattern "git push.*" --ttl 600
-python harness/cli.py gate check "git push origin main"
+python harness/cli.py gate approve --once --action "git push origin main"   # single-use token (awt-...), printed once
+python harness/cli.py gate check "git push origin main" --token awt-<token>
 python harness/cli.py telemetry
 ```
 
@@ -46,7 +47,7 @@ applies to interactive sessions (verified 2026-10, CC 2.1.x).
 ## Tests
 
 ```bash
-python -m pytest tests/ -q     # 38 contracts, stdlib + pytest only
+python -m pytest tests/ -q     # 55 contracts, stdlib + pytest only
 ```
 
 ## Honest limits

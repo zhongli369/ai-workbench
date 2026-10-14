@@ -13,6 +13,8 @@ Semantics (see harness/gate.py docstring — read it before trusting this):
 Env overrides:
   HARNESS_GATE_MODE  — force mode for this session (audit|enforce|disabled)
   HARNESS_DATA_DIR   — where gate.json / approvals / audit log live
+  HARNESS_GATE_TOKEN — one-time approval token (awt-...) for THIS session;
+                       consumed atomically on first matching command
 """
 import json
 import os
@@ -38,19 +40,22 @@ def main() -> int:
         return 0
 
     mode_override = os.environ.get("HARNESS_GATE_MODE") or None
+    token = os.environ.get("HARNESS_GATE_TOKEN") or None
     data_dir = dd.resolve_data_dir(flag=None, env=os.environ.get("HARNESS_DATA_DIR"))
-    result = gate.evaluate(data_dir, command, mode_override=mode_override)
+    result = gate.evaluate(data_dir, command, token=token, mode_override=mode_override)
 
     if result["decision"] in ("audit", "block", "block-error") or result["matched"]:
         gate.log_decision(data_dir, mode=result["mode"],
                           decision=result["decision"],
-                          command=command, matched=result.get("matched"))
+                          command=command, matched=result.get("matched"),
+                          token_hash=result.get("token"))
 
     if result["decision"] == "block":
         print(
             f"[harness-gate ENFORCE] blocked irreversible/high-risk command "
             f"(matched: {result['matched']}). Human approval required: "
-            f"python harness/cli.py gate approve --pattern \"<regex>\" --ttl 600",
+            f"python harness/cli.py gate approve --pattern \"<regex>\" --ttl 600 "
+            f"or one-shot: gate approve --once --action \"<exact command>\"",
             file=sys.stderr,
         )
         return 2

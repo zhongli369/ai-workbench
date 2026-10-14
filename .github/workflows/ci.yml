@@ -22,7 +22,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: harness-core contracts (38)
+      - name: harness-core contracts (55)
         run: python -m pytest harness-core/tests/ -q
       - name: clean-room install contracts (68)
         run: python -m pytest tests/ -q

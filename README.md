@@ -40,7 +40,7 @@ Measured results, including the ones we're not proud of: [Performance](#honest-p
 
 ```
 workbench/            ← launch Claude Code here; it loads this workspace's CLAUDE.md
-harness-core/         ← self-developed: failure store, gate, telemetry (stdlib, 38 contracts)
+harness-core/         ← self-developed: failure store, gate, telemetry (stdlib, 55 contracts)
 hooks/                ← PreToolUse gate hook (fail-closed in ENFORCE mode)
 vendor/ecc/           ← third-party: everything-claude-code snapshot (MIT, pin recorded)
 tools/workbench.py    ← installer / doctor / launcher / uninstaller
@@ -55,7 +55,7 @@ tools/workbench.py    ← installer / doctor / launcher / uninstaller
 | 3 | ECC capabilities on demand | 30 skills / 16 agents from everything-claude-code, loaded per-task, not resident |
 | 4 | Cross-session failure memory | `harness-core` records why approaches failed; the oracle is queried when a failure is hit (fail-triggered) |
 | 5 | Complexity-matched tokens | FAST / STANDARD / DEEP policy: small fixes skip planning, agents, and bookkeeping; RECOVERY mode handles stuck states with explicit signals (a single test failure never triggers a recovery cascade, and safety rails are never disabled to get unstuck) |
-| 6 | Deterministic quality & safety | 106 offline contracts; three-tier gate (DISABLED / AUDIT / ENFORCE) for irreversible commands |
+| 6 | Deterministic quality & safety | 123 offline contracts; three-tier gate (DISABLED / AUDIT / ENFORCE) for irreversible commands |
 | 7 | No per-project harness install | Install the workbench once; target projects stay untouched |
 
 ## Install
@@ -153,7 +153,7 @@ Measured on the reference machine (Claude Code 2.1.x, `--output-format json` usa
 | Component | Origin |
 |---|---|
 | Skills / agents / commands (30+16+14) | **Inherited** — [everything-claude-code](https://github.com/affaan-m/everything-claude-code), MIT, pinned snapshot in `vendor/ecc/` (see `NOTICE`) |
-| harness-core (feedback, gate, report, telemetry) | **Self-developed**, stdlib-only, deterministic, 38 contracts |
+| harness-core (feedback, gate, report, telemetry) | **Self-developed**, stdlib-only, deterministic, 55 contracts |
 | Installer / launcher / uninstaller | **Self-developed** |
 | FAST/STANDARD/DEEP cost policy | **Self-developed**, driven by measurements above |
 

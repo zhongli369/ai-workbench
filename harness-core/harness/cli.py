@@ -64,12 +64,18 @@ def _build_parser() -> argparse.ArgumentParser:
     g = sub.add_parser("gate", help="irreversible-action gate admin").add_subparsers(dest="gcmd", required=True)
     gm = g.add_parser("mode", help="set gate mode (disabled|audit|enforce)")
     gm.add_argument("--set", required=True, choices=["disabled", "audit", "enforce"])
-    ga = g.add_parser("approve", help="approve commands matching regex for ttl seconds")
-    ga.add_argument("--pattern", required=True)
+    ga = g.add_parser("approve", help="approve commands matching regex for ttl seconds; "
+                                      "--once issues a single-use token instead")
+    ga.add_argument("--pattern", default=None, help="multi-use: commands matching this regex (ttl seconds)")
+    ga.add_argument("--once", action="store_true", help="issue a single-use token bound to --action")
+    ga.add_argument("--action", default=None, help="with --once: exact command (or regex with --scope pattern)")
+    ga.add_argument("--scope", choices=["command", "pattern"], default="command",
+                    help="with --once: exact command match or regex fullmatch")
     ga.add_argument("--ttl", type=int, default=600)
     ga.add_argument("--note", default="")
     gc = g.add_parser("check", help="dry-run: what would the gate do with this command?")
     gc.add_argument("command")
+    gc.add_argument("--token", default=None, help="one-time approval token (awt-...)")
 
     t = sub.add_parser("telemetry", help="invocation ledger summary (reader, not counted)")
     return p
@@ -161,12 +167,25 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.cmd == "gate" and args.gcmd == "approve":
+        if args.once:
+            if not args.action:
+                print("gate approve --once requires --action", file=sys.stderr)
+                return 2
+            entry = gate.approve_once(data_dir, action=args.action,
+                                      scope=args.scope, ttl=args.ttl, note=args.note)
+            # the raw token is printed exactly here, exactly once
+            print(json.dumps(entry, ensure_ascii=False))
+            return 0
+        if not args.pattern:
+            print("gate approve requires --pattern (or --once --action)", file=sys.stderr)
+            return 2
         entry = gate.approve(data_dir, pattern=args.pattern, ttl=args.ttl, note=args.note)
         print(json.dumps(entry, ensure_ascii=False))
         return 0
 
     if args.cmd == "gate" and args.gcmd == "check":
-        print(json.dumps(gate.evaluate(data_dir, args.command), ensure_ascii=False))
+        print(json.dumps(gate.evaluate(data_dir, args.command, token=args.token),
+                         ensure_ascii=False))
         return 0
 
     if args.cmd == "telemetry":
