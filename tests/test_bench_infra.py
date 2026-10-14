@@ -116,6 +116,58 @@ def test_t3_record_template_has_no_answer_leak():
     assert mod.T3_RECORD["confidence"] < 1.0
 
 
+def _load_bench_module(name: str):
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        name, RC_ROOT / "tools" / "bench" / f"{name}.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_t6_record_template_has_no_answer_leak():
+    """The t6 seed must carry the failure CLASS and its generic diagnostic
+    path only — nothing that names t6's files, ports, addresses, commands,
+    or values (anti-cheat, PHASE P §1.3)."""
+    import re
+    mod = _load_bench_module("run_t6_quad")
+    blob = json.dumps(mod.T6_RECORD, ensure_ascii=False).lower()
+    # NB: project_id "bench-t6" is a store partition label (same class as
+    # bench-t3), not answer content — the ban targets the workspace's
+    # answer-bearing markers: file names, ports, addresses, banner.
+    for banned in (r"deploy\.conf", r"endpoints\.json", r"server\.log",
+                   r"mock_fleet", r"app\.py", r"19411", r"8443",
+                   r"t6-external", r"fleet-ok", r"127\.0\.0\.1"):
+        assert not re.search(banned, blob), f"answer leak in T6_RECORD: {banned}"
+    # synthetic experience is never labeled human-verified
+    assert mod.T6_RECORD["source"] == "experiment-seed"
+    assert mod.T6_RECORD["confidence"] < 1.0
+
+
+def test_t6_quad_dry_run():
+    r = subprocess.run([sys.executable, str(RC_ROOT / "tools" / "bench" / "run_t6_quad.py"),
+                        "--dry-run"], capture_output=True, text=True, timeout=60)
+    assert r.returncode == 0, r.stderr
+    plan = json.loads(r.stdout)
+    assert [a["arm"] for a in plan["arms"]] == ["native", "ecc", "fusion",
+                                                "fusion-seeded"]
+    # seeding is the ONLY difference the treatment arm introduces
+    stores = {a["arm"]: a["store"] for a in plan["arms"]}
+    assert stores == {"native": "none", "ecc": "none", "fusion": "empty",
+                      "fusion-seeded": "seeded"}
+    assert plan["experience_record"]["source"] == "experiment-seed"
+
+
+def test_t6_fairness_same_instruction_all_arms():
+    """All four arms run the SAME task dict (instruction, budget, verify) —
+    the only permitted differences are the workspace flavor (prepare_workspace
+    arm) and the treatment's store seeding."""
+    src = (RC_ROOT / "tools" / "bench" / "run_t6_quad.py").read_text(encoding="utf-8")
+    assert src.count("drv.load_task(") == 1, "per-arm task loading risks drift"
+    assert 'max_budget_usd' not in src.replace('task.get("max_budget_usd"', ""), \
+        "driver must not override the per-run budget"
+
+
 def test_t3_pair_dry_run(tmp_path):
     r = subprocess.run([sys.executable, str(RC_ROOT / "tools" / "bench" / "run_t3_pair.py"),
                         "--dry-run"], capture_output=True, text=True, timeout=60)

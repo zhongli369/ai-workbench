@@ -24,7 +24,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: harness-core contracts (64)
         run: python -m pytest harness-core/tests/ -q
-      - name: clean-room install contracts (96)
+      - name: clean-room install contracts (100)
         run: python -m pytest tests/ -q
 
   static:

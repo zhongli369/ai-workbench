@@ -1,0 +1,16 @@
+2026-10-05T23:41:17 INFO  metrics flush: 1841 requests, 0 errors, p99 41ms
+2026-10-05T23:58:41 INFO  upstream=127.0.0.1:8443 healthy (banner match, 3/3 probes)
+2026-10-06T00:12:55 INFO  metrics flush: 1902 requests, 0 errors, p99 38ms
+2026-10-06T08:30:00 NOTICE ops: fleet endpoint rotation effective 2026-10-06 09:00Z — clients must follow the endpoints registry
+2026-10-06T09:14:02 INFO  app boot (pid 4120), config loader v2
+2026-10-06T09:14:02 INFO  loaded config from ../deploy.conf
+2026-10-06T09:14:02 INFO  upstream=127.0.0.1:8443 (source: deploy.conf)
+2026-10-06T09:14:02 WARN  upstream refused: 127.0.0.1:8443 (attempt 1/3)
+2026-10-06T09:14:02 WARN  upstream refused: 127.0.0.1:8443 (attempt 2/3)
+2026-10-06T09:14:03 WARN  upstream refused: 127.0.0.1:8443 (attempt 3/3)
+2026-10-06T09:14:03 ERROR giving up: upstream refused: 127.0.0.1:8443
+2026-10-06T09:14:03 INFO  GC: heap 41MB, pause 3ms
+2026-10-06T09:20:11 INFO  app boot (pid 4356), config loader v2
+2026-10-06T09:20:11 INFO  loaded config from ../deploy.conf
+2026-10-06T09:20:11 INFO  upstream=127.0.0.1:8443 (source: deploy.conf)
+2026-10-06T09:20:12 ERROR giving up: upstream refused: 127.0.0.1:8443
