@@ -34,7 +34,7 @@ python tools/workbench.py install && python tools/workbench.py launch
 
 ```
 workbench/            ← 在此启动 Claude Code; 自动加载工作台 CLAUDE.md
-harness-core/         ← 自研: 失败存储 / 闸门 / telemetry (纯 stdlib, 27 项契约)
+harness-core/         ← 自研: 失败存储 / 闸门 / telemetry (纯 stdlib, 38 项契约)
 hooks/                ← PreToolUse 闸门 hook (ENFORCE 模式 fail-closed)
 vendor/ecc/           ← 第三方: everything-claude-code 快照 (MIT, pin 已记录)
 tools/workbench.py    ← 安装器 / doctor / 启动器 / 卸载器
@@ -48,8 +48,8 @@ tools/workbench.py    ← 安装器 / doctor / 启动器 / 卸载器
 | 2 | 目标项目规则正确加载 | 项目级 `claudeMdExcludes` 防止全局规则包遮蔽目标项目自己的 CLAUDE.md |
 | 3 | ECC 能力按需调用 | 27 skills / 16 agents 来自 everything-claude-code, 按任务加载非常驻 |
 | 4 | 跨会话失败记忆 | `harness-core` 记录失败原因; 遇到失败时 (fail-triggered) oracle 先查历史 |
-| 5 | 复杂度匹配的 token 策略 | FAST / STANDARD / DEEP: 小修不规划、不起 agent、不记账 |
-| 6 | 确定性质量与安全 | 42 项离线契约; 三档闸门 (DISABLED / AUDIT / ENFORCE) 管不可逆命令 |
+| 5 | 复杂度匹配的 token 策略 | FAST / STANDARD / DEEP: 小修不规划、不起 agent、不记账; RECOVERY 模式用明确信号处理卡死状态 (单次测试失败永不触发恢复链, 恢复永不关闭安全护栏) |
+| 6 | 确定性质量与安全 | 79 项离线契约; 三档闸门 (DISABLED / AUDIT / ENFORCE) 管不可逆命令 |
 | 7 | 目标项目零侵入 | 工作台装一次, 目标项目不被修改 |
 
 ## 安装
@@ -118,6 +118,11 @@ oracle 只在**遇到失败时** (fail-triggered) 或用户明确要求时查询
   与 `docs/POLICY_VERIFICATION.md`): 琐碎 **0.87×** · bugfix **1.22×** ·
   多文件特性 **0.84×** · 测试诊断 **1.81×** (fail-triggered 策略在空库上的成本
   ≈$0.34 — 这笔税同时也在为库填充经验; 同一臂把正确诊断自然写回了库)。
+- **fusion 臂探索性基准 (2026-10, `claude-haiku-4-5`, 每单元 N=1)**:
+  早期探索性基准在三个小任务上显示更低的任务成本
+  (fusion/native 成本比 0.85× / 0.70× / 0.64×), 六次运行全部通过。
+  更大规模受控研究待做。这些单元只能证明"容易任务无大幅额外税" —
+  **不能**证明优越性、轮次效应或跨模型行为。
 - **重复错误 oracle: honest-null, 如实披露。** 三组带预置失败史的受控对
   (含一组专为逼迫 oracle 设计的数据态根因场景) 中, 种子臂**从未查询过 oracle** —
   模型全部自诊修复, 有一次还独立选中了种子自己推荐的修法。机制
@@ -130,7 +135,7 @@ oracle 只在**遇到失败时** (fail-triggered) 或用户明确要求时查询
 | 组件 | 来源 |
 |---|---|
 | Skills / agents / commands (27+16+14) | **继承** — [everything-claude-code](https://github.com/affaan-m/everything-claude-code), MIT, pin 快照在 `vendor/ecc/` (见 `NOTICE`) |
-| harness-core (feedback / gate / report / telemetry) | **自研**, 纯 stdlib, 确定性, 27 项契约 |
+| harness-core (feedback / gate / report / telemetry) | **自研**, 纯 stdlib, 确定性, 38 项契约 |
 | 安装器 / 启动器 / 卸载器 | **自研** |
 | FAST/STANDARD/DEEP 成本策略 | **自研**, 由上述实测驱动 |
 
@@ -141,6 +146,23 @@ oracle 只在**遇到失败时** (fail-triggered) 或用户明确要求时查询
 - `ENFORCE`: 配置的高危 pattern 未预授权即拦截 (TTL 授权); 配置不可读时 fail-closed。
 - `claude --print` (非交互) 不执行 PreToolUse hooks — 闸门强制只对交互会话生效。
   2026-10 在 CC 2.1.x 上实证。
+
+## 已知限制 (Public Preview)
+
+- **Windows 是主要实测平台**; Linux/macOS 走 CI 覆盖的 POSIX 代码路径,
+  全新安装验收在这两个平台尚未人工核验。
+- 闸门 ENFORCE 只对**交互会话**生效 (`claude --print` 不执行 PreToolUse hooks,
+  CC 2.1.x 实证)。
+- 重复错误 oracle 的 in-vivo 检索收益**尚未证明** (见诚实性能说明); 机制本身契约级验证通过。
+- 内置 ECC 快照 pin 在 2026-05 修订版; 此后上游修复未纳入 (见 `NOTICE`)。
+- 新目录首次交互启动可能需要 Claude Code 自身的信任确认 — 该提示由你本人回答,
+  安装器从不代为绕过。
+
+## 贡献与路线图
+
+欢迎 Issue 与 PR — 见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+近期路线图 (基准批次 2、平台验收、ECC pin 刷新) 以门禁形式追踪在
+[RELEASE_READINESS.md](RELEASE_READINESS.md)。
 
 ## 文档
 

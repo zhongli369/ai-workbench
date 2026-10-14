@@ -190,11 +190,20 @@ def test_install_target_with_spaces_and_non_ascii(tmp_path):
 # ---------------- RC hygiene ----------------
 
 def test_rc_tree_has_no_personal_paths_or_secrets():
-    """The RC itself must be publishable: no builder paths, no home dir refs."""
+    """The RC itself must be publishable: no builder paths, no home dir refs.
+
+    Scans the publishable set (git-tracked files) — gitignored local evidence
+    like tools/bench/results/ never ships and is not the release boundary.
+    """
     import re
+    import subprocess
+    r = subprocess.run(["git", "ls-files"], capture_output=True, text=True,
+                       timeout=60, cwd=RC)
+    assert r.returncode == 0, "hygiene contract requires a git checkout"
     bad = []
-    for p in RC.rglob("*"):
-        if p.is_dir() or ".git" in p.parts or "__pycache__" in p.parts:
+    for rel in r.stdout.splitlines():
+        p = RC / rel
+        if not p.is_file() or ".git" in p.parts or "__pycache__" in p.parts:
             continue
         if p.suffix not in {".py", ".md", ".json", ".ps1", ".sh", ".yml", ".txt"}:
             continue
@@ -203,7 +212,25 @@ def test_rc_tree_has_no_personal_paths_or_secrets():
         if "tests" in p.relative_to(RC).parts:
             continue
         for pat in (r"F:[\\/]Claude", r"14679",
+                    r"[A-Za-z]:[\\/]Users[\\/](?=[A-Za-z0-9_.-]*[A-Za-z0-9])[A-Za-z0-9_.-]+[\\/]",
                     r"sk-[A-Za-z0-9]{10,}", r"ghp_[A-Za-z0-9]{10,}"):
             if re.search(pat, t):
                 bad.append((str(p.relative_to(RC)), pat))
     assert bad == [], f"personal paths/secrets in RC: {bad}"
+
+
+def test_hygiene_gate_catches_user_profile_paths_but_not_placeholders():
+    """check_hygiene.PATTERNS must catch real user-profile paths (the M5
+    results/ blind spot) while tolerating doc placeholders like C:\\Users\\...\\"""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "check_hygiene", RC / "tools" / "check_hygiene.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    import re
+    pats = [re.compile(p) for p, _ in mod.PATTERNS]
+    hits = lambda s: any(p.search(s) for p in pats)
+    assert hits(r"workspace = C:\Users\someone\AppData\Local\Temp\bench_t1\ws")
+    assert hits("C:/Users/another.user/project")
+    assert not hits(r"# is passed as e.g. C:\Users\...\project.")
+    assert not hits(r"extract to <your-user-dir>")

@@ -3,7 +3,46 @@
 All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [0.1.0-preview.1] — 2026-10-14
+
+First **Public Preview**. Everything from 0.1.0-rc.1 plus the FUSION OMEGA
+milestones M3–M5 below. 79 offline contracts, hygiene / ECC-provenance /
+compile gates all green on the release commit.
+
+### Added
+- **Capability Registry v1** (`capabilities/registry.json` + `tools/capability.py`):
+  10 capabilities (5 built-in active, 5 external optional recorded-intent) with
+  list/inspect/enable/disable/doctor, mutual-exclusion enforcement, fail-closed
+  corrupt-state handling. The registry is contractually barred from model context.
+- **Capability wiring v1.1**: enabling an external capability now writes a
+  managed, marker-stamped `.claude/skills/aiwb-<id>/SKILL.md` (registered in
+  `install-manifest.json` so owns-only uninstall sweeps it). Enable requires a
+  passing health check; the workbench **never auto-installs external software**.
+- **Oracle v3** (harness-core feedback): BM25 re-ranking over substring-filtered
+  candidates (filter semantics unchanged), `valid_until` expiry (hidden by
+  default, never deleted), append-only `supersede` chains, fsync + read-back
+  write honesty (a record that cannot be verified on disk is an error, not a
+  success), empty-store fast-negative. +11 contracts.
+- **Benchmark infrastructure** (`tools/bench/`): official claude-agent-sdk
+  driver, three original canary tasks (FAST rename / STANDARD failing-test with
+  hash-pinned protected test / DEEP-lite multi-file feature), hard per-run
+  budget gate ($0.75) and batch cap ($3.00), isolated per-arm workspaces,
+  native-vs-fusion arm comparison, right-reason verify contracts (verify must
+  fail on the pristine seed *and* emit `VERIFY FAIL`).
+
+### Changed
+- Hygiene gate now scans the publishable set (git-tracked files) and also
+  rejects user-profile paths (`C:\Users\<name>\…`) — closes the M5 blind spot
+  where local benchmark evidence JSONs matched no pattern.
+- ECC provenance checker ignores incidental `__pycache__` bytecode so local
+  tooling can no longer fake snapshot drift.
+- Benchmark result JSONs stay local (`tools/bench/results/` gitignored): they
+  contain one-shot temp workspace paths.
+
+### Measured (exploratory, N=1 per cell — not generalizable)
+- Benchmark batch 1 (claude-haiku-4-5, 6/6 runs passing, $0.467 of $3.00 cap):
+  fusion/native cost ratios 0.85× / 0.70× / 0.64× on three small tasks.
+  Reading: "no large fusion tax on easy tasks". Larger controlled studies pending.
 
 ### Changed (policy, evidence-driven)
 - Failure-oracle trigger corrected from "query on 2nd occurrence of the same

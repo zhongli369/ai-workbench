@@ -36,7 +36,8 @@ def build_manifest() -> dict:
     for kind in ECC_DIRS:
         base = RC / "workbench" / ".claude" / kind
         for f in sorted(base.rglob("*")):
-            if f.is_dir() or f.name.startswith("."):
+            # incidental bytecode caches are not part of the vendored snapshot
+            if f.is_dir() or f.name.startswith(".") or "__pycache__" in f.parts:
                 continue
             rel = f"{kind}/{f.relative_to(base)}".replace("\\", "/")
             files[rel] = sha(f)

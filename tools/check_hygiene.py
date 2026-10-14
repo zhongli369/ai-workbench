@@ -17,6 +17,11 @@ RC = Path(__file__).resolve().parent.parent
 PATTERNS = [
     (r"[A-Za-z]:[\\/]Claude[\\/]", "builder drive path"),
     (r"ClaudeCodeProject", "builder project dir"),
+    # user profile path (C:\Users\<name>\...); the lookahead requires at least
+    # one alphanumeric in the name segment so doc placeholders like
+    # "C:\Users\...\project" do NOT match
+    (r"[A-Za-z]:[\\/]Users[\\/](?=[A-Za-z0-9_.-]*[A-Za-z0-9])[A-Za-z0-9_.-]+[\\/]",
+     "user profile path"),
     (r"sk-[A-Za-z0-9]{10,}", "api key shape"),
     (r"ghp_[A-Za-z0-9]{10,}", "github token shape"),
     (r"gho_[A-Za-z0-9]{10,}", "github oauth shape"),
@@ -34,10 +39,25 @@ TEXT_SUFFIXES = {".py", ".md", ".json", ".ps1", ".sh", ".yml", ".yaml", ".txt", 
 SKIP_DIRS = {".git", "__pycache__", ".pytest_cache", "node_modules", "dist"}
 
 
+def publishable_files() -> list[Path]:
+    """Files that would actually ship: git-tracked files when inside a git
+    checkout (gitignored local evidence like tools/bench/results/ is NOT part
+    of the release), falling back to a plain tree walk otherwise."""
+    import subprocess
+    try:
+        r = subprocess.run(["git", "ls-files"], capture_output=True, text=True,
+                           timeout=60, cwd=RC)
+        if r.returncode == 0:
+            return [RC / line for line in r.stdout.splitlines() if line.strip()]
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+    return [p for p in sorted(RC.rglob("*")) if not p.is_dir()]
+
+
 def scan() -> list[tuple[str, str, int]]:
     bad = []
-    for p in sorted(RC.rglob("*")):
-        if p.is_dir() or SKIP_DIRS.intersection(p.parts):
+    for p in publishable_files():
+        if SKIP_DIRS.intersection(p.parts):
             continue
         if p.suffix.lower() not in TEXT_SUFFIXES:
             continue

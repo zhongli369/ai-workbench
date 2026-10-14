@@ -40,7 +40,7 @@ Measured results, including the ones we're not proud of: [Performance](#honest-p
 
 ```
 workbench/            ← launch Claude Code here; it loads this workspace's CLAUDE.md
-harness-core/         ← self-developed: failure store, gate, telemetry (stdlib, 27 contracts)
+harness-core/         ← self-developed: failure store, gate, telemetry (stdlib, 38 contracts)
 hooks/                ← PreToolUse gate hook (fail-closed in ENFORCE mode)
 vendor/ecc/           ← third-party: everything-claude-code snapshot (MIT, pin recorded)
 tools/workbench.py    ← installer / doctor / launcher / uninstaller
@@ -54,8 +54,8 @@ tools/workbench.py    ← installer / doctor / launcher / uninstaller
 | 2 | Correct rules per target | Project-level `claudeMdExcludes` keeps global rule packs from shadowing a target project's own CLAUDE.md |
 | 3 | ECC capabilities on demand | 27 skills / 16 agents from everything-claude-code, loaded per-task, not resident |
 | 4 | Cross-session failure memory | `harness-core` records why approaches failed; the oracle is queried when a failure is hit (fail-triggered) |
-| 5 | Complexity-matched tokens | FAST / STANDARD / DEEP policy: small fixes skip planning, agents, and bookkeeping |
-| 6 | Deterministic quality & safety | 42 offline contracts; three-tier gate (DISABLED / AUDIT / ENFORCE) for irreversible commands |
+| 5 | Complexity-matched tokens | FAST / STANDARD / DEEP policy: small fixes skip planning, agents, and bookkeeping; RECOVERY mode handles stuck states with explicit signals (a single test failure never triggers a recovery cascade, and safety rails are never disabled to get unstuck) |
+| 6 | Deterministic quality & safety | 79 offline contracts; three-tier gate (DISABLED / AUDIT / ENFORCE) for irreversible commands |
 | 7 | No per-project harness install | Install the workbench once; target projects stay untouched |
 
 ## Install
@@ -132,6 +132,12 @@ Measured on the reference machine (Claude Code 2.1.x, `--output-format json` usa
   test-diagnosis **1.81×** (the fail-triggered policy costs ≈$0.34 when the
   store is empty — that tax is also what populates the store; the same arm
   organically recorded its correct diagnosis back).
+- **Fusion-arm exploratory benchmark (2026-10, `claude-haiku-4-5`, N=1 per cell):**
+  early exploratory benchmarks showed lower task cost in three small tasks
+  (fusion/native cost ratios 0.85× / 0.70× / 0.64×), with all six runs passing.
+  Larger controlled studies are pending. These cells establish "no large tax on
+  easy tasks" — they do **not** establish superiority, turn-count effects, or
+  cross-model behavior.
 - **Repeat-error oracle: honest-null, disclosed.** Across three controlled
   pairs with seeded failure history (including one purpose-built scenario
   whose root cause lived in data state, not code), the seeded arm **never
@@ -147,7 +153,7 @@ Measured on the reference machine (Claude Code 2.1.x, `--output-format json` usa
 | Component | Origin |
 |---|---|
 | Skills / agents / commands (27+16+14) | **Inherited** — [everything-claude-code](https://github.com/affaan-m/everything-claude-code), MIT, pinned snapshot in `vendor/ecc/` (see `NOTICE`) |
-| harness-core (feedback, gate, report, telemetry) | **Self-developed**, stdlib-only, deterministic, 27 contracts |
+| harness-core (feedback, gate, report, telemetry) | **Self-developed**, stdlib-only, deterministic, 38 contracts |
 | Installer / launcher / uninstaller | **Self-developed** |
 | FAST/STANDARD/DEEP cost policy | **Self-developed**, driven by measurements above |
 
@@ -159,6 +165,27 @@ Measured on the reference machine (Claude Code 2.1.x, `--output-format json` usa
   (TTL approvals); unreadable config fails **closed**.
 - `claude --print` (non-interactive) does not execute PreToolUse hooks — gate
   enforcement applies to interactive sessions. Verified 2026-10 on CC 2.1.x.
+
+## Known limitations (Public Preview)
+
+- **Windows is the primary tested platform.** Linux/macOS exercise the POSIX
+  code paths in CI; fresh-install acceptance on those platforms is not yet
+  human-verified.
+- The gate's ENFORCE mode applies to **interactive** sessions only
+  (`claude --print` skips PreToolUse hooks — verified on CC 2.1.x).
+- The repeat-error oracle's in-vivo retrieval benefit is **unproven** (see
+  honest performance notes); the mechanism is contract-verified.
+- The bundled ECC snapshot is pinned at a 2026-05 revision; upstream fixes
+  published after that date are not included (see `NOTICE`).
+- First interactive launch in a fresh directory may require Claude Code's own
+  trust confirmation — that prompt is yours to answer; the installer never
+  bypasses it.
+
+## Contributing & roadmap
+
+Issues and PRs are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
+The near-term roadmap (benchmark batch 2, platform acceptance, ECC pin
+refresh) is tracked as gates in [RELEASE_READINESS.md](RELEASE_READINESS.md).
 
 ## Docs
 
