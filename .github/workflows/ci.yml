@@ -22,8 +22,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: install test dependency
-        run: python -m pip install --disable-pip-version-check -q pytest
+      - name: install test dependency (tomli backport only needed on py3.10)
+        run: python -m pip install --disable-pip-version-check -q pytest "tomli; python_version < '3.11'"
       - name: harness-core contracts (64)
         run: python -m pytest harness-core/tests/ -q
       - name: clean-room install contracts (110)
