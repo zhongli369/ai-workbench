@@ -81,6 +81,51 @@ repeat-error recovery, architecture) in G10.
 
 ---
 
+## Post-RC hardening gates (legacy power-up, P1)
+
+### P1.1 — Docs drift gate: **PASS**
+`tools/check_docs_drift.py` + `docs/claims.json`: release claims are structured
+data verified against live sources (pytest collection, ECC payload counts,
+VERSION constant); performance figures must carry their qualifier (N=1 /
+controlled / model-independent) in the same paragraph block. Caught real drift
+before and after its own introduction (count bumps on every P1 commit).
+21 contracts; wired into the static CI job.
+
+### P1.2 — Frozen public surface: **PASS**
+`tools/check_public_surface.py` + `docs/surface.json`: explicit manifest of the
+committed CLI commands/flags, 7 JSONL schemas and settings keys. Additive
+changes are free; removal/retype/choice-shrink is BREAKING and requires
+`--accept-new --bump major` + rationale. Self-dogfooded on the P1.5 telemetry
+schema addition (detected exactly 1 additive field, accepted as minor).
+15 contracts; wired into the static CI job.
+
+### P1.3 — One-time approval tokens: **PASS**
+`gate approve --once --action <cmd>` issues `awt-<48hex>` (SHA-256 stored,
+TTL-bound, scope = exact command or regex fullmatch). Atomic consumption under
+a store lock (8-thread race: exactly 1 succeeds); replay / expiry / scope
+mismatch are distinct denials and mismatch does not consume; AUDIT mode never
+consults tokens; the raw token never reaches the audit log (12-char hash
+prefix only). 17 contracts.
+
+### P1.4 — Incident replay contracts: **PASS**
+`docs/incidents/registry.json` + `tests/test_incident_replay.py`: four named
+historical failures (permission probing, verify-wrong-root, `__pycache__`
+provenance pollution, user-path leakage) locked as permanent regression tests;
+the bench SDK driver hashes each task's verifier pre/post run and voids
+tampered results. Proved live twice: incident C caught test-inflicted cache
+pollution during its own development; incident D caught the incident test file
+itself entering the publish set post-commit. 13 contracts.
+
+### P1.5 — Telemetry self-exclusion: **PASS**
+Reader commands (`telemetry`, `feedback stats`, `report`, `gate check`) are
+never logged (enforced in `log()` AND in CLI dispatch); every row carries a
+source label (`cli` / `bench` via `HARNESS_BENCH=1` / `synthetic`); all three
+bench runners label their traffic; `summarize()` is a pure read whose adoption
+view counts only `cli` rows — bench/synthetic traffic can never masquerade as
+product usage. 9 contracts.
+
+---
+
 ## Beta gates (beyond Public Preview)
 
 ### G8 — Interactive gate verification: **PENDING (human-only steps)**
