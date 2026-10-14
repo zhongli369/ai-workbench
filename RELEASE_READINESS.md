@@ -246,9 +246,23 @@ are exploratory; the $3.00 shared ledger governs every run.
 
 | task | class | layer status |
 |---|---|---|
-| t6-external-config-drift | real-world failure recovery (root cause in EXTERNAL state: stale deploy config vs endpoint registry) | offline layer PASS (pristine fails with drift marker; fixed passes); four-arm paid run (native / ecc / fusion-empty / fusion-seeded) **IN FLIGHT** |
+| t6-external-config-drift | real-world failure recovery (root cause in EXTERNAL state: stale deploy config vs endpoint registry) | **MEASURED 2026-10-14** (t6.1, all four arms PASS): native $0.0892/15t · ecc $0.0774/6t · fusion-empty $0.0726/12t · fusion-seeded $0.0452/7t; **0 oracle queries on every arm** — fourth independent seeded arm with no reads. §1.3 verdict: honest-null class (the diagnostic path is fully workspace-readable, so direct read-then-fix is correct; zero queries ≠ harness failure). Seeded arm's −$0.027/−5t is NOT attributable (treatment never read). Two earlier voided runs root-caused to a task/tooling defect (foreground serve-forever blocks the SDK Bash call) — fixed by t6.1's self-terminating verify command; zero double-billing |
 | t7-validator-drift-refactor | deep multi-file refactor (two drifted validator copies, spec.md is authoritative, public API + CLI frozen, hash-pinned shipped suite) | offline layer PASS (pristine 6 suite failures across both drift classes; reference refactor VERIFY PASS); paid run PENDING |
 | t8-log-pipeline-resume | long-horizon engineering (three-stage pipeline + PIPELINE_STATE.json checkpoint contract; TWO sequential fresh sessions per arm — session B must resume from workspace state, not memory) | offline layer PASS (pristine / reference / stale-checkpoint / tampered-input all behave); paid run PENDING |
+
+**P4 oracle product decision (2026-10-14, final for this cycle): EXPERIMENTAL /
+ON-DEMAND.** Evidence: four independent seeded arms (r4b, e4o, t3b, t6.1) with
+zero real reads; every zero-query outcome is the honest-null class — the model
+queries only when uncertain, and on self-contained workspaces it is confident
+enough to read the evidence directly. The mechanism (layer-1 offline: ranking,
+expiry, supersede, isolation, fast-negative, read-back honesty) is fully
+contract-verified; the payoff (layer-3) has never been observed and cannot be
+claimed. Per directive §2: with no real reads and no distinguishable causality,
+EXPERIMENTAL / ON-DEMAND is maintained; no REMOVE (no measured cost harm —
+fusion-empty ≈ native on t6.1) and no upgrade (no attributable benefit). The
+§1.5 closable structural trigger remains an unbuilt proposal — building it is
+not justified by the evidence: the model's no-query choice was correct every
+time so far.
 
 Anti-cheat properties enforced by contract on every task: verifiers judge
 the fix CLASS not the shape; protected suites/inputs are sha256-pinned;

@@ -87,6 +87,23 @@ compile gates all green on the release commit.
   t8-log-pipeline-resume (long-horizon: two sequential fresh sessions per
   arm resuming from a workspace checkpoint; self-contained verifier with
   inlined oracle + LF-normalized input pin).
+- Benchmark batch 3 / t6.1 (claude-haiku-4-5, 4/4 arms passing, $0.2845;
+  cumulative ledger $1.107 of the $3.00 cap): external-config-drift
+  recovery — native $0.0892/15t, ecc $0.0774/6t, fusion-empty $0.0726/12t,
+  fusion-seeded $0.0452/7t, verify hashes untampered. **Zero oracle queries
+  on every arm** — fourth independent seeded arm with no reads. PHASE P2
+  §1.3 verdict: honest-null class (workspace-readable diagnosis makes
+  direct read-then-fix the correct strategy; zero queries ≠ harness
+  failure). The seeded arm's lower cost is disclosed as NOT attributable
+  (treatment never read). Two earlier runs voided by a task/tooling defect
+  (foreground serve-forever blocked the SDK Bash call; agent's fix was
+  correct both times) — repaired by t6.1's self-terminating verify command
+  with zero double-billing.
+- **P4 oracle product decision: EXPERIMENTAL / ON-DEMAND (final for this
+  cycle).** Mechanism contract-verified; payoff never observed across four
+  seeded arms; no measured cost harm → no removal; no attributable benefit
+  → no upgrade. The unbuilt §1.5 structural-trigger proposal stays unbuilt:
+  the model's no-query choice was correct in every case so far.
 
 ### Changed (policy, evidence-driven)
 - Failure-oracle trigger corrected from "query on 2nd occurrence of the same
