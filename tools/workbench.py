@@ -398,7 +398,21 @@ def cmd_benchmark(args) -> int:
 # ---------------------------------------------------------------- main
 
 
+def _force_utf8_stdio() -> None:
+    """CLI output contains CJK text; a cp1252 console (e.g. en-US Windows)
+    would crash print() with UnicodeEncodeError. Reconfigure to UTF-8 with
+    replacement so output never raises, whatever the locale."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            try:
+                reconfigure(encoding="utf-8", errors="replace")
+            except (ValueError, OSError):
+                pass
+
+
 def main(argv=None) -> int:
+    _force_utf8_stdio()
     p = argparse.ArgumentParser(prog="workbench", description=__doc__)
     p.add_argument("--target", default=None, help="安装目标目录 (默认: 平台数据目录/ai-workbench)")
     sub = p.add_subparsers(dest="cmd", required=True)
