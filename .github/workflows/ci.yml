@@ -87,5 +87,6 @@ jobs:
       - uses: actions/checkout@v4
       - name: build zipapp of the installer CLI
         run: |
+          mkdir -p dist
           python -m zipapp tools -m "workbench:main" -o dist/workbench.pyz -p "/usr/bin/env python3"
           python dist/workbench.pyz --help
