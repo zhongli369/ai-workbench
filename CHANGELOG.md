@@ -3,6 +3,43 @@
 All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.1.0-preview.3] — OPERATION ARSENAL (feat/arsenal-integration)
+
+Absorption of three externally-proven mechanisms into harness-core (origins
+recorded per capability in `capabilities/registry.json`; every mechanism
+reimplemented stdlib-only — no vendored code, no new runtime dependencies).
+304 offline contracts (170 harness-core + 134 clean-room install).
+
+### Added
+- **`harness snap`** (`harness-core/harness/worktree_snap.py`, algorithm
+  adapted from cline@789f79e4 Apache-2.0): git-backed workspace file
+  snapshots. Captures tracked AND untracked files into
+  `refs/harness/snaps/<exec>/<seq>`; restore is dry-run by default (status
+  `planned`, never claimed as `restored`), writes only the snapshot's
+  managed file set, never deletes unknown untracked files, fails closed on
+  three-way concurrent edits, creates a rescue ref before any write, and
+  detects interrupted restores via a journal. NEVER issues
+  `git reset --hard` / `git clean -fd`. `--apply` is explicit operator
+  approval and consults the gate (AUDIT logs; ENFORCE patterns block).
+- **`harness verify`** (`harness-core/harness/verify.py`, mechanism adapted
+  from aider@5dc9490b Apache-2.0): bounded post-edit lint/test verification
+  per stage. Commands come from `.harness-verify.json` (operator
+  pre-authorization) or an explicit `--cmd` that is gate-consulted
+  (DISABLED refuses fail-closed, AUDIT logs+allows, ENFORCE consumes a
+  one-shot token). argv-only execution, output truncated, verdicts appended
+  to a sha256 evidence log. `verify status` is the mechanical completion
+  gate: a stage whose latest verdict is not `pass` cannot be claimed done
+  (`can_claim_done`); failures write `status="failed"` checkpoints.
+  Reflections bounded (default 3, hard cap 10).
+- **Release supply-chain gate** (`.github/workflows/security.yml` +
+  `tools/security_scan.py`, trivy-class, CI-only — zero daily token/FAST
+  overhead): trivy binary pinned by version + sha256 (GitHub server-side
+  digest), all actions pinned by commit SHA. Honest exit semantics:
+  `3 = tool-missing/infra-failure` never reads as PASS; blocking on
+  main/tags/release/PR-to-main, AUDIT elsewhere; reports to artifacts only
+  (matched secret text never logged); `.securityignore` exceptions are
+  expire-aware and reviewable.
+
 ## [0.1.0-preview.2] — TOTAL FUSION (refactor/total-fusion)
 
 Engineering annexation of the three retired legacy projects

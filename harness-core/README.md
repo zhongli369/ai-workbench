@@ -29,6 +29,22 @@ No network, no upload, no machine-specific paths. Data lives in one local direct
   On-demand CLI only, never auto-injected; phases double as checkpoint
   stage names for long-horizon work. (Minimal extraction of the retired
   CodeLike planning kernel — zero legacy-repo dependency.)
+- **verify** — post-edit verification loop (mechanism adapted from aider,
+  reimplemented stdlib-only): runs bounded lint/test commands per stage from
+  `.harness-verify.json` (operator pre-authorization) or an explicit `--cmd`
+  (gate-consulted: DISABLED refuses, AUDIT logs+allows, ENFORCE needs a
+  one-shot token). argv-only execution (no shell), output truncated,
+  verdicts appended to a sha256 evidence log. `verify status` is the
+  mechanical completion gate: a stage whose latest verdict is not `pass`
+  cannot be claimed done. Failures write `status="failed"` checkpoints.
+- **snap** — git-backed workspace file snapshots + safe restore (algorithm
+  adapted from cline, reimplemented stdlib + git argv): captures tracked AND
+  untracked files into `refs/harness/snaps/<exec>/<seq>`; restore is dry-run
+  by default, writes only the snapshot's managed file set, never deletes
+  unknown untracked files, fails closed on three-way concurrent edits,
+  creates a rescue ref before any write, and detects interrupted restores
+  via a journal. NEVER issues `git reset --hard` or `git clean -fd`;
+  non-git directories get an explicit `skipped`, never an exception.
 
 ## Usage
 
@@ -48,6 +64,15 @@ python harness/cli.py checkpoint save  --exec migrate-to-the-v2-api --stage "Ass
 python harness/cli.py checkpoint load --exec migrate-to-the-v2-api
 python harness/cli.py checkpoint verify --exec migrate-to-the-v2-api   # exit 1 on any damage
 python harness/cli.py checkpoint list
+# verify run needs a .harness-verify.json in --cwd (or a gate-approved --cmd):
+python harness/cli.py verify run --exec migrate-to-the-v2-api --stage "Assess Impact" --cwd .
+# verify status exits 0 only when done is mechanically claimable:
+python harness/cli.py verify status --exec migrate-to-the-v2-api
+python harness/cli.py snap save --exec migrate-to-the-v2-api --cwd .
+# dry-run plan (zero writes) — the default:
+python harness/cli.py snap restore <snap_id> --cwd .
+# explicit approval + gate consult:
+python harness/cli.py snap restore <snap_id> --cwd . --apply
 ```
 
 - Data dir precedence: `--data-dir` > `HARNESS_DATA_DIR` > platform default
@@ -68,7 +93,7 @@ applies to interactive sessions (verified 2026-10, CC 2.1.x).
 ## Tests
 
 ```bash
-python -m pytest tests/ -q     # 120 contracts, stdlib + pytest only
+python -m pytest tests/ -q     # 170 contracts, stdlib + pytest only
 ```
 
 ## Honest limits
