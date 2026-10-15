@@ -68,7 +68,7 @@ def test_wiring_templates_exist_and_are_clean():
         wa = cap.get("wiring_action")
         if not wa:
             continue
-        assert wa["type"] == "skill-file"
+        assert wa["type"] in ("skill-file", "mcp-config")
         assert wa["dest"].startswith(".claude/skills/aiwb-")
         tpl = WIRING_DIR / wa["template"]
         assert tpl.is_file(), f"missing template {tpl}"
@@ -117,6 +117,133 @@ def test_mutex_blocks_wiring_of_second_browser_tool(tmp_path):
                   target=tmp_path, env_extra=env).returncode == 0
     r = run_wb("capability", "enable", "playwright-mcp", target=tmp_path, env_extra=env)
     assert r.returncode == 1 and "互斥" in r.stdout
+
+
+def _fake_node_env(tmp_path):
+    """Fake node/npm/npx on a private PATH + a fake Playwright browser cache.
+
+    node.exe is never successfully executed on Windows (CreateProcess rejects
+    a text .exe with WinError 193, which wiring_mcp records as empty version
+    output — path presence alone gates it); npx must exit 0 so the pinned
+    package probe reports npx-cache. Browser probe honors the
+    PLAYWRIGHT_BROWSERS_PATH override."""
+    bin_dir = tmp_path / "fakebin"
+    bin_dir.mkdir(exist_ok=True)
+    if os.name == "nt":
+        (bin_dir / "node.exe").write_text("fake", encoding="utf-8")
+        (bin_dir / "npm.cmd").write_text("@echo off\r\n", encoding="utf-8")
+        (bin_dir / "npx.cmd").write_text("@echo off\r\n", encoding="utf-8")
+    else:
+        for name in ("node", "npm", "npx"):
+            f = bin_dir / name
+            f.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+            f.chmod(0o755)
+    browsers = tmp_path / "browsers"
+    (browsers / "chromium-1234").mkdir(parents=True)
+    return {"PATH": str(bin_dir) + os.pathsep + os.environ.get("PATH", ""),
+            "PLAYWRIGHT_BROWSERS_PATH": str(browsers)}
+
+
+def test_playwright_mcp_cli_roundtrip_wires_mcp_config(tmp_path):
+    # Real subprocess round-trip through workbench.py: mcp-config wiring must
+    # gate on node/npm/pinned-package/browser readiness (the fake env provides
+    # all), write ONE managed .mcp.json entry, and remove exactly that on
+    # disable. The handshake probe against the fake npx exits immediately —
+    # that is a WARN on enable and enabled-not-connected on status, never a
+    # hard failure (real failure path is the readiness gate above).
+    _bare_target(tmp_path)
+    env = _fake_node_env(tmp_path)
+    r = run_wb("capability", "enable", "playwright-mcp", target=tmp_path, env_extra=env)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "就绪检查" in r.stdout and "未就绪" not in r.stdout
+    cfg = json.loads((tmp_path / ".mcp.json").read_text(encoding="utf-8"))
+    entry = cfg["mcpServers"]["aiwb-playwright"]
+    if os.name == "nt":
+        assert entry["command"] == "cmd" and entry["args"][:2] == ["/c", "npx"]
+        rest = entry["args"][2:]
+    else:
+        assert entry["command"] == "npx"
+        rest = entry["args"]
+    assert rest[:4] == ["-y", "@playwright/mcp@0.0.83", "--headless", "--isolated"]
+    dest = tmp_path / ".claude" / "skills" / "aiwb-playwright-mcp" / "SKILL.md"
+    assert dest.is_file()
+    assert dest.read_text(encoding="utf-8").splitlines()[0] == \
+        "<!-- aiwb-managed:playwright-mcp -->"
+    state = json.loads((tmp_path / "harness-data" / "capability-state.json")
+                       .read_text(encoding="utf-8"))
+    assert state["playwright-mcp"] is True
+    r = run_wb("capability", "status", "playwright-mcp", target=tmp_path, env_extra=env)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "status=enabled-not-connected" in r.stdout  # fake npx: honest four-state
+    r = run_wb("capability", "disable", "playwright-mcp", target=tmp_path, env_extra=env)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert not (tmp_path / ".mcp.json").exists()  # created empty by us -> swept
+    assert not dest.exists()
+    state = json.loads((tmp_path / "harness-data" / "capability-state.json")
+                       .read_text(encoding="utf-8"))
+    assert state["playwright-mcp"] is False
+
+
+def test_playwright_mcp_enable_fails_closed_without_toolchain(tmp_path):
+    _bare_target(tmp_path)
+    r = run_wb("capability", "enable", "playwright-mcp", target=tmp_path,
+               env_extra=_empty_path_env(tmp_path))
+    assert r.returncode == 1
+    assert "未就绪" in r.stdout and "本工具从不自动安装外部软件" in r.stdout
+    assert not (tmp_path / ".mcp.json").exists()
+    assert not (tmp_path / ".claude").exists()
+
+
+def test_playwright_mcp_allow_missing_browser_escape_hatch(tmp_path):
+    # Browser missing is a hard FAIL by default (zero writes); the CLI-level
+    # escape hatch --allow-missing-browser must exist for parity with
+    # tools/wiring_mcp.py and turn it into an explicit WARN (Agent D finding).
+    _bare_target(tmp_path)
+    env = _fake_node_env(tmp_path)
+    empty_browsers = tmp_path / "empty-browsers"
+    empty_browsers.mkdir()
+    env["PLAYWRIGHT_BROWSERS_PATH"] = str(empty_browsers)
+    r = run_wb("capability", "enable", "playwright-mcp", target=tmp_path, env_extra=env)
+    assert r.returncode == 1
+    assert "浏览器未就绪" in r.stdout
+    assert not (tmp_path / ".mcp.json").exists()
+    r = run_wb("capability", "enable", "playwright-mcp", "--allow-missing-browser",
+               target=tmp_path, env_extra=env)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "已明确放行" in r.stdout
+    cfg = json.loads((tmp_path / ".mcp.json").read_text(encoding="utf-8"))
+    assert "aiwb-playwright" in cfg["mcpServers"]
+
+
+def test_pure_content_skill_wires_without_external_tool(tmp_path):
+    # manual-health skill-file capability: nothing external to verify —
+    # enable must succeed and write the managed SKILL.md; template missing
+    # must still fail closed.
+    _bare_target(tmp_path)
+    r = run_wb("capability", "enable", "superpowers-systematic-debugging",
+               target=tmp_path)
+    assert r.returncode == 0, r.stdout + r.stderr
+    dest = tmp_path / ".claude" / "skills" / "aiwb-superpowers-systematic-debugging" / "SKILL.md"
+    assert dest.is_file()
+    text = dest.read_text(encoding="utf-8")
+    assert text.splitlines()[0] == "<!-- aiwb-managed:superpowers-systematic-debugging -->"
+    assert "name: aiwb-superpowers-systematic-debugging" in text
+    r = run_wb("capability", "disable", "superpowers-systematic-debugging",
+               target=tmp_path)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert not dest.exists()
+
+
+def test_pure_content_skill_missing_template_fails_closed(tmp_path):
+    (tmp_path / "capabilities").mkdir(exist_ok=True)
+    (tmp_path / "capabilities" / "registry.json").write_text(
+        REGISTRY.read_text(encoding="utf-8"), encoding="utf-8")
+    # wiring dir absent on purpose: template missing
+    r = run_wb("capability", "enable", "superpowers-systematic-debugging",
+               target=tmp_path)
+    assert r.returncode == 1
+    assert "接线模板缺失" in r.stdout
+    assert not (tmp_path / ".claude").exists()
 
 
 # ---------- disable / uninstall (owns-only) ----------

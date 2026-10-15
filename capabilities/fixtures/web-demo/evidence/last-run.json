@@ -1,0 +1,188 @@
+{
+  "base": "http://127.0.0.1:61153",
+  "engine": "chrome (system, throwaway profile)",
+  "browserVersion": "155.0.8059.41",
+  "tests": {
+    "T1": {
+      "before": {
+        "text": "保存",
+        "state": "idle",
+        "counter": "已保存 0 次"
+      },
+      "after": {
+        "text": "已保存",
+        "state": "saved",
+        "counter": "已保存 1 次"
+      },
+      "errors": [],
+      "consoleErrors": []
+    },
+    "T2": {
+      "desktop": {
+        "innerWidth": 1280,
+        "scrollWidth": 1280,
+        "innerHeight": 800,
+        "scrollHeight": 800,
+        "export": {
+          "left": 346,
+          "right": 456,
+          "top": 12,
+          "width": 110
+        },
+        "toolbar": {
+          "left": 134,
+          "right": 696,
+          "top": 12,
+          "width": 562
+        },
+        "cards": {
+          "left": 20,
+          "right": 1260,
+          "top": 170,
+          "width": 1240
+        },
+        "cardCount": 3,
+        "firstCardTop": 170,
+        "lastCardTop": 170,
+        "bodyBg": "rgb(246, 247, 249)"
+      },
+      "plain_narrow": {
+        "broken": {
+          "innerWidth": 375,
+          "scrollWidth": 1012,
+          "innerHeight": 812,
+          "scrollHeight": 812,
+          "export": {
+            "left": 300,
+            "right": 410,
+            "top": 22,
+            "width": 110
+          },
+          "toolbar": {
+            "left": 88,
+            "right": 636,
+            "top": 22,
+            "width": 548
+          },
+          "cards": {
+            "left": 20,
+            "right": 355,
+            "top": 189,
+            "width": 335
+          },
+          "cardCount": 3,
+          "firstCardTop": 189,
+          "lastCardTop": 189,
+          "bodyBg": "rgb(246, 247, 249)"
+        },
+        "fixed": {
+          "innerWidth": 375,
+          "scrollWidth": 375,
+          "innerHeight": 812,
+          "scrollHeight": 812,
+          "export": {
+            "left": 153,
+            "right": 263,
+            "top": 55,
+            "width": 110
+          },
+          "toolbar": {
+            "left": 20,
+            "right": 355,
+            "top": 55,
+            "width": 335
+          },
+          "cards": {
+            "left": 20,
+            "right": 355,
+            "top": 246,
+            "width": 335
+          },
+          "cardCount": 3,
+          "firstCardTop": 245.5,
+          "lastCardTop": 439.5,
+          "bodyBg": "rgb(246, 247, 249)"
+        }
+      },
+      "mobile_emu": {
+        "broken": {
+          "innerWidth": 1012,
+          "scrollWidth": 1012,
+          "innerHeight": 2192,
+          "scrollHeight": 2192,
+          "export": {
+            "left": 300,
+            "right": 410,
+            "top": 22,
+            "width": 110
+          },
+          "toolbar": {
+            "left": 88,
+            "right": 636,
+            "top": 22,
+            "width": 548
+          },
+          "cards": {
+            "left": 20,
+            "right": 355,
+            "top": 189,
+            "width": 335
+          },
+          "cardCount": 3,
+          "firstCardTop": 189,
+          "lastCardTop": 189,
+          "bodyBg": "rgb(246, 247, 249)"
+        },
+        "fixed": {
+          "innerWidth": 375,
+          "scrollWidth": 375,
+          "innerHeight": 812,
+          "scrollHeight": 812,
+          "export": {
+            "left": 153,
+            "right": 263,
+            "top": 55,
+            "width": 110
+          },
+          "toolbar": {
+            "left": 20,
+            "right": 355,
+            "top": 55,
+            "width": 335
+          },
+          "cards": {
+            "left": 20,
+            "right": 355,
+            "top": 246,
+            "width": 335
+          },
+          "cardCount": 3,
+          "firstCardTop": 245.5,
+          "lastCardTop": 439.5,
+          "bodyBg": "rgb(246, 247, 249)"
+        }
+      }
+    },
+    "T3": {
+      "start": "30",
+      "drag": {
+        "value": "83",
+        "out": "83%",
+        "input": 24,
+        "change": 1
+      },
+      "counterAfterDrag": "已保存 1 次"
+    }
+  },
+  "evidence": {
+    "T1": "evidence/t1-desktop-click.png",
+    "T2_before": "evidence/t2-before-mobile-broken.png",
+    "T2_after": "evidence/t2-after-mobile-fixed.png",
+    "T3": "evidence/t3-slider.png"
+  },
+  "resultCounts": {
+    "pass": 18,
+    "fail": 0
+  },
+  "failures": []
+}

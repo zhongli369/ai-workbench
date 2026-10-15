@@ -28,6 +28,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from capability import cmd_capability  # noqa: E402
+from wiring_mcp import wire_uninstall_sweep  # noqa: E402
 
 RC_ROOT = Path(__file__).resolve().parent.parent
 VERSION = "0.1.0-preview.4"  # single source of truth; bound to CHANGELOG by tools/check_docs_drift.py
@@ -435,6 +436,9 @@ def cmd_uninstall(args) -> int:
     if not args.yes:
         print("加 --yes 确认; 数据默认保留, --purge-data 才删除 harness-data/")
         return 0
+    ok_sweep, sweep_msgs = wire_uninstall_sweep(target)
+    for m in sweep_msgs:
+        print("  mcp-config:", m)
     removed = 0
     for f in files:
         if f.is_file() and (args.purge_data or "harness-data" not in f.parts):
@@ -517,9 +521,11 @@ def main(argv=None) -> int:
     l.add_argument("--run", action="store_true", help="直接启动而非仅打印命令")
     sub.add_parser("status")
     c = sub.add_parser("capability", help="能力注册中心: list/inspect/enable/disable/doctor")
-    c.add_argument("cap_cmd", choices=["list", "inspect", "enable", "disable", "doctor"])
+    c.add_argument("cap_cmd", choices=["list", "inspect", "enable", "disable", "status", "doctor"])
     c.add_argument("id", nargs="?", default=None)
     c.add_argument("--json", action="store_true")
+    c.add_argument("--allow-missing-browser", action="store_true",
+                   help="mcp-config: 浏览器缺失时仍 enable (明确接受无浏览器)")
     u = sub.add_parser("uninstall")
     u.add_argument("--yes", action="store_true")
     u.add_argument("--purge-data", action="store_true")
