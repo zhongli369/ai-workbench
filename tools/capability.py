@@ -224,12 +224,18 @@ def cmd_capability(args, target: Path, rc_root: Path) -> int:
         if sub == "enable" and cap.get("wiring_action"):
             # wiring v1.1: real integration, but only onto tooling the user
             # already installed — health must pass; we NEVER auto-install.
-            hs, hd = check_health(cap, target)
-            if hs != "ok":
-                print(f"[FAIL] 健康检查未过 ({cap.get('health', {}).get('type')}: {hd})\n"
-                      f"       请先自行安装 {cap['id']}, 再 enable — 本工具从不自动安装外部软件")
-                return 1
-            if cap["wiring_action"].get("type") == "skill-file":
+            # Pure-content skills (health type "manual") have no external
+            # tool to verify; the template-existence check inside the wire
+            # step below is their real fail-closed gate.
+            wa_type = cap["wiring_action"].get("type")
+            pure_content = wa_type == "skill-file" and cap.get("health", {}).get("type") == "manual"
+            if not pure_content:
+                hs, hd = check_health(cap, target)
+                if hs != "ok":
+                    print(f"[FAIL] 健康检查未过 ({cap.get('health', {}).get('type')}: {hd})\n"
+                          f"       请先自行安装 {cap['id']}, 再 enable — 本工具从不自动安装外部软件")
+                    return 1
+            if wa_type == "skill-file":
                 ok, msg = _wire_skill_file(rc_root, target, cap)
                 if not ok:
                     print(f"[FAIL] {msg}")

@@ -119,6 +119,37 @@ def test_mutex_blocks_wiring_of_second_browser_tool(tmp_path):
     assert r.returncode == 1 and "互斥" in r.stdout
 
 
+def test_pure_content_skill_wires_without_external_tool(tmp_path):
+    # manual-health skill-file capability: nothing external to verify —
+    # enable must succeed and write the managed SKILL.md; template missing
+    # must still fail closed.
+    _bare_target(tmp_path)
+    r = run_wb("capability", "enable", "superpowers-systematic-debugging",
+               target=tmp_path)
+    assert r.returncode == 0, r.stdout + r.stderr
+    dest = tmp_path / ".claude" / "skills" / "aiwb-superpowers-systematic-debugging" / "SKILL.md"
+    assert dest.is_file()
+    text = dest.read_text(encoding="utf-8")
+    assert text.splitlines()[0] == "<!-- aiwb-managed:superpowers-systematic-debugging -->"
+    assert "name: aiwb-superpowers-systematic-debugging" in text
+    r = run_wb("capability", "disable", "superpowers-systematic-debugging",
+               target=tmp_path)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert not dest.exists()
+
+
+def test_pure_content_skill_missing_template_fails_closed(tmp_path):
+    (tmp_path / "capabilities").mkdir(exist_ok=True)
+    (tmp_path / "capabilities" / "registry.json").write_text(
+        REGISTRY.read_text(encoding="utf-8"), encoding="utf-8")
+    # wiring dir absent on purpose: template missing
+    r = run_wb("capability", "enable", "superpowers-systematic-debugging",
+               target=tmp_path)
+    assert r.returncode == 1
+    assert "接线模板缺失" in r.stdout
+    assert not (tmp_path / ".claude").exists()
+
+
 # ---------- disable / uninstall (owns-only) ----------
 
 def _full_install_with_repomix(tmp_path):

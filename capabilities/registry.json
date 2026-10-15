@@ -242,7 +242,9 @@
       ],
       "cost_hint": "SessionStart bootstrap + skill descriptions; skills on demand",
       "trigger": "user installs via /plugin install superpowers@claude-plugins-official",
-      "mutex": [],
+      "mutex": [
+        "superpowers-systematic-debugging"
+      ],
       "security": "installed by user into their own CC; this distribution never installs it",
       "health": {
         "type": "manual"
@@ -250,6 +252,35 @@
       "wiring": "recorded-intent (v1): enable/disable records operator intent; installation stays user-side",
       "default_enabled": false,
       "evidence": "M1 recon 2026-10-13; method overlap with curated ECC skills noted"
+    },
+    {
+      "id": "superpowers-systematic-debugging",
+      "name": "Systematic debugging (root-cause-first, adapted from superpowers)",
+      "origin": "extract:obra/superpowers@bb92a77741419a4ab5f06e711a283343f1ada0c3 (MIT, condensed port; forced-workflow + SessionStart injection removed)",
+      "version": "7.0.0-adapted.1",
+      "license": "MIT",
+      "applies_to": [
+        "diagnosis",
+        "recovery"
+      ],
+      "deps": [],
+      "cost_hint": "zero resident beyond the frontmatter index; full body loads only on invoke",
+      "trigger": "non-obvious failure: unexplained bug, failure that survived a fix attempt, or cross-component breakage; NOT for trivial obvious fixes",
+      "mutex": [
+        "superpowers"
+      ],
+      "security": "static markdown only; no scripts, no hooks, no network; ships no SessionStart injection",
+      "health": {
+        "type": "manual"
+      },
+      "wiring": "skill-file (v1.1): enable writes managed .claude/skills/aiwb-superpowers-systematic-debugging/SKILL.md (pure-content skill — no external tool; template existence is the enable-time check, never auto-installs anything)",
+      "default_enabled": false,
+      "evidence": "upstream pinned @bb92a77 reviewed 2026-10-15; adapted port; methodology dry-run validated (symptom KeyError vs real root cause schema default, regression test RED->GREEN, see docs/decisions/2026-10-15-superpowers.md)",
+      "wiring_action": {
+        "type": "skill-file",
+        "template": "superpowers-systematic-debugging.skill.md",
+        "dest": ".claude/skills/aiwb-superpowers-systematic-debugging/SKILL.md"
+      }
     },
     {
       "id": "playwright-mcp",
