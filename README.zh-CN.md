@@ -2,188 +2,287 @@
 
 *面向 Claude Code 的轻量、受治理、按需增强的软件工程工作台。*
 
-**这是什么。** 一层安装在 [Claude Code](https://claude.com/claude-code) 之上的薄工作台 — 不是又一个 Skills 大合集。一次启动, 指向任意项目; 不可逆命令经过三档闸门; 专家能力按任务加载, 不给每条提示词加税; 小任务保持便宜。
+`v0.1.0-preview.3`（Public Preview）— [发布](https://github.com/zhongli369/ai-workbench/releases/tag/v0.1.0-preview.3) · [English](README.md)
 
-**解决的痛点。** ①多个仓库来回切换, 每次会话都要重建上下文; ②能力包让每条提示词都为今天用不上的规则付费; ③一条误发的不可逆命令可能毁掉一天 — 闸门让它成为深思熟虑的动作。(另含跨会话失败记忆 oracle, 属**实验性**能力 — 机制已验证, in-vivo 检索收益尚未证明; 见诚实性能说明。)
+| 徽章 | 状态 |
+|---|---|
+| CI（契约 + 静态检查 + CLI 冒烟） | [![ci](https://github.com/zhongli369/ai-workbench/actions/workflows/ci.yml/badge.svg)](https://github.com/zhongli369/ai-workbench/actions/workflows/ci.yml) |
+| 供应链安全扫描 | [![security](https://github.com/zhongli369/ai-workbench/actions/workflows/security.yml/badge.svg)](https://github.com/zhongli369/ai-workbench/actions/workflows/security.yml) |
+| 发布（预览版） | [![release](https://img.shields.io/github/v/release/zhongli369/ai-workbench?include_prereleases\&sort=semver)](https://github.com/zhongli369/ai-workbench/releases/tag/v0.1.0-preview.3) |
+| 许可证 | [![license](https://img.shields.io/github/license/zhongli369/ai-workbench)](LICENSE) |
 
-**区别在哪** — 按来源诚实拆分:
+---
+
+## 1. 这是什么
+
+**一句话。** AI 工作台是架在 [Claude Code](https://claude.com/claude-code) 之上的一层薄工作台 — 不是又一个 Skills 大合集 — 它在一个会话里**操作任意项目**、把专家能力**按任务而非常驻**地加载、并让不可逆命令走**三档闸门**。
+
+**它解决的痛点。**
+
+1. 多个仓库来回切换, 每次会话都要重建上下文; 一次启动应当服务任意项目。
+2. 能力包让每条提示词都为今天用不上的规则付费; 重型规则应该只在任务需要时加载。
+3. 一条误发的不可逆命令可能毁掉一天的工作; 它应当是一个深思熟虑、受闸门约束的动作。
+
+**与既有事实的诚实分界**（按来源拆分）:
 
 | | 原生 Claude Code | everything-claude-code (ECC) | AI 工作台 |
 |---|---|---|---|
-| 单项目内改代码/测试/交付 | ✔ (CC 本身) | | |
-| 60+ agents / 240+ skills 目录 | | ✔ (上游项目) | |
-| 精选 ECC 子集, 按需非常驻 | | | ✔ (30 skills / 16 agents, 已 pin) |
-| 一个工作台操作多项目 | | | ✔ (自研) |
-| 跨会话失败记忆 + 重错 oracle *(实验性)* | | | ✔ (自研, harness-core — in-vivo 收益未证明) |
-| FAST/STANDARD/DEEP 成本策略 | | | ✔ (自研) |
-| 不可逆命令三档闸门 | | | ✔ (自研) |
+| 单项目内改代码 / 测试 / 交付 | ✔（CC 本身） | | |
+| 60+ agents / 240+ skills 目录 | | ✔（上游项目） | |
+| 精选 ECC 子集, 按需非常驻 | | | ✔ **(30+16+14)** skills/agents/commands, 已 pin |
+| 一个工作台操作多项目 | | | ✔（自研） |
+| 跨会话失败记忆 + 重错 oracle *(实验性)* | | | ✔（自研；in-vivo 收益未证明） |
+| FAST / STANDARD / DEEP / RECOVERY 成本策略 | | | ✔（自研, 指引性质） |
+| 不可逆命令三档闸门 | | | ✔（自研, 强制性质） |
 
-**安装** (Python ≥ 3.10 + Claude Code CLI; Windows 主测, Linux/macOS 走 CI):
+**诚实的能力分级。** 本文档中的每一项主张都属于以下四级之一, 且不会把更弱的说法包装成更强的保证:
 
-```bash
-git clone https://github.com/zhongli369/ai-workbench.git && cd ai-workbench
-python tools/workbench.py doctor
-python tools/workbench.py install && python tools/workbench.py launch
-```
-
-**看真实演示** — 三个可复现 demo (离线可验收):
-[1 · 一个工作台, 两个规则冲突的项目](docs/demos.md#demo-1) ·
-[2 · 会话 A 记录的失败在会话 B 被复用](docs/demos.md#demo-2) ·
-[3 · 多文件功能 + 按需能力](docs/demos.md#demo-3)。
-实测数字(包括不好看的): [性能](#诚实的性能说明)。
-
-```
-workbench/            ← 在此启动 Claude Code; 自动加载工作台 CLAUDE.md
-harness-core/         ← 自研: 失败存储 / 闸门 / telemetry / 检查点 / 规划 / 编辑后验证 / 工作区快照 (纯 stdlib, 171 项契约)
-hooks/                ← PreToolUse 闸门 hook (ENFORCE 模式 fail-closed)
-vendor/ecc/           ← 第三方: everything-claude-code 快照 (MIT, pin 已记录)
-tools/workbench.py    ← 安装器 / doctor / 启动器 / 卸载器
-```
-
-## 七个差异化
-
-| # | 差异点 | 机制 |
+| 分级 | 例子 | 性质 |
 |---|---|---|
-| 1 | 一个入口操作多项目 | 启动一次, 免 cd 跨项目工作 (绝对路径, `git -C`) |
-| 2 | 目标项目规则正确加载 | 项目级 `claudeMdExcludes` 防止全局规则包遮蔽目标项目自己的 CLAUDE.md |
-| 3 | ECC 能力按需调用 | 30 skills / 16 agents 来自 everything-claude-code, 按任务加载非常驻 |
-| 4 | 跨会话失败记忆 **(实验性)** | `harness-core` 记录失败原因; 遇到失败时 (fail-triggered) oracle 先查历史。机制契约级验证; 六轮受控实验 in-vivo 收益**未证明** — 见诚实说明 |
-| 5 | 复杂度匹配的 token 策略 | FAST / STANDARD / DEEP: 小修不规划、不起 agent、不记账; RECOVERY 模式用明确信号处理卡死状态 (单次测试失败永不触发恢复链, 恢复永不关闭安全护栏) |
-| 6 | 确定性质量与安全 | 335 项离线契约; 三档闸门 (DISABLED / AUDIT / ENFORCE) 管不可逆命令; 版本化检查点支持撕裂行恢复, 服务长时程任务 |
-| 6c | 编辑后验证环 | `harness verify run`: 按阶段跑有界 lint/test 验证 (配置 `.harness-verify.json` 或经闸门批准的 `--cmd`); 最新判定非 `pass` 的阶段不得声明完成 (`verify status` 是机械闸门) |
-| 6d | 工作区文件快照 | `harness snap save/restore`: 基于 git 的文件级快照; 恢复默认 dry-run, 只写快照管理集, 并发修改 fail closed, 写入前先建 rescue ref — 永不用 `reset --hard` / `clean -fd` |
-| 6b | DEEP 模式规划脚手架 | `harness plan`: 确定性 13 原型阶段+验收标准脚手架, 按需 CLI 调用, 永不自动注入; 阶段名直接作为检查点 stage |
-| 7 | 目标项目零侵入 | 工作台装一次, 目标项目不被修改 |
+| **原生自动** | CC 自带的编辑 / 测试 / git | 机制 |
+| **已接通触发** | gate `PreToolUse` hook、`--add-dir` 加载目标项目 `CLAUDE.md`、`claudeMdExcludes` 豁免 | 机制 — 安装即生效 |
+| **任务级按需** | ECC skills/agents、`harness-core` CLI 各子命令 | 约定驱动的调用 |
+| **显式授权** | gate `ENFORCE` 拦截高危命令、release 发布 | 机制 — 强制 |
 
-## 安装
+写在工作台 `CLAUDE.md` 里的协议 — 任务分级（FAST/STANDARD/DEEP）、"验证后才算完成"、失败触发才查失败史 — 属于**指引**（约定/指引), 而非系统强制的保证。只有机制（闸门 hook、`ENFORCE` 模式、CLI 退出码）才是强制的。
 
-要求: **Python ≥ 3.10**, Claude Code CLI。Windows 是主要实测平台;
-Linux/macOS 走 CI 覆盖的 POSIX 路径。
+## 2. 已交付能力（真实清单）
+
+| # | 能力 | 触发方式 |
+|---|---|---|
+| 1 | 一次启动, 多项目 | 已接通: 启动器设置 `CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1`; `/add-dir` 或 launch 透传 `--add-dir <project>` 加载目标项目 `CLAUDE.md`; 绝对路径 / `git -C` 跨项目操作 |
+| 2 | 目标项目规则正确加载 | 已接通: 工作区 `claudeMdExcludes: ["**/.claude/rules/ecc/**"]` 防止全局规则包遮蔽项目自己的 `CLAUDE.md` |
+| 3 | 精选 ECC 子集按需调用 | 任务级: 按任务加载 `Skill`/agent — 30 skills / 16 agents / 14 commands, pin 在 `vendor/ecc/` |
+| 4 | `harness-core` CLI（纯 stdlib, 确定性, 171 项契约） | 按需: `feedback` · `report` · `gate` · `telemetry` · `checkpoint` · `plan` · `verify` · `snap` |
+| 5 | 跨会话失败记忆 **(实验性)** | 失败触发: `feedback record` 写入教训; `feedback query` 只在真正遇到失败时才查 — 新任务默认不查（机制契约级验证; in-vivo 收益未证明） |
+| 6 | 不可逆命令三档闸门 | 已接通: 唯一 `PreToolUse` hook（`hooks/harness_gate.py`）; 模式经 `gate mode` 切换 |
+| 7 | 编辑后验证环 | 按需: `verify run` / `verify status`; 配置 `.harness-verify.json` 位于目标项目内 |
+| 8 | 工作区文件快照 | 按需: `snap save/list/diff/verify/restore/prune`; 恢复永远先 dry-run |
+| 9 | DEEP 模式规划脚手架 | 按需: `plan "<task>"`; 永不自动注入, 也从不要求必做 |
+| 10 | 版本化任务状态检查点 | 按需: `checkpoint begin/save/load/replay/verify/list` |
+| 11 | 发布供应链闸门 | 仅 CI: `.github/workflows/security.yml` 中的 `trivy` fs 扫描（push main / `v*` 标签 / PR-to-main 拦截; 定时与非 main PR 为审计） |
+| 12 | 复杂度匹配的成本策略 | 指引: 工作台 `CLAUDE.md` 中的 FAST / STANDARD / DEEP / RECOVERY 任务分级 |
+
+## 3. 快速安装
+
+要求: **Python ≥ 3.10** 与 **Claude Code CLI**。
+Windows 是主要实测平台; Linux/macOS 走 CI 覆盖的 POSIX 代码路径（Python 3.10–3.12, 三个操作系统）。`harness-core` 纯 stdlib — 除 Python 本体外**无需 `pip install`**。
 
 ```bash
 git clone https://github.com/zhongli369/ai-workbench.git
 cd ai-workbench
-python tools/workbench.py doctor                      # 预检, 不做任何修改
-python tools/workbench.py install --scope standalone  # 默认装到平台数据目录
-python tools/workbench.py launch                      # 打印确切启动命令
+python tools/workbench.py doctor            # 预检, 不做任何修改
+python tools/workbench.py install --yes     # 默认 standalone
+python tools/workbench.py launch            # 打印确切启动命令
 ```
 
-作用域: `standalone` (默认, 独立目录) · `project` (仓库内 `.ai-workbench/`) ·
-`user` (只打印手动步骤 — **绝不**静默改全局配置)。
+- `doctor` 输出 PASS/WARN/FAIL, 从不修改任何东西。
+- `install` 幂等、可 dry-run; **只写入**目标目录, 并把自有的每个文件记录在 `install-manifest.json`。作用域: `standalone`（默认, 独立目录）· `project`（仓库内 `.ai-workbench/`）· `user`（只打印手动全局配置步骤 — **绝不**静默改全局配置）。
+- 用全局 `--target` 把任意子命令指向非默认安装位置（放在子命令**之前**: `--target <dir> install`）; 省略时使用平台数据目录（Windows 为 `%LOCALAPPDATA%\ai-workbench`, POSIX 为 `$XDG_DATA_HOME/ai-workbench`）。
+- `launch` 打印确切的 `claude --settings …` 命令（Windows 走 `launch/workbench.ps1`, POSIX 走 `launch/workbench.sh`）。
 
-卸载只删除本发行版拥有的文件 (由 `install-manifest.json` 追踪),
-反馈数据默认保留, 除非显式 `--purge-data`:
+安装后的根目录大致如下:
 
-```bash
-python tools/workbench.py uninstall --yes
+```
+<workbench>/                  ← 你的工作台根目录（--target）
+├─ CLAUDE.md                  ← 会话策略: 成本策略、闸门规则、能力
+├─ .claude/                   ← 工作区设置: PreToolUse 闸门 hook、claudeMdExcludes、ECC 子集
+├─ harness-core/              ← 纯 stdlib, 171 项契约工具包（feedback · gate · plan · checkpoint · verify · snap）
+├─ hooks/harness_gate.py      ← 唯一的 PreToolUse 闸门 hook
+├─ vendor/ecc/                ← everything-claude-code pin 2.0.0-rc.1（MIT, 见 NOTICE）
+├─ capabilities/              ← 14 个按需能力的注册表 + wiring
+├─ harness-data/              ← 你的本地数据: gate.json、feedback.jsonl、checkpoints
+└─ install-manifest.json      ← 本安装自有的全部文件清单
 ```
 
-## 5 分钟快速上手
-
-1. `python tools/workbench.py install --yes`
-2. 运行 `python tools/workbench.py launch` 打印的命令
-3. 在会话里指向任意项目: "修一下 D:\some\other\repo 里那个失败的测试"
-4. 故意触发护栏: 让会话执行 "git push" — 观察 AUDIT 日志
-   (切 ENFORCE: `python harness-core/harness/cli.py gate mode --set enforce`)
-5. 下个会话失败记忆还在: `status` 显示累积记录数。
-
-## 失败记忆演示 (实验性 — 演示机制, 非已证明收益)
+卸载只删除清单记录的自有文件, 默认保留你的数据, 且绝不触碰全局 Claude 配置:
 
 ```bash
-# 会话 1 — 失败发生并被记录
+python tools/workbench.py uninstall --yes           # 保留 feedback/checkpoints
+python tools/workbench.py uninstall --yes --purge-data
+```
+
+## 4. 五分钟上手
+
+一条真实可跑的最短路径, 全部离线:
+
+```bash
+python tools/workbench.py doctor
+python tools/workbench.py install --yes
+python tools/workbench.py launch        # 运行它打印出的命令
+```
+
+在随后打开的会话里:
+
+1. 用 `/add-dir <project>` 指向任意项目（或直接说出它的路径）。
+2. 让会话做一件小而具体的事 — *"修一下 <project> 里那个失败的测试"* — 注意小修不做规划、不起 agent、不记账（FAST）。
+3. 用 harness CLI 写一条教训（命令见下方代码块）。
+4. 故意触发护栏: 让会话执行 *"git push"*。默认的 `AUDIT` 模式只记录决策; 切换为强制用
+   `python harness-core/harness/cli.py gate mode --set enforce`。
+5. 开一个**新**会话, 再把失败记忆查回来。
+
+```bash
+# 记录一条人工验证过的教训（会话 1）
 python harness-core/harness/cli.py feedback record \
-  --project-id demo --cause permission_tool_mismatch \
-  --summary "allowedTools 只写了 Bash(python:*) 但模型用的是 PowerShell 工具" \
+  --project-id <project> --cause permission_tool_mismatch \
+  --summary "allowedTools 只写了 Bash(python:*) 但模型用了 PowerShell 工具" \
   --source human-verified --confidence 1.0
 
-# 会话 2 — 同类错误再现, 重试前先查
-python harness-core/harness/cli.py feedback query --project-id demo --keyword allowedTools --json
-# → 历史修复方案浮现; 同一次调试不付两次费
+# 重新调试前先查失败史（会话 2）
+python harness-core/harness/cli.py feedback query \
+  --project-id <project> --keyword allowedTools --json
+
+# 把闸门切换到强制模式
+python harness-core/harness/cli.py gate mode --set enforce
 ```
 
-oracle 只在**遇到失败时** (fail-triggered) 或用户明确要求时查询, 不是每个任务开始都查。
-(实测: 新鲜单缺陷任务默认先查 oracle 会使成本约翻倍且质量无增益。策略已固化这一点。)
+> 上面的命令是仓库相对路径（在安装所用的 clone 里执行）。安装后同一套 harness CLI 位于
+> `<workbench>/harness-core/harness/cli.py`, 其中 `<workbench>` 是你的安装根目录 —
+> 这些命令在任意目录下行为一致。
 
-## 诚实的性能说明
+## 5. 多项目管理
 
-参考机实测 (Claude Code 2.1.x, `--output-format json` usage):
+装一次工作台, 服务任意项目, 每个项目无需重新搭建:
 
-- **常驻上下文** (结构性对比, 与模型无关, `workbench benchmark` 实测):
-  工作台 L0 ≈ 1.7k 字符; L0 + 全部 skill 索引 ≈ 9.0k 字符 vs 等效全局规则层
-  ≈ 20.7k 字符 → **−57%** (仅 L0 则 −92%)。
-- **固定琐碎提示词**: vnext $0.0199 vs baseline $0.0228 (同模型同提示词, N=1)。
-- **任务级成本才是硬仗**: 首轮受控 bugfix A/B 实测 vnext 为 baseline 的 **2.33 倍**
-  ($1.335 vs $0.569)。根因 = (a) 权限 pattern 试错 (b) 新鲜缺陷上误查 oracle。
-  两项修复后受控复测 = **1.22 倍** ($0.540 vs $0.444, 双臂 PASS, 零 oracle 调用)。
-  残余差距来自轮次行为, 非常驻上下文 (vnext 非缓存输入反低 62%)。尚未达到
-  "≈ baseline" — 追踪在 `RELEASE_READINESS.md` (G4)。不利证据我们保留, 不删除。
-- **全任务类型矩阵** (全部 N=1, transcript 已审计; 详见 `RELEASE_READINESS.md` G10
-  与 `docs/POLICY_VERIFICATION.md`): 琐碎 **0.87×** · bugfix **1.22×** ·
-  多文件特性 **0.84×** · 测试诊断 **1.81×** (fail-triggered 策略在空库上的成本
-  ≈$0.34 — 这笔税同时也在为库填充经验; 同一臂把正确诊断自然写回了库)。
-- **fusion 臂探索性基准 (2026-10, `claude-haiku-4-5`, 每单元 N=1)**:
-  早期探索性基准在三个小任务上显示更低的任务成本
-  (fusion/native 成本比 0.85× / 0.70× / 0.64×), 六次运行全部通过。
-  更大规模受控研究待做。这些单元只能证明"容易任务无大幅额外税" —
-  **不能**证明优越性、轮次效应或跨模型行为。
-- **重复错误 oracle: honest-null, 如实披露。** 三组带预置失败史的受控对
-  (含一组专为逼迫 oracle 设计的数据态根因场景) 中, 种子臂**从未查询过 oracle** —
-  模型全部自诊修复, 有一次还独立选中了种子自己推荐的修法。机制
-  (记录→存储→查询→项目隔离) 契约级验证通过, 策略也从未产生浪费性查询, 但
-  in-vivo 检索收益**尚未证明**, 我们如实写明。oracle 的合理适用面 = 根因不在
-  项目内任何可读之处的失败 (环境/配置/历史决策类)。
+- **启动一次。** 工作台会话就是你的入口。用绝对路径、`git -C <project>` 或 `python -m pytest <project>` 操作任意项目。
+- **目标项目自己的规则在自己的树里生效。** 启动器设置 `CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1`; `/add-dir <project>`（或 launch 透传 `--add-dir <project>`）让 Claude Code 读取该项目的 `CLAUDE.md`。Demo 1 展示两个**规则互相矛盾**的项目如何保持隔离（见 [docs/demos.md](docs/demos.md)）。
+- **`claudeMdExcludes` 防止全局规则包遮蔽项目。** 工作区设置豁免 `**/.claude/rules/ecc/**`, 使项目自己的约定在其树内胜出, 而工作台全局工具仍然可用。
+- **项目本地的 harness 数据。** `snap` 快照以 git ref 的形式存在**目标仓库**里（`refs/harness/snaps/`）, 验证配置（`.harness-verify.json`）位于任务目录 — 传 `--cwd <project>`。
+- **不扫盘、默认不写。** 项目识别靠用户告知或项目速查表 — 工作台从不扫盘找项目。唯一的 `PreToolUse` hook 是限定 Bash 的闸门; 没有任何脚本会静默修改目标项目。会话加载的某个项目的 `CLAUDE.md` 只是上下文, **不能**覆盖全局安全底线（不硬编码密钥、系统边界校验输入、错误显式处理、不可逆命令走闸门）。
 
-## 继承 vs 自研
+## 6. 按需智能: 成本策略 + 14 个能力
 
-| 组件 | 来源 |
-|---|---|
-| Skills / agents / commands (30+16+14) | **继承** — [everything-claude-code](https://github.com/affaan-m/everything-claude-code), MIT, pin 快照在 `vendor/ecc/` (见 `NOTICE`) |
-| harness-core (feedback / gate / report / telemetry / checkpoint / plan / verify / snap) | **自研**, 纯 stdlib, 确定性, 171 项契约 |
-| 安装器 / 启动器 / 卸载器 | **自研** |
-| FAST/STANDARD/DEEP 成本策略 | **自研**, 由上述实测驱动 |
+工作台 `CLAUDE.md` 为每个任务分级（这是**指引**而非强制 — 没人会硬拦一个 FAST 任务去用 DEEP 能力）:
 
-## 安全语义 (依赖闸门前必读)
+- **FAST** — 单文件小改 / 查询 / 明确指令: 直接做。不起 agent、不全局扫描、默认不查失败史、只跑相关测试、不记账。
+- **STANDARD** — 多文件 / 新功能 / 修 bug: 按需加载相关 Skill（tdd、语言 patterns）, 改后必须验证, **只在真正失败时**查失败史（失败触发）。
+- **DEEP** — 架构 / 高风险 / 跨系统: 先规划（`plan` 或 planner）, 明确验收标准, 允许查历史与调专家 agent, 完成后 review（code-reviewer, 敏感路径加 security-reviewer）, 完整测试证据, 长时程任务留检查点。
+- **RECOVERY** — 仅当确实卡住（同一错误重复、无有效进展、缺外部状态）: 先失败触发查历史, 再缩小范围回主 agent。单次普通测试失败永不触发恢复链, 恢复也永不关闭闸门。
 
-- `DISABLED`: 闸门不工作。
-- `AUDIT`: 记录并提示 — **这是可观测性, 不是防护**。
-- `ENFORCE`: 配置的高危 pattern 未预授权即拦截 (TTL 授权); 配置不可读时 fail-closed。
-- 一次性授权: `gate approve --once --action "git push origin main"` 签发单次令牌
-  (`awt-…`, 仅存 SHA-256, TTL 约束, 防重放), 被且仅被一条匹配命令消费;
-  原始令牌只打印一次, 从不写入审计日志。
-- `claude --print` (非交互) 不执行 PreToolUse hooks — 闸门强制只对交互会话生效。
-  2026-10 在 CC 2.1.x 上实证。
+**14 个按需能力**（`python tools/workbench.py capability list`）:
 
-## 已知限制 (Public Preview)
+| 能力 | 来源 | 触发方式 | 默认 |
+|---|---|---|---|
+| `harness-oracle` — 失败记忆 oracle | self | 失败触发 `feedback query`, 新任务不默认查 | on |
+| `harness-gate` — 三档闸门 | self | 交互会话里每次 Bash 调用（hook） | on |
+| `ecc-skills` — 精选 ECC skills | ECC pin | 按任务需要调 `Skill` 工具 | on |
+| `ecc-agents` — 精选 ECC agents | ECC pin | 仅 STANDARD+/DEEP 任务 | on |
+| `cost-policy` — FAST/STANDARD/DEEP/RECOVERY | self | 模型每任务自分级（指引） | on |
+| `harness-plan` — 确定性阶段+验收脚手架 | self | DEEP 任务, 显式 `plan` 调用 | on |
+| `harness-checkpoints` — 版本化任务检查点 | self | 长时程: `checkpoint begin/save/load/verify` | on |
+| `harness-verify` — 编辑后验证环 | extract:aider | `verify run\|status`（配置在目标仓库） | on |
+| `harness-snap` — git 备份文件快照 | extract:cline | `snap save/list/diff/verify/restore/prune` | on |
+| `supply-chain-gate` — 发布 trivy 扫描 | integrate:trivy | 仅 CI: push main / `v*` 标签 / PR-to-main（拦截） | on |
+| `repomix` — 仓库地图 / 上下文打包 | external-optional | 大仓库定位, 内置搜索不足时 | off |
+| `agent-browser` — 真实 UI 验收 | external-optional | 启动应用、点击、DOM/console/network 断言、截图 | off |
+| `superpowers` — 方法论包（TDD/调试） | external-plugin | 用户经 `/plugin install superpowers@claude-plugins-official` 安装 | off |
+| `playwright-mcp` — 浏览器服务器（兜底） | external-optional | 仅当需要持久浏览器会话时 | off |
 
-- **Windows 是主要实测平台**; Linux/macOS 走 CI 覆盖的 POSIX 代码路径,
-  全新安装验收在这两个平台尚未人工核验。
-- 闸门 ENFORCE 只对**交互会话**生效 (`claude --print` 不执行 PreToolUse hooks,
-  CC 2.1.x 实证)。
-- 重复错误 oracle 的 in-vivo 检索收益**尚未证明** (见诚实性能说明); 机制本身契约级验证通过。
-- 内置 ECC 快照 pin 在 2026-05 修订版; 此后上游修复未纳入 (见 `NOTICE`)。
-- 新目录首次交互启动可能需要 Claude Code 自身的信任确认 — 该提示由你本人回答,
-  安装器从不代为绕过。
+`capability enable <id>` / `capability disable <id>` 记录你的意图; 外部能力**永不自动安装** — `capability doctor` 打印手动步骤。
 
-## 贡献与路线图
+## 7. snap 与 verify: 安全撤销, 诚实完成
 
-欢迎 Issue 与 PR — 见 [CONTRIBUTING.md](CONTRIBUTING.md)。
-近期路线图 (基准批次 2、平台验收、ECC pin 刷新) 以门禁形式追踪在
-[RELEASE_READINESS.md](RELEASE_READINESS.md)。
+**`harness snap`** — git 备份的文件快照, 恢复永远不会误伤无关工作:
 
-## 文档
+```bash
+python harness-core/harness/cli.py snap save --cwd <project> --exec demo
+python harness-core/harness/cli.py snap list --cwd <project>
+python harness-core/harness/cli.py snap diff <snap_id> --cwd <project>
+python harness-core/harness/cli.py snap verify <snap_id> --cwd <project>
+python harness-core/harness/cli.py snap restore <snap_id> --cwd <project>          # dry-run
+python harness-core/harness/cli.py snap restore <snap_id> --cwd <project> --apply  # 显式执行
+python harness-core/harness/cli.py snap prune --cwd <project> --exec demo --keep 5
+```
 
-- [README.md](README.md) — English
-- [NOTICE](NOTICE) — 第三方归属与 ECC pin 理由
-- [SECURITY.md](SECURITY.md) — 威胁模型与漏洞报告
-- [CHANGELOG.md](CHANGELOG.md) — 发布历史
-- [RELEASE_READINESS.md](RELEASE_READINESS.md) — 逐门禁 PASS/FAIL/PENDING 状态
-- [harness-core/README.md](harness-core/README.md) — 记忆/安全工具包, 可独立使用
-- 维护者门禁: [docs/claims.json](docs/claims.json) (发布声明对照实时证据源校验)、
-  [docs/surface.json](docs/surface.json) (冻结的公开 CLI/Schema 表面 — 新增自由,
-  破坏性变更必须 major 升级)、[docs/incidents/registry.json](docs/incidents/registry.json)
-  (具名历史故障锁定为永久回归测试)
+> `<snap_id>` 来自 `snap list`; `<project>` 是目标仓库路径。安装在 `<workbench>` 时, CLI 位于
+> `<workbench>/harness-core/harness/cli.py`。
+
+- `restore` **默认 dry-run**: 只打印计划, 不写任何东西; 只有干净的计划才退出 `0`, 冲突/被拦/出错退出 `1`（脚本可依赖的 fail-closed 语义）。
+- `--apply` **只写**快照管理的文件, 写入前先建 rescue git ref, 若工作区有并发修改则 fail closed。永不用 `reset --hard` 或 `clean -fd`。
+- 会咨询闸门: `AUDIT` 记日志, `ENFORCE` 可能拦下（传 `--token`）。
+- `snap verify <snap_id>` 退出 `1` = manifest/ref/commit 链条损坏。
+
+**`harness verify`** — 有界、受闸门的编辑后验证环:
+
+```bash
+python harness-core/harness/cli.py verify run    --exec <id> --stage <stage> --cwd <project>
+python harness-core/harness/cli.py verify status --exec <id>
+```
+
+- `verify run` 退出码: `0` 通过 · `1` 失败/被拒/尝试耗尽 · `2` 坏输入 · `3` 跳过（未配置 — 与通过明确区分）。
+- `verify status` 只在完成可机械声明（`can_claim_done`）时退出 `0`, 否则 `1`; 通过后被篡改的证据日志会让它翻回 `1`。
+- 命令来自任务目录里的 `.harness-verify.json`（`commands`、`timeout_s`、`max_reflections`）, 或一条显式的受闸门 `--cmd` 路径: `AUDIT` 记录并放行, `ENFORCE` 需要 `--token`, `DISABLED` 拒绝。
+- 诚实说明: `can_claim_done` 是**咨询性**的。harness **没有**任何 hook 强制模型去查它 — 唯一的 `PreToolUse` hook 就是闸门。CLI 能做的是让一个没过验证的阶段难逃自己的退出契约, 从而无法把"完成"这种话充作证据。
+
+## 8. 安全与可靠
+
+- **三档闸门**（`DISABLED` / `AUDIT` / `ENFORCE`）:
+  - `DISABLED` — 闸门不工作。
+  - `AUDIT` — 记录并提示; **这是可观测性, 不是防护**。
+  - `ENFORCE` — 配置的高危 pattern（`git push`、`git reset --hard`、`git clean -f`、`rm -rf`、publish/deploy 命令）未预授权即拦截; 配置不可读时 **fail closed**。
+- **一次性授权。** `gate approve --once --action "git push origin main"` 签发单次令牌（`awt-…`, 仅存 SHA-256, TTL 约束, 防重放）, 被且仅被一条匹配命令消费; 原始令牌只打印一次, 从不写入审计日志。
+- **唯一 hook。** 唯一的 `PreToolUse` hook 是限定 Bash 的 `hooks/harness_gate.py` — 无常驻进程、无后台服务。
+- **`claude --print` 注意事项。** 非交互 `claude --print` 不执行 `PreToolUse` hooks（2026-10 在 CC 2.1.x 上实证）, 所以 `ENFORCE` 只作用于交互会话。
+- **安装零网络。** 安装只是复制文件; 运行时不下任何东西。供应链闸门是**仅 CI** 的 `trivy` fs 扫描, 二进制按 SHA-256 pin, GitHub Actions 按 commit SHA pin。
+- **字节级恢复。** `snap restore` 校验 SHA-256; 恢复后的树与快照逐字节一致, 并发编辑走冲突 fail-closed, 而不是被合并或破坏。
+- **Battle 实测。** `tests/` 携带 24 个 battle 测试, 覆盖 5 个场景（`tests/battle/`）, 用**真实** CLI 打真实文件系统、真实 git、真实子进程: 异常目标目录（S1）、坏配置 fail-closed（S2）、假装完成的 agent（S3）、跨会话续跑（S4）、边缘文件系统（S5）。
+- **FAST 审计 8/8**（已验证）: 无常驻服务、无自动规划注入、无快照风暴、恰好一个 gate hook、安装零网络、幂等重装、只卸自有文件、机器路径卫生（`tools/check_hygiene.py`）。
+
+## 9. 架构
+
+```mermaid
+flowchart LR
+    W[workbench: install / launch] --> CC[Claude Code session]
+    CC --> G[gate hook PreToolUse]
+    CC --> C[harness-core CLI]
+    CC --> E[ECC subset pins]
+    CC --> PA[target project A]
+    CC --> PB[target project B]
+    G --> PA
+    G --> PB
+    C --> PA
+    C --> PB
+    E --> PA
+    E --> PB
+    PA --> PL[project-local data: .harness-verify.json, refs/harness/snaps]
+    PB --> PQ[project-local data: .harness-verify.json, refs/harness/snaps]
+    C --> H[workbench harness-data: gate.json, feedback.jsonl, checkpoints]
+```
+
+各角色:
+
+- **安装 / 启动**（`tools/workbench.py`）把工作区放到 `<workbench>` 下, 并用一份 `--settings` 文件启动 Claude Code — 那里面接好了闸门 hook、`claudeMdExcludes` 与 `CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1`。
+- **Claude Code 会话**是运行时; 工作台 `CLAUDE.md` 是指引, hook 与 CLI 是机制。
+- **闸门 hook / harness-core CLI / ECC 子集**是三个承重柱 — 机制（hook）、机制（CLI + 退出契约）、约定（按需加载 skill/agent）。
+- **目标项目 A/B** 不被安装修改; `.harness-verify.json` 与 snap ref 归项目所有, harness 记账（`feedback`、`checkpoint`、`gate`）留在工作台的 `harness-data/`。
+
+## 10. 真实证据
+
+- **335 项离线契约** = **171 harness-core** + **164 干净室安装/CLI**（该数字由 `tools/check_docs_drift.py` 对照 pytest 收集结果实时校验; 核心为纯 stdlib, 171 项契约且确定性）。多项目目录 `tests/multiproj/` 并入后该总计还会略增。
+- **24 个 battle 测试**在 `tests/battle/`（5 个场景）端到端打真实 CLI; 结果计入 164。
+- **CI** — [ci.yml](.github/workflows/ci.yml): 契约覆盖 `windows-latest`/`ubuntu-latest`/`macos-latest` × Python 3.10–3.12, 另有静态检查（卫生、docs-drift gate、冻结的公开表面）与 CLI 冒烟。**安全** — [security.yml](.github/workflows/security.yml): `trivy` fs 扫描, 诚实退出语义（0 干净 / 1 发现 / 2 用法 / 3 基建故障）, release 路径永远拦截。
+- **Demo** — 三个可复现、可离线验收的演示在 [docs/demos.md](docs/demos.md): [Demo 1 — 一个工作台, 两个规则冲突的项目](docs/demos.md#demo-1) · [Demo 2 — 会话 A 记录的失败在会话 B 被复用](docs/demos.md#demo-2) · [Demo 3 — 多文件功能 + 按需能力](docs/demos.md#demo-3)。
+- **发布** — `v0.1.0-preview.3` 以 GitHub prerelease 发布在[这里](https://github.com/zhongli369/ai-workbench/releases/tag/v0.1.0-preview.3), 附带 `zip` 与 `.sha256` 旁证。校验制品: `Get-FileHash ai-workbench-0.1.0-preview.3.zip -Algorithm SHA256`（或 `sha256sum`）并与旁证比对。
+
+## 11. 局限与边界（Public Preview, 诚实清单）
+
+- **失败 oracle 是实验性的, in-vivo 检索收益未证明。** 机制（记录 → 存储 → 失败触发查询 → 项目隔离）契约级验证通过; 受控运行中种子臂**从未查询** oracle（模型全部自诊）。它合理的适用面 = 根因不在项目内任何可读之处的失败（环境/配置/历史决策类）。不要把它当成保证。
+- **`can_claim_done` 是咨询性的。** 它是 `verify status` 报告的机械状态; 没有 hook 强制模型去查阅。一个阶段"可验证"并不等于"工作是正确"的证明。
+- **Windows 是主要实测平台。** Linux/macOS 走 CI 里的 POSIX 路径; 这两个平台的全新安装验收尚未人工核验。
+- **Preview API。** `v0.1.0-preview.*` 的表面可能不带 major 升级地变化; `docs/surface.json` 冻结了 CLI/schema 表面 — 新增自由, 破坏性变更需要 major 发布。
+- **ECC 已 pin。** 内置快照是 `v2.0.0-rc.1`（commit `928076cc`, 2026-05-25）; pin 之后发布的上游修复不在其内（见 `NOTICE`）。
+- **闸门作用域。** `ENFORCE` 只对交互会话生效; `claude --print` 跳过 `PreToolUse` hooks（CC 2.1.x 实证）。
+- **首次启动可能提示。** 新目录里 Claude Code 自身的信任确认由你本人回答; 安装器绝不代为绕过。
+- **策略是指引。** FAST/STANDARD/DEEP 分级与"先验证再谈完成"是工作台 `CLAUDE.md` 里的约定, 不是 hook 强制的。
+
+## 12. 贡献、文档与许可证
+
+欢迎 Issue 与 PR。本项目看重**证据胜过热情**: 改动要带契约、实测或两者。见 [CONTRIBUTING.md](CONTRIBUTING.md)。近期路线图（平台验收、基准批次 2、ECC pin 刷新）以门禁形式追踪在 [RELEASE_READINESS.md](RELEASE_READINESS.md)。
+
+让本文档保持诚实的三道维护者闸门: [docs/claims.json](docs/claims.json)（发布声明对照真实源头实时校验）、[docs/surface.json](docs/surface.json)（冻结的公开 CLI/schema 表面）、[docs/incidents/registry.json](docs/incidents/registry.json)（具名历史故障锁定为永久回归测试）。
+
+相关文档: [English README](README.md) · [NOTICE](NOTICE)（第三方归属）· [SECURITY.md](SECURITY.md)（威胁模型与漏洞报告）· [CHANGELOG.md](CHANGELOG.md)（发布历史）· [harness-core/README.md](harness-core/README.md)（工具包, 可独立使用）· [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · [docs/POLICY_VERIFICATION.md](docs/POLICY_VERIFICATION.md)。
 
 ## 许可证
 
-MIT (本发行版自有代码)。everything-claude-code 由其作者以 MIT 授权 —
-见 `vendor/ecc/LICENSE` 与 `NOTICE`。
+MIT（本发行版自有代码）。everything-claude-code 由其作者以 MIT 授权 — 见 `vendor/ecc/LICENSE` 与 `NOTICE`。
