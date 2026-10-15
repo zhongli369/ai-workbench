@@ -71,6 +71,9 @@ jobs:
     env:
       AUDIT: >-
         ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.audit_only == 'true') || (github.event_name == 'pull_request' && github.base_ref != 'main') }}
+      # Explicit binary location for the wrapper (PATH via GITHUB_PATH is
+      # the fallback; the env var is the deterministic channel).
+      AIWB_TRIVY_PATH: ${{ runner.temp }}/trivy-bin/trivy
 
     steps:
       # Actions pinned by commit SHA (tags are mutable; the supply-chain gate
@@ -97,6 +100,11 @@ jobs:
           echo "trivy pin OK: ${TRIVY_VERSION} sha256 ${TRIVY_SHA256}"
 
       - name: install pinned trivy binary (curl + sha256 verify, no 3rd-party action)
+        # AUDIT mode (daily schedule etc.): a failed download/extract must not
+        # red the job — the scan wrapper then reports tool-missing (exit 3),
+        # which --allow-infra-failure downgrades with a warning. Blocking
+        # mode stays fail-closed: infra failure is NOT a PASS.
+        continue-on-error: ${{ env.AUDIT == 'true' }}
         run: |
           set -euo pipefail
           asset="trivy_${TRIVY_VERSION#v}_Linux-64bit.tar.gz"
@@ -107,7 +115,9 @@ jobs:
           tar -xzf "$RUNNER_TEMP/trivy.tar.gz" -C "$RUNNER_TEMP/trivy-extract" trivy
           install -m 0755 "$RUNNER_TEMP/trivy-extract/trivy" "$RUNNER_TEMP/trivy-bin/trivy"
           echo "$RUNNER_TEMP/trivy-bin" >> "$GITHUB_PATH"
-          trivy --version
+          # GITHUB_PATH applies to SUBSEQUENT steps only — inside this step
+          # invoke the binary by its explicit path (first live run: exit 127).
+          "$RUNNER_TEMP/trivy-bin/trivy" --version
 
       - name: run supply-chain scan (blocking vs audit per mode)
         run: |
