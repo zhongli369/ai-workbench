@@ -7,8 +7,8 @@
 
 - 仓库：ai-workbench-rc（本文件即在其根目录；本地无 remote，推送走 Git Data API 脚本）
 - 分支：`main`，工作树干净，本地 == 远端（merge commit 经 sha1 自校验逐字节一致）
-- **main SHA：`a15ff10e`（交接文档提交）**；其下为 PR #2 合并提交
-  `552d126ecda4e1b60ba5e922edfec895aaff66dd`（GitHub 签名）
+- **main SHA：以 `git log -1 main` 为准**（本文档自身亦是 main 上的提交，写死即过期）；
+  永久锚点 = PR #2 合并提交 `552d126ecda4e1b60ba5e922edfec895aaff66dd`（GitHub 签名）
 - PR #2：**MERGED** — https://github.com/zhongli369/ai-workbench/pull/2 （head `b7c3431e`）
 - CI（PR 轮 @b7c3431e）：ci ✅ run 38725348735 · security ✅ run 38725348768
 - CI（main @552d126e）：ci ✅ run 38727390540 · security ✅ run 38727390575
