@@ -71,9 +71,6 @@ jobs:
     env:
       AUDIT: >-
         ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.audit_only == 'true') || (github.event_name == 'pull_request' && github.base_ref != 'main') }}
-      # Explicit binary location for the wrapper (PATH via GITHUB_PATH is
-      # the fallback; the env var is the deterministic channel).
-      AIWB_TRIVY_PATH: ${{ runner.temp }}/trivy-bin/trivy
 
     steps:
       # Actions pinned by commit SHA (tags are mutable; the supply-chain gate
@@ -121,6 +118,13 @@ jobs:
           "$RUNNER_TEMP/trivy-bin/trivy" --version
 
       - name: run supply-chain scan (blocking vs audit per mode)
+        # Explicit binary location for the wrapper (PATH via GITHUB_PATH is
+        # the fallback; the env var is the deterministic channel). This MUST
+        # live at step level: the runner context is not available in job env
+        # (a job-level use fails workflow validation — GitHub reports it as a
+        # zero-job failure run named by the file path, seen live 2026-10-15).
+        env:
+          AIWB_TRIVY_PATH: ${{ runner.temp }}/trivy-bin/trivy
         run: |
           set +e
           if [ "$AUDIT" = "true" ]; then
