@@ -43,7 +43,7 @@ Measured results, including the ones we're not proud of: [Performance](#honest-p
 
 ```
 workbench/            ← launch Claude Code here; it loads this workspace's CLAUDE.md
-harness-core/         ← self-developed: failure store, gate, telemetry, checkpoints, planning, post-edit verification, workspace snapshots (stdlib, 170 contracts)
+harness-core/         ← self-developed: failure store, gate, telemetry, checkpoints, planning, post-edit verification, workspace snapshots (stdlib, 171 contracts)
 hooks/                ← PreToolUse gate hook (fail-closed in ENFORCE mode)
 vendor/ecc/           ← third-party: everything-claude-code snapshot (MIT, pin recorded)
 tools/workbench.py    ← installer / doctor / launcher / uninstaller
@@ -58,7 +58,7 @@ tools/workbench.py    ← installer / doctor / launcher / uninstaller
 | 3 | ECC capabilities on demand | 30 skills / 16 agents from everything-claude-code, loaded per-task, not resident |
 | 4 | Cross-session failure memory **(experimental)** | `harness-core` records why approaches failed; the oracle is queried when a failure is hit (fail-triggered). Mechanism contract-verified; in-vivo retrieval benefit **unproven** across six controlled experiments — see honest notes |
 | 5 | Complexity-matched tokens | FAST / STANDARD / DEEP policy: small fixes skip planning, agents, and bookkeeping; RECOVERY mode handles stuck states with explicit signals (a single test failure never triggers a recovery cascade, and safety rails are never disabled to get unstuck) |
-| 6 | Deterministic quality & safety | 304 offline contracts; three-tier gate (DISABLED / AUDIT / ENFORCE) for irreversible commands; versioned checkpoints with torn-tail recovery for long-horizon work |
+| 6 | Deterministic quality & safety | 305 offline contracts; three-tier gate (DISABLED / AUDIT / ENFORCE) for irreversible commands; versioned checkpoints with torn-tail recovery for long-horizon work |
 | 6c | Post-edit verification loop | `harness verify run`: bounded lint/test verification per stage (config `.harness-verify.json` or gate-approved `--cmd`); a stage whose latest verdict is not `pass` cannot be claimed done (`verify status` is the mechanical gate) |
 | 6d | Workspace file snapshots | `harness snap save/restore`: git-backed file-level snapshots; restore is dry-run first, writes only snapshot-managed files, fails closed on concurrent edits, keeps a rescue ref — never `reset --hard` / `clean -fd` |
 | 6b | DEEP-mode planning scaffold | `harness plan`: deterministic 13-archetype phase + acceptance-criteria scaffold, on-demand CLI, never auto-injected; phases double as checkpoint stages |
@@ -159,7 +159,7 @@ Measured on the reference machine (Claude Code 2.1.x, `--output-format json` usa
 | Component | Origin |
 |---|---|
 | Skills / agents / commands (30+16+14) | **Inherited** — [everything-claude-code](https://github.com/affaan-m/everything-claude-code), MIT, pinned snapshot in `vendor/ecc/` (see `NOTICE`) |
-| harness-core (feedback, gate, report, telemetry, checkpoint, plan, verify, snap) | **Self-developed**, stdlib-only, deterministic, 170 contracts |
+| harness-core (feedback, gate, report, telemetry, checkpoint, plan, verify, snap) | **Self-developed**, stdlib-only, deterministic, 171 contracts |
 | Installer / launcher / uninstaller | **Self-developed** |
 | FAST/STANDARD/DEEP cost policy | **Self-developed**, driven by measurements above |
 

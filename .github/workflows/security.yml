@@ -52,7 +52,10 @@ concurrency:
 # API `digest` field, fetched over TLS-verified api.github.com) — the same
 # content GitHub serves to the runner at download time.
 # The `verify pinned trivy` step still FAILS if anyone reintroduces a
-# placeholder, so this gate cannot run against an unverified binary.
+# placeholder, so this gate cannot run against an unverified binary. The
+# check compares the env VALUE (never greps this file — a grep for the
+# placeholder string matches the check's own line and fails closed forever,
+# which its first live run demonstrated).
 env:
   TRIVY_VERSION: "v0.75.0"
   TRIVY_SHA256: "c6e65abddb348e25f10549df887045629cf28cc72453cd1c63acb717316b3f3f"
@@ -81,9 +84,15 @@ jobs:
 
       - name: verify pinned trivy placeholder is resolved
         run: |
-          if grep -Fq 'REPLACE-ME-with-verified-sha256' .github/workflows/security.yml; then
+          if [ "$TRIVY_SHA256" = "REPLACE-ME-with-verified-sha256" ]; then
             echo "::error::security.yml TRIVY_SHA256 is still a placeholder. Integrator must download trivy_${TRIVY_VERSION#v}_Linux-64bit.tar.gz from the GitHub release, verify it, and paste its sha256 into the TRIVY_SHA256 constant before this gate can run."
             exit 1
+          fi
+          case "$TRIVY_SHA256" in
+            *[!0-9a-f]*) echo "::error::TRIVY_SHA256 is not lowercase hex"; exit 1;;
+          esac
+          if [ "${#TRIVY_SHA256}" -ne 64 ]; then
+            echo "::error::TRIVY_SHA256 must be 64 hex chars (sha256)"; exit 1
           fi
           echo "trivy pin OK: ${TRIVY_VERSION} sha256 ${TRIVY_SHA256}"
 

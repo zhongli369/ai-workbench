@@ -8,7 +8,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Absorption of three externally-proven mechanisms into harness-core (origins
 recorded per capability in `capabilities/registry.json`; every mechanism
 reimplemented stdlib-only — no vendored code, no new runtime dependencies).
-304 offline contracts (170 harness-core + 134 clean-room install).
+305 offline contracts (171 harness-core + 134 clean-room install).
 
 ### Added
 - **`harness snap`** (`harness-core/harness/worktree_snap.py`, algorithm

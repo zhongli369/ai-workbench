@@ -162,6 +162,32 @@ def test_restore_reverts_session_capture_byte_exact(data_dir, tmp_path):
     assert rf(repo, "f.txt") == b"BBB\n"                  # snapshot captured
 
 
+def test_save_captures_same_size_same_mtime_edit(data_dir, tmp_path):
+    """Racy-stat blind spot: a same-second, same-size edit after the index
+    write reads as clean to git's stat cache. The snapshot MUST capture the
+    work-tree content, never the stale index content (CI caught the stale
+    capture on a fast runner; this test forces the condition deterministically
+    by pinning the edit's mtime to the index's mtime)."""
+    repo = make_repo(tmp_path)
+    wf(repo, "f.txt", "dirty-v0\n")
+    commit_all(repo)
+    index_mtime = os.stat(repo / ".git" / "index").st_mtime
+    wf(repo, "f.txt", "dirty-v1\n")                        # same size
+    os.utime(repo / "f.txt", (index_mtime, index_mtime))   # force stat-clean
+    snap = WorktreeSnapper(data_dir)
+    sid = snap.save(os.fspath(repo), "e1")["snap_id"]
+
+    # Revert to the HEAD baseline, then restore: S=v1 != H=v0 with
+    # current == H is the "session change reverted" single-sided case ->
+    # writes S. If the racy-stat blind spot captured stale v0 instead, this
+    # restore lands v0 and the assertion fails.
+    wf(repo, "f.txt", "dirty-v0\n")
+    result = snap.restore(os.fspath(repo), sid,
+                          dry_run=False, approve=True)
+    assert result["status"] == "restored"
+    assert rf(repo, "f.txt") == b"dirty-v1\n"              # edit was captured
+
+
 # ------------------------------------------------------------------ #2
 # only managed files are ever written; deleted managed file is recreated
 

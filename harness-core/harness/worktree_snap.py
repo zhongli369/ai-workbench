@@ -227,24 +227,55 @@ def _commit_parents(git: Git, commit: str) -> list[str]:
 
 
 def _real_index_path(git: Git) -> str | None:
+    """Absolute path of the repo's real index, or None.
+
+    `git rev-parse --git-path index` may return a REPO-RELATIVE path
+    (`.git/index` in a normal checkout). Resolving that against the calling
+    process's cwd is a category bug: when the process runs inside an
+    unrelated normal checkout, `.git/index` exists THERE and we would copy a
+    foreign index — silently snapshotting the wrong file set (found by CI on
+    a regular checkout; masked locally by the worktree layout where .git is
+    a file). Relative output is therefore resolved against git.cwd."""
     try:
-        return git.run("rev-parse", "--git-path", "index").strip() or None
+        out = git.run("rev-parse", "--git-path", "index").strip()
     except GitError:
         return None
+    if not out:
+        return None
+    if not os.path.isabs(out):
+        out = os.path.join(git.cwd, out)
+    return os.path.abspath(out)
 
 
 def _tracked_tree(git: Git, scratch: str) -> str:
     """Tracked work-tree state as a tree: the real index (which already
-    holds staged additions) copied to a scratch index, then
-    `git update-index --add --remove -u` applies every work-tree change to
-    tracked paths (modifications, deletions, renames). `git stash create`
-    builds the same intermediate index; we build it deterministically here.
+    holds staged additions) copied to a scratch index, then `git add -u`
+    applies every work-tree change to tracked paths (modifications,
+    deletions, renames). `git stash create` builds the same intermediate
+    index; we build it deterministically here.
+
+    The copied index carries git's stat cache, which CANNOT be trusted: a
+    same-second, same-size work-tree edit after the index write reads as
+    clean (racy-stat blind spot) and `add -u` would silently capture the
+    STALE content (found by CI on a fast runner; masked locally by the
+    worktree layout taking the zero-stat read-tree path). We therefore
+    re-feed the stage entries through `update-index --index-info`, which
+    strips all stat info, forcing `add -u` to re-hash every tracked path
+    from the work tree. Correctness over speed: snapshots are on-demand.
     """
     real = _real_index_path(git)
     if real and os.path.isfile(real):
         shutil.copyfile(real, scratch)
     else:
         git.run("read-tree", "HEAD", index=scratch)
+    staged = git.run_bytes("ls-files", "-s", "-z", index=scratch)
+    git.run("read-tree", "--empty", index=scratch)
+    if staged.strip(b"\0"):
+        # ls-files -s format ("mode SP sha SP stage TAB path", NUL-term) is
+        # explicitly accepted by update-index --index-info; entries created
+        # this way carry no stat cache, so nothing can read as stat-clean.
+        git.run_bytes("update-index", "-z", "--index-info",
+                      input_data=staged, index=scratch)
     git.run("add", "-u", index=scratch)
     return git.run("write-tree", index=scratch).strip()
 

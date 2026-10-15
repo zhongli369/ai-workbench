@@ -319,7 +319,15 @@ def test_can_claim_done_false_when_absent():
 # headline: verification failure blocks done
 # --------------------------------------------------------------------------- #
 
-def test_failure_blocks_done_then_fix_passes(tmp_path):
+def test_failure_blocks_done_then_fix_passes(tmp_path, monkeypatch):
+    # Determinism guard: the two writes below are same-size, and on a fast
+    # machine both attempts can land in the SAME second. CPython validates
+    # cached bytecode by (mtime-seconds, size), so a stale __pycache__ pyc
+    # could otherwise be served for the fixed file and the second attempt
+    # would re-run the OLD failing test (seen failing on CI, masked locally
+    # by slower process startup straddling a second boundary). Disable
+    # bytecode caching for the verify subprocess (env is inherited).
+    monkeypatch.setenv("PYTHONDONTWRITEBYTECODE", "1")
     t = _task(tmp_path)
     testfile = t / "test_wip.py"
     testfile.write_text("def test_one():\n    assert 2 + 2 == 5\n",
