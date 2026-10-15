@@ -13,10 +13,33 @@ from pathlib import Path
 RC = Path(__file__).resolve().parent.parent
 CLI = RC / "tools" / "workbench.py"
 
+# Vars a brand-new machine would carry; everything else is developer-private
+# and must not reach the subprocess under test.
+_FRESH_ALLOW = {"PATH", "SystemRoot", "SystemDrive", "SYSTEMDRIVE", "ComSpec",
+                "ProgramFiles", "ProgramFiles(x86)", "PROCESSOR_ARCHITECTURE",
+                "NUMBER_OF_PROCESSORS", "OS", "windir", "PATHEXT", "USERPROFILE",
+                "HOME", "LOCALAPPDATA", "APPDATA", "TEMP", "TMP", "TMPDIR",
+                "TZ", "LANG", "LC_ALL", "HOMEDRIVE", "HOMEPATH"}
 
-def run_wb(*args, cwd=None):
+
+def _fresh_env(base: Path) -> dict:
+    """A scrubbed, fresh-user-like env pointing HOME/APPDATA into `base`."""
+    env = {k: v for k, v in os.environ.items() if k in _FRESH_ALLOW}
+    for d in ("home", "localappdata", "appdata", "tmp"):
+        (base / d).mkdir(parents=True, exist_ok=True)
+    env["USERPROFILE"] = str(base / "home")
+    env["HOME"] = str(base / "home")
+    env["LOCALAPPDATA"] = str(base / "localappdata")
+    env["APPDATA"] = str(base / "appdata")
+    env["TEMP"] = str(base / "tmp")
+    env["TMP"] = str(base / "tmp")
+    return env
+
+
+def run_wb(*args, cwd=None, env=None):
     return subprocess.run([sys.executable, str(CLI), *args],
-                          capture_output=True, text=True, encoding="utf-8", cwd=cwd or RC, timeout=120)
+                          capture_output=True, text=True, encoding="utf-8",
+                          cwd=cwd or RC, env=env, timeout=120)
 
 
 def install(target, *extra):
@@ -187,6 +210,27 @@ def test_install_target_with_spaces_and_non_ascii(tmp_path):
     assert u.returncode == 0 and not target.exists()
 
 
+def test_launcher_scripts_quote_paths_with_spaces(tmp_path):
+    """Regressions: a target like '...\\My Projects\\wb' must produce launch
+    scripts that quote the path. Unquoted, Set-Location and the --settings arg
+    both break on spaces (POSIX template already quoted; PS1 did not)."""
+    target = tmp_path / "My Projects" / "wb"
+    r = install(target)
+    assert r.returncode == 0, r.stdout + r.stderr
+    ps1 = (target / "launch" / "workbench.ps1").read_text(encoding="utf-8")
+    sh = (target / "launch" / "workbench.sh").read_text(encoding="utf-8")
+    rp = str(target.resolve())
+    rpx = rp.replace("\\", "/")
+    assert f'Set-Location "{rp}"' in ps1
+    assert f'--settings "{rp}\\launch\\vnext.settings.json"' in ps1
+    assert f'cd "{rpx}"' in sh
+    assert f'--settings "{rpx}/launch/vnext.settings.json"' in sh
+    # still nothing leaks the builder machine (rendered files may legitimately
+    # contain this machine's TARGET path — hence the tmp_path lives under the
+    # user dir; only the builder's own F:\\Claude must never appear)
+    assert "F:\\Claude" not in ps1 and "F:\\Claude" not in sh
+
+
 # ---------------- RC hygiene ----------------
 
 def test_rc_tree_has_no_personal_paths_or_secrets():
@@ -234,3 +278,77 @@ def test_hygiene_gate_catches_user_profile_paths_but_not_placeholders():
     assert hits("C:/Users/another.user/project")
     assert not hits(r"# is passed as e.g. C:\Users\...\project.")
     assert not hits(r"extract to <your-user-dir>")
+
+
+# ---------------- clean-room error quality (regressions) ----------------
+
+def test_install_into_existing_file_target_is_clean_failure(tmp_path):
+    """--target pointing at a FILE must be a one-line FAIL, never a
+    NotADirectoryError traceback, and must leave the file untouched."""
+    f = tmp_path / "wb"
+    f.write_text("not a dir", encoding="utf-8")
+    r = run_wb("--target", str(f), "install", "--yes")
+    assert r.returncode == 1
+    assert "不是目录" in r.stdout
+    assert "Traceback" not in r.stdout and "Traceback" not in r.stderr
+    assert f.read_text(encoding="utf-8") == "not a dir"
+
+
+def test_doctor_into_existing_file_target_is_clean_failure(tmp_path):
+    """doctor is read-only but must still diagnose a file-as-target cleanly."""
+    f = tmp_path / "wb"
+    f.write_text("not a dir", encoding="utf-8")
+    r = run_wb("--target", str(f), "doctor")
+    assert r.returncode == 1
+    assert "不是目录" in r.stdout
+    assert "Traceback" not in r.stdout + r.stderr
+
+
+def test_install_into_uncreatable_ancestor_is_clean_failure(tmp_path):
+    """A file node in the target path (so no dir can ever be created there)
+    is a one-line FAIL, not a FileNotFoundError mkdir cascade."""
+    f = tmp_path / "blocker"
+    f.write_text("i am a file", encoding="utf-8")
+    target = f / "sub" / "wb"
+    r = run_wb("--target", str(target), "install", "--yes")
+    assert r.returncode == 1
+    assert "文件节点" in r.stdout
+    assert "Traceback" not in r.stdout + r.stderr
+
+
+def test_doctor_never_prints_traceback_under_scrubbed_env(tmp_path):
+    """A fresh-user env with an unusable console must not leak a
+    UnicodeDecodeError (external captures are byte + errors='replace')."""
+    env = _fresh_env(tmp_path)
+    r = run_wb("--target", str(tmp_path / "wb"), "doctor", env=env)
+    assert r.returncode in (0, 1)
+    assert "Traceback" not in r.stdout + r.stderr
+    assert "UnicodeDecodeError" not in r.stdout + r.stderr
+
+
+def test_external_capture_is_decode_safe(monkeypatch):
+    """_claude_version() and the PowerShell policy probe decode bytes with
+    errors='replace'; non-locale output can never raise in a capture thread."""
+    import argparse
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("wbmod", str(CLI))
+    wb = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(wb)
+
+    class FakeProc:
+        def __init__(self, out):
+            self.stdout = out
+            self.stderr = b""
+
+    def fake_run(argv, capture_output=True, timeout=15):
+        # simulate a succeed-but-binary console (UTF-16LE garbage + newline)
+        if "powershell" in argv[0].lower():
+            return FakeProc(b"RemoteSigned\r\n\x85\x02")
+        return FakeProc(b"\xff\xfe\x81\x01 ok\r\n")
+
+    monkeypatch.setattr(wb.subprocess, "run", fake_run)
+    v = wb._claude_version()
+    assert isinstance(v, str)  # replacement-decoded, never raised
+    # Powershell probe path: cmd_doctor must complete without exception.
+    rc = wb.cmd_doctor(argparse.Namespace(target=None))
+    assert rc in (0, 1)
