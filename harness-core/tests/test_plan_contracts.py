@@ -149,6 +149,20 @@ def test_cli_plan_save_persists_stage0_checkpoint(tmp_path, capsys):
                stage_index=1)
     assert store.verify(exec_id)["ok"] is True
 
+    # project-scoped plan --save: the stage-0 checkpoint lands in the
+    # <project>~ namespace (even when the exec id is identical to a flat
+    # chain) and the flat store is untouched.
+    rc2 = cli.main(["--data-dir", dd, "plan", "migrate user accounts to the v2 API",
+                    "--save", "--project-id", "projX"])
+    assert rc2 == 0
+    out2 = json.loads(capsys.readouterr().out)
+    exec_id2 = out2["saved_checkpoint"]["execution_id"]
+    scoped_rec, scoped_health = CheckpointStore(tmp_path, project_id="projX").load_latest(exec_id2)
+    assert scoped_health["ok"] is True
+    assert scoped_rec["stage"] == "Plan" and scoped_rec["stage_index"] == 0
+    assert scoped_rec["project_id"] == "projX"
+    assert scoped_rec["payload"]["archetype"] == out2["archetype"]
+
 
 def test_cli_plan_bad_archetype_exit_2(tmp_path, capsys):
     assert cli.main(["--data-dir", str(tmp_path), "plan", "t",
