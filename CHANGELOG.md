@@ -8,7 +8,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Absorption of three externally-proven mechanisms into harness-core (origins
 recorded per capability in `capabilities/registry.json`; every mechanism
 reimplemented stdlib-only — no vendored code, no new runtime dependencies).
-305 offline contracts (171 harness-core + 134 clean-room install).
+329 offline contracts (171 harness-core + 158 clean-room install).
+The clean-room-install increment is 24 battle tests under `tests/battle/`
+(supplementary real-behavior checks for snap/verify/gate/checkpoint);
+drift-gate claims in README / README.zh-CN / CI are reconciled to the live
+counts.
 
 ### Added
 - **`harness snap`** (`harness-core/harness/worktree_snap.py`, algorithm

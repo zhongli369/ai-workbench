@@ -49,7 +49,7 @@ tools/workbench.py    ← 安装器 / doctor / 启动器 / 卸载器
 | 3 | ECC 能力按需调用 | 30 skills / 16 agents 来自 everything-claude-code, 按任务加载非常驻 |
 | 4 | 跨会话失败记忆 **(实验性)** | `harness-core` 记录失败原因; 遇到失败时 (fail-triggered) oracle 先查历史。机制契约级验证; 六轮受控实验 in-vivo 收益**未证明** — 见诚实说明 |
 | 5 | 复杂度匹配的 token 策略 | FAST / STANDARD / DEEP: 小修不规划、不起 agent、不记账; RECOVERY 模式用明确信号处理卡死状态 (单次测试失败永不触发恢复链, 恢复永不关闭安全护栏) |
-| 6 | 确定性质量与安全 | 305 项离线契约; 三档闸门 (DISABLED / AUDIT / ENFORCE) 管不可逆命令; 版本化检查点支持撕裂行恢复, 服务长时程任务 |
+| 6 | 确定性质量与安全 | 329 项离线契约; 三档闸门 (DISABLED / AUDIT / ENFORCE) 管不可逆命令; 版本化检查点支持撕裂行恢复, 服务长时程任务 |
 | 6c | 编辑后验证环 | `harness verify run`: 按阶段跑有界 lint/test 验证 (配置 `.harness-verify.json` 或经闸门批准的 `--cmd`); 最新判定非 `pass` 的阶段不得声明完成 (`verify status` 是机械闸门) |
 | 6d | 工作区文件快照 | `harness snap save/restore`: 基于 git 的文件级快照; 恢复默认 dry-run, 只写快照管理集, 并发修改 fail closed, 写入前先建 rescue ref — 永不用 `reset --hard` / `clean -fd` |
 | 6b | DEEP 模式规划脚手架 | `harness plan`: 确定性 13 原型阶段+验收标准脚手架, 按需 CLI 调用, 永不自动注入; 阶段名直接作为检查点 stage |
