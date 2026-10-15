@@ -265,7 +265,9 @@ WARN with the honest state, never a hard failure.
   not claim Android fidelity; `npx` fetches the pinned package into the npm
   cache on first use (needs network once, `@playwright/mcp@0.0.83` is pinned
   — never `latest`); the default `chromium` channel needs `npx playwright
-  install chromium` or a `PLAYWRIGHT_BROWSERS_PATH` with the browser.
+  install chromium` or a `PLAYWRIGHT_BROWSERS_PATH` with the browser; a
+  missing browser refuses enable with zero writes unless you explicitly
+  accept it via `capability enable playwright-mcp --allow-missing-browser`.
 
 ### 6.2 Root-cause-first debugging skill (skill-file wiring, pure content)
 
@@ -398,14 +400,14 @@ Roles:
 
 ## 10. Real evidence
 
-- **401 offline contracts** = **171 harness-core** + **230 tests** (168
+- **403 offline contracts** = **171 harness-core** + **232 tests** (170
   clean-room install/CLI + 15 multi-project isolation under
   `tests/multiproj/` + 47 mcp-config wiring in `tests/test_wiring_mcp.py`;
   this exact number is verified live by
   `tools/check_docs_drift.py` against the pytest collection; the core is
   stdlib, 171 contracts and deterministic).
 - **24 battle tests** under `tests/battle/` (5 scenarios) hit the real CLI
-  end-to-end; results are part of the 168 clean-room subset.
+  end-to-end; results are part of the 170 clean-room subset.
 - **CI** — [ci.yml](.github/workflows/ci.yml): contracts across
   `windows-latest`/`ubuntu-latest`/`macos-latest` × Python 3.10–3.12, plus
   static checks (hygiene, docs-drift gate, frozen public surface) and CLI

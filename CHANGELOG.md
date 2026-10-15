@@ -6,7 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [0.1.0-preview.4] — OPERATION ONE WORKSPACE — Unreleased
 
 One workspace, many projects: natural-language multi-project experience plus
-a full README rebuild. 401 offline contracts (171 harness-core + 230 tests).
+a full README rebuild. 403 offline contracts (171 harness-core + 232 tests).
 Development version — no GitHub Release is cut for this entry yet; the
 latest published release remains `v0.1.0-preview.3`.
 
@@ -24,9 +24,13 @@ latest published release remains `v0.1.0-preview.3`.
 - **`capability` CLI gains mcp-config dispatch + four-state `status`**
   (`tools/capability.py`, `tools/workbench.py`): `capability enable/disable/
   status playwright-mcp` drives the wiring end to end — mutex still enforced,
-  readiness failure fail-closed, handshake failure WARN-only. Uninstall sweeps
-  every managed `.mcp.json` entry and managed SKILL.md (owns-only, marker
-  checked). Registry entry upgraded from recorded-intent to mcp-config.
+  readiness failure fail-closed, handshake failure WARN-only,
+  `--allow-missing-browser` escape hatch exposed at CLI level (explicitly
+  accepts no browser, WARN not FAIL). `status` probes the actual `.mcp.json`
+  entry content (a user-edited command is probed as written and the detail
+  says so), not a registry-derived argv. Uninstall sweeps every managed
+  `.mcp.json` entry and managed SKILL.md (owns-only, marker checked).
+  Registry entry upgraded from recorded-intent to mcp-config.
 - **`superpowers-systematic-debugging` capability** (skill-file wiring,
   pure-content): adapted port of superpowers' systematic-debugging skill
   (pin `bb92a77`, MIT text reproduced in-file), stripped of the SessionStart
@@ -64,7 +68,7 @@ latest published release remains `v0.1.0-preview.3`.
 ### Changed
 - `tests/multiproj/` is collected by the default `pytest tests/` run; repo
   totals reconciled everywhere (README ×2, this file, ci.yml, claims.json):
-  **401 offline contracts = 171 harness-core + 230 tests**.
+  **403 offline contracts = 171 harness-core + 232 tests**.
 - `test_gate_is_not_vacuous` now asserts the figure gate stays *armed*
   (`figure_docs` configured) instead of requiring a non-empty figure
   whitelist — an empty whitelist is the honest state when the docs carry no

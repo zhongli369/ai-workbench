@@ -619,3 +619,29 @@ def test_status_reports_missing_skill_without_touching_it(tmp_path, env):
     st = w.wire_status(target, SKILL_CAP, project_root=target, probe=False)
     assert st["skill_present"] is False
     assert st["state"] == w.STATE_ENABLED_UNPROBED
+
+
+def test_status_probes_actual_entry_content_not_registry_derivation(tmp_path, monkeypatch):
+    # Agent D finding: status must reflect what is really in .mcp.json. After
+    # the user edits the managed entry's command/args, the handshake probe is
+    # fed the edited argv and the detail says so.
+    monkeypatch.setattr(w, "probe_runtime", lambda root, cap, **kw: _runtime())
+    captured = {}
+    monkeypatch.setattr(
+        w, "mcp_handshake",
+        lambda argv, **kw: (captured.update(argv=argv) or
+                            {"ok": True, "detail": "stub handshake ok",
+                             "tools": ["t"], "stderr": ""}))
+    target = tmp_path / "t"
+    target.mkdir()
+    ok, msgs = w.wire_enable(RC_ROOT, target, CAP, project_root=target, probe=False)
+    assert ok, msgs
+    cfg = target / ".mcp.json"
+    doc = json.loads(cfg.read_text(encoding="utf-8"))
+    doc["mcpServers"]["aiwb-playwright"]["command"] = "python"
+    doc["mcpServers"]["aiwb-playwright"]["args"] = ["-m", "my_own_server"]
+    cfg.write_text(json.dumps(doc), encoding="utf-8")
+    st = w.wire_status(target, CAP, project_root=target)
+    assert st["state"] == w.STATE_CONNECTED_TESTED
+    assert captured["argv"][0] == "python" and captured["argv"][1:] == ["-m", "my_own_server"]
+    assert "按 .mcp.json 实际条目探测" in st["detail"]

@@ -524,6 +524,8 @@ def main(argv=None) -> int:
     c.add_argument("cap_cmd", choices=["list", "inspect", "enable", "disable", "status", "doctor"])
     c.add_argument("id", nargs="?", default=None)
     c.add_argument("--json", action="store_true")
+    c.add_argument("--allow-missing-browser", action="store_true",
+                   help="mcp-config: 浏览器缺失时仍 enable (明确接受无浏览器)")
     u = sub.add_parser("uninstall")
     u.add_argument("--yes", action="store_true")
     u.add_argument("--purge-data", action="store_true")

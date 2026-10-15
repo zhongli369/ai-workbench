@@ -599,6 +599,26 @@ def _probe_fail(errbuf: _LineReader, detail: str, why: str, proc) -> dict:
     return {"ok": False, "detail": detail + extra, "tools": [], "stderr": stderr, "why": why}
 
 
+def entry_argv(project_root: Path, cap: dict) -> list[str] | None:
+    """The actual command+args written in the managed entry, if well-formed.
+
+    `status` must reflect what is really configured, not what the registry
+    derives: a user-edited entry (still under the reserved aiwb- key) is
+    probed as written. Returns None when the entry is absent or malformed.
+    """
+    try:
+        doc, _, _ = load_config(config_path(project_root, cap))
+    except WiringError:
+        return None
+    entry = (doc.get("mcpServers") or {}).get(server_key(cap))
+    if not isinstance(entry, dict):
+        return None
+    cmd, args = entry.get("command"), entry.get("args")
+    if isinstance(cmd, str) and isinstance(args, list) and all(isinstance(a, str) for a in args):
+        return [cmd, *args]
+    return None
+
+
 def probe_argv(project_root: Path, cap: dict) -> list[str]:
     """Prefer a pinned local copy (fast, offline); else the pinned npx form."""
     wa = _wa(cap)
@@ -795,11 +815,15 @@ def wire_status(target: Path, cap: dict, *, project_root: Path | None = None,
             out.update(state=STATE_ENABLED_UNPROBED, probed=False,
                        detail="条目存在; 未探测连接性 (--no-probe) — 非四态判定")
             return out
-        h = mcp_handshake(probe_argv(root, cap), cwd=root, timeout=timeout)
+        derived = probe_argv(root, cap)
+        argv = entry_argv(root, cap) or derived
+        entry_edited = argv != derived
+        h = mcp_handshake(argv, cwd=root, timeout=timeout)
         out["probed"] = True
         out["tools"] = h["tools"]
+        note = " (按 .mcp.json 实际条目探测)" if entry_edited else ""
         out.update(state=STATE_CONNECTED_TESTED if h["ok"] else STATE_ENABLED_NOT_CONNECTED,
-                   detail=h["detail"])
+                   detail=h["detail"] + note)
         return out
     except WiringError as e:
         out.update(state=STATE_NOT_INSTALLED, detail=f"{e}")

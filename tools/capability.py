@@ -235,7 +235,9 @@ def cmd_capability(args, target: Path, rc_root: Path) -> int:
                 # gate (node/npm/pinned package/browser) and the live MCP
                 # handshake probe live in wiring_mcp; handshake failure is a
                 # WARN, readiness failure is a hard FAIL. Never auto-installs.
-                rl = wiring_mcp.dispatch(sub, rc_root, target, cap)
+                rl = wiring_mcp.dispatch(
+                    sub, rc_root, target, cap,
+                    allow_missing_browser=bool(getattr(args, "allow_missing_browser", False)))
                 if rl is not None:
                     ok, msgs = rl
                     for m in msgs:
@@ -331,4 +333,6 @@ def add_subparser(sub, rc_root_default=None):
     c.add_argument("cap_cmd", choices=["list", "inspect", "enable", "disable", "status", "doctor"])
     c.add_argument("id", nargs="?", default=None)
     c.add_argument("--json", action="store_true")
+    c.add_argument("--allow-missing-browser", action="store_true",
+                   help="mcp-config: 浏览器缺失时仍 enable (明确接受无浏览器)")
     return c

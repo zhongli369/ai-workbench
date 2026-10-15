@@ -194,6 +194,27 @@ def test_playwright_mcp_enable_fails_closed_without_toolchain(tmp_path):
     assert not (tmp_path / ".claude").exists()
 
 
+def test_playwright_mcp_allow_missing_browser_escape_hatch(tmp_path):
+    # Browser missing is a hard FAIL by default (zero writes); the CLI-level
+    # escape hatch --allow-missing-browser must exist for parity with
+    # tools/wiring_mcp.py and turn it into an explicit WARN (Agent D finding).
+    _bare_target(tmp_path)
+    env = _fake_node_env(tmp_path)
+    empty_browsers = tmp_path / "empty-browsers"
+    empty_browsers.mkdir()
+    env["PLAYWRIGHT_BROWSERS_PATH"] = str(empty_browsers)
+    r = run_wb("capability", "enable", "playwright-mcp", target=tmp_path, env_extra=env)
+    assert r.returncode == 1
+    assert "浏览器未就绪" in r.stdout
+    assert not (tmp_path / ".mcp.json").exists()
+    r = run_wb("capability", "enable", "playwright-mcp", "--allow-missing-browser",
+               target=tmp_path, env_extra=env)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "已明确放行" in r.stdout
+    cfg = json.loads((tmp_path / ".mcp.json").read_text(encoding="utf-8"))
+    assert "aiwb-playwright" in cfg["mcpServers"]
+
+
 def test_pure_content_skill_wires_without_external_tool(tmp_path):
     # manual-health skill-file capability: nothing external to verify —
     # enable must succeed and write the managed SKILL.md; template missing

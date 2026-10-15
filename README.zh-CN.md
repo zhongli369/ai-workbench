@@ -207,7 +207,8 @@ python harness-core/harness/cli.py gate mode --set enforce
   视口并断言布局, 不宣称 Android 保真; `npx` 首次使用会把 pin 住的包拉进 npm
   缓存（需要一次网络, `@playwright/mcp@0.0.83` 固定 — 绝不用 `latest`）; 默认
   `chromium` 通道需要 `npx playwright install chromium` 或指向已有浏览器的
-  `PLAYWRIGHT_BROWSERS_PATH`。
+  `PLAYWRIGHT_BROWSERS_PATH`; 浏览器缺失时 enable 默认拒绝且零写入, 除非显式
+  接受: `capability enable playwright-mcp --allow-missing-browser`。
 
 ### 6.2 根因优先调试 skill（skill-file 接线, 纯内容）
 
@@ -297,8 +298,8 @@ flowchart LR
 
 ## 10. 真实证据
 
-- **401 项离线契约** = **171 harness-core** + **230 项 tests**（168 干净室安装/CLI + 15 项 `tests/multiproj/` 多项目隔离 + 47 项 `tests/test_wiring_mcp.py` mcp-config 接线; 该数字由 `tools/check_docs_drift.py` 对照 pytest 收集结果实时校验; 核心为纯 stdlib, 171 项契约且确定性）。
-- **24 个 battle 测试**在 `tests/battle/`（5 个场景）端到端打真实 CLI; 结果计入 168 干净室子集。
+- **403 项离线契约** = **171 harness-core** + **232 项 tests**（170 干净室安装/CLI + 15 项 `tests/multiproj/` 多项目隔离 + 47 项 `tests/test_wiring_mcp.py` mcp-config 接线; 该数字由 `tools/check_docs_drift.py` 对照 pytest 收集结果实时校验; 核心为纯 stdlib, 171 项契约且确定性）。
+- **24 个 battle 测试**在 `tests/battle/`（5 个场景）端到端打真实 CLI; 结果计入 170 干净室子集。
 - **CI** — [ci.yml](.github/workflows/ci.yml): 契约覆盖 `windows-latest`/`ubuntu-latest`/`macos-latest` × Python 3.10–3.12, 另有静态检查（卫生、docs-drift gate、冻结的公开表面）与 CLI 冒烟。**安全** — [security.yml](.github/workflows/security.yml): `trivy` fs 扫描, 诚实退出语义（0 干净 / 1 发现 / 2 用法 / 3 基建故障）, release 路径永远拦截。
 - **Demo** — 三个可复现、可离线验收的演示在 [docs/demos.md](docs/demos.md): [Demo 1 — 一个工作台, 两个规则冲突的项目](docs/demos.md#demo-1) · [Demo 2 — 会话 A 记录的失败在会话 B 被复用](docs/demos.md#demo-2) · [Demo 3 — 多文件功能 + 按需能力](docs/demos.md#demo-3)。
 - **发布** — `v0.1.0-preview.3` 以 GitHub prerelease 发布在[这里](https://github.com/zhongli369/ai-workbench/releases/tag/v0.1.0-preview.3), 附带 `zip` 与 `.sha256` 旁证。校验制品: `Get-FileHash ai-workbench-0.1.0-preview.3.zip -Algorithm SHA256`（或 `sha256sum`）并与旁证比对。
