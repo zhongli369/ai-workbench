@@ -52,9 +52,9 @@ SETTINGS_TMPL = {
 LAUNCH_SETTINGS_TMPL = {"claudeMdExcludes": ["**/.claude/rules/ecc/**"]}
 
 PS1_TMPL = """# AI Workbench launcher (generated {{TS}})
-Set-Location {{ROOT_Q}}
+Set-Location "{{ROOT_Q}}"
 $env:CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD = '1'
-claude --settings {{ROOT_Q}}\\launch\\vnext.settings.json @args
+claude --settings "{{ROOT_Q}}\\launch\\vnext.settings.json" @args
 """
 
 SH_TMPL = """#!/usr/bin/env sh
@@ -104,10 +104,30 @@ def _default_target() -> Path:
     return Path(base) / "ai-workbench"
 
 
+def _target_blocker(target: Path) -> str | None:
+    """Return a user-facing reason the target path can never be a directory,
+    else None. Stat-only (never mutates, never triggers a create cascade), so
+    an unhandled NotADirectoryError/FileNotFoundError can never leak a stack
+    trace to the user from doctor/install."""
+    if target.exists() and not target.is_dir():
+        return (f"目标存在但不是目录: {target} "
+                "(请先删除同名文件, 或改用 --target 指向一个目录)")
+    ancestor = target
+    while not ancestor.exists():
+        parent = ancestor.parent
+        if parent == ancestor:
+            break
+        ancestor = parent
+    if ancestor.exists() and not ancestor.is_dir():
+        return f"目标路径含文件节点: {ancestor} (无法在其下创建目录 {target})"
+    return None
+
+
 def _claude_version() -> str | None:
     try:
-        r = subprocess.run(["claude", "--version"], capture_output=True, text=True, timeout=15)
-        return (r.stdout or r.stderr).strip().splitlines()[0] if (r.stdout or r.stderr) else None
+        r = subprocess.run(["claude", "--version"], capture_output=True, timeout=15)
+        raw = (r.stdout or r.stderr or b"").decode("utf-8", errors="replace")
+        return raw.strip().splitlines()[0] if raw.strip() else None
     except (OSError, subprocess.TimeoutExpired):
         return None
 
@@ -144,10 +164,14 @@ def cmd_doctor(args) -> int:
             "Windows 已实测; Linux/macOS 走 POSIX 路径(见 CI)")
     if platform.system() == "Windows":
         try:
-            ep = subprocess.run(
+            r = subprocess.run(
                 ["powershell", "-NoProfile", "-Command",
                  "Get-ExecutionPolicy -Scope CurrentUser"],
-                capture_output=True, text=True, timeout=15).stdout.strip()
+                capture_output=True, timeout=15)
+            # Byte capture + replacement decode: a console that speaks UTF-16
+            # or otherwise emits bytes undecodable by the locale codec must
+            # never raise a UnicodeDecodeError inside the capture thread.
+            ep = (r.stdout or b"").decode("utf-8", errors="replace").strip()
         except (OSError, subprocess.TimeoutExpired):
             ep = ""
         ok = ep in ("RemoteSigned", "Unrestricted", "Bypass")
@@ -157,7 +181,10 @@ def cmd_doctor(args) -> int:
 
     print("\n-- 目标目录 --")
     target = Path(args.target) if args.target else _default_target()
-    if target.exists() and (target / MANIFEST).is_file():
+    blocker = _target_blocker(target)
+    if blocker:
+        rep.add("FAIL", f"目标路径无效: {blocker}")
+    elif target.exists() and (target / MANIFEST).is_file():
         rep.add("PASS", f"已安装: {target}", "可幂等重装或 uninstall")
     elif target.exists() and any(target.iterdir()):
         rep.add("WARN", f"目标非空且无清单: {target}", "install 将拒绝, 除非 --force 备份后安装")
@@ -221,6 +248,11 @@ def cmd_install(args) -> int:
     dry = args.dry_run
     print(f"== AI Workbench install {'(DRY-RUN) ' if dry else ''}== target={target} scope={args.scope}")
 
+    blocker = _target_blocker(target)
+    if blocker:
+        print(f"[FAIL] {blocker}")
+        return 1
+
     manifest_path = target / MANIFEST
     if manifest_path.is_file():
         old = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -234,6 +266,17 @@ def cmd_install(args) -> int:
         print(f"[INFO] 备份现有目录 -> {bak}")
         if not dry:
             shutil.move(str(target), str(bak))
+
+    # Fail with one clean message when the target cannot be created
+    # (permissions, a file in the ancestor chain, ...) instead of a mkdir
+    # traceback cascade. Dry-run stays write-free; the real install probes
+    # the actual mkdir so ACL deny is diagnosed, not traced.
+    if not dry:
+        try:
+            target.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            print(f"[FAIL] 无法创建目标目录: {target}\n       {e}")
+            return 1
 
     written: list[str] = []
     # 1) static trees from RC (--no-harness: ECC-only payload for bench arms —
