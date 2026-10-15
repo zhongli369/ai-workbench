@@ -452,7 +452,8 @@ class VerificationLoop:
 
     def attempt(self, execution_id: str, stage: str, *, task_cwd: Path,
                 explicit_cmd=None, token: str | None = None,
-                max_output: int = DEFAULT_MAX_OUTPUT) -> dict:
+                max_output: int = DEFAULT_MAX_OUTPUT,
+                project_id: str | None = None) -> dict:
         """Run all configured commands (in order, stop at first failure).
 
         Returns {"status", "execution_id", "stage", "attempt", "record_id",
@@ -508,24 +509,34 @@ class VerificationLoop:
             failed_cmd=failed["cmd"] if failed else None,
             output_preview=failed["tail"] if failed else "")
         self._log.append(rec)
-        self._update_checkpoint(execution_id, stage, rec, status)
+        self._update_checkpoint(execution_id, stage, rec, status,
+                                project_id=project_id)
         return self._result_of(rec)
 
     # ---------------------------------------------------------- checkpoint link
 
     def _update_checkpoint(self, execution_id: str, stage: str, rec: dict,
-                           status: str) -> None:
-        """Attach the verify outcome to the task checkpoint store."""
+                           status: str, project_id: str | None = None) -> None:
+        """Attach the verify outcome to the task checkpoint store.
+
+        With project_id the link is written into the <project>~ namespace so
+        a workbench verify run never clobbers another project's chain that
+        happens to use the same execution_id. project_id=None keeps the
+        legacy global key (unchanged behaviour).
+        """
+        cps = CheckpointStore(self.data_dir,
+                              project_id=project_id) if project_id else \
+            self.checkpoints
         try:
-            records, _health = self.checkpoints.replay(execution_id)
+            records, _health = cps.replay(execution_id)
         except state.CorruptStateError:
             records = []
         idx = max((r.get("stage_index", 0) for r in records), default=-1) + 1
         try:
             if status == "pass":
-                self.checkpoints.save(execution_id, stage,
-                                      {"verify": "ok"}, stage_index=idx,
-                                      status="done")
+                cps.save(execution_id, stage,
+                         {"verify": "ok"}, stage_index=idx,
+                         status="done")
             elif any(r.get("stage") == stage for r in records):
                 summary = {
                     "result": "fail",
@@ -534,9 +545,9 @@ class VerificationLoop:
                     "output_preview": (rec["payload"].get("output_preview")
                                        or "")[:500],
                 }
-                self.checkpoints.save(execution_id, stage,
-                                      {"verify": summary}, stage_index=idx,
-                                      status="failed")
+                cps.save(execution_id, stage,
+                         {"verify": summary}, stage_index=idx,
+                         status="failed")
         except ValueError:
             pass  # never let a checkpoint write failure mask the verdict
 

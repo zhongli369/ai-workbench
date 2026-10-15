@@ -66,24 +66,45 @@ def payload_hash(payload: dict) -> str:
     return hashlib.sha256(blob.encode("ascii")).hexdigest()
 
 
+# Separator between project namespace and execution_id in scoped log/marker
+# file names. Not in _safe_id()'s alphabet (A-Za-z0-9_.-), so a scoped name
+# can never collide with the legacy flat name of the same execution_id.
+_PROJECT_SEP = "~"
+
+
 class CheckpointStore:
     """Append-only JSONL checkpoint store for one data directory.
 
     Layout:
       <data_dir>/checkpoints/<execution_id>.jsonl   — the append-only log
       <data_dir>/checkpoints/<execution_id>.active  — crash marker (in-flight stage)
+
+    Project scoping (multi-project workbench): when constructed with
+    project_id, log and marker are namespaced to
+      <data_dir>/checkpoints/<project>~<execution_id>.{jsonl,active}
+    so two projects that happen to use the SAME execution_id never read or
+    write each other's checkpoint chain, and every scoped record additionally
+    carries its project_id. Without project_id the store is byte-for-byte the
+    legacy behaviour (keyed by execution_id alone) — existing callers and
+    data are unaffected.
     """
 
-    def __init__(self, data_dir: Path):
+    def __init__(self, data_dir: Path, project_id: str | None = None):
         self._dir = Path(data_dir) / "checkpoints"
+        self._project_id = project_id
+        self._prefix = _safe_id(project_id) + _PROJECT_SEP if project_id else ""
+
+    @property
+    def project_id(self) -> str | None:
+        return self._project_id
 
     # ---------------------------------------------------------- paths
 
     def _log(self, execution_id: str) -> Path:
-        return self._dir / f"{_safe_id(execution_id)}.jsonl"
+        return self._dir / f"{self._prefix}{_safe_id(execution_id)}.jsonl"
 
     def _marker(self, execution_id: str) -> Path:
-        return self._dir / f"{_safe_id(execution_id)}.active"
+        return self._dir / f"{self._prefix}{_safe_id(execution_id)}.active"
 
     # ---------------------------------------------------------- crash marker
 
@@ -160,6 +181,8 @@ class CheckpointStore:
             "payload": payload,
             "payload_sha256": payload_hash(payload),
         }
+        if self._project_id:
+            rec["project_id"] = self._project_id
         self._dir.mkdir(parents=True, exist_ok=True)
         line = json.dumps(rec, ensure_ascii=True) + "\n"
         assert line.isascii(), "checkpoint line must be pure ASCII (locale-proof)"

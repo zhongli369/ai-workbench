@@ -19,6 +19,39 @@ from harness import verify as verify_mod  # noqa: E402
 from harness import worktree_snap as snap_mod  # noqa: E402
 
 
+def _add_scope(parser: argparse.ArgumentParser) -> None:
+    """Project namespace for cross-project checkpoint/plan/verify stores.
+
+    --project-id wins over --cwd. Without either (or with an explicit
+    '.' --cwd) the store stays legacy: per-data-dir, keyed by execution_id
+    alone. This keeps every pre-existing invocation byte-for-byte compatible.
+    """
+    parser.add_argument("--cwd", default=None,
+                        help="project root: derives the project namespace "
+                             "(isolates checkpoints per project)")
+    parser.add_argument("--project-id", default=None,
+                        help="explicit project namespace (overrides --cwd)")
+
+
+def _scoped_project(args: argparse.Namespace) -> str | None:
+    """Resolve the checkpoint/plan project namespace, or None.
+
+    Explicit --project-id wins; else an explicitly-given --cwd (not '.')
+    is resolved through the standard project_id chain. None means the
+    workbench-global store (legacy behaviour).
+    NOTE: verify run does NOT use this — its --cwd is a task directory,
+    so its scope comes only from an explicit --project-id.
+    """
+    flag = getattr(args, "project_id", None)
+    if flag:
+        return flag
+    cwd = getattr(args, "cwd", None)
+    if cwd and str(cwd) != ".":
+        pid, _source = project_id.resolve_project_id(cwd=Path(cwd))
+        return pid
+    return None
+
+
 def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="harness", description="harness-core proto v0")
     p.add_argument("--data-dir", default=None, help="override data dir (else HARNESS_DATA_DIR / default)")
@@ -89,6 +122,7 @@ def _build_parser() -> argparse.ArgumentParser:
                     help="persist the plan as stage-0 checkpoint (requires --exec)")
     pl.add_argument("--exec", dest="exec_id", default=None,
                     help="execution id for --save (default: slugified task)")
+    _add_scope(pl)
 
     t = sub.add_parser("telemetry", help="invocation ledger summary (reader, not counted)")
 
@@ -98,6 +132,7 @@ def _build_parser() -> argparse.ArgumentParser:
     cb.add_argument("--exec", dest="exec_id", required=True)
     cb.add_argument("--stage", required=True)
     cb.add_argument("--index", type=int, default=0)
+    _add_scope(cb)
     cs = cp.add_parser("save", help="append one checkpoint (never truncates)")
     cs.add_argument("--exec", dest="exec_id", required=True)
     cs.add_argument("--stage", required=True)
@@ -106,12 +141,16 @@ def _build_parser() -> argparse.ArgumentParser:
                     choices=["started", "done", "failed", "blocked"])
     cs.add_argument("--payload", default=None, help="JSON object string")
     cs.add_argument("--payload-file", default=None, help="path to JSON file ('-' = stdin)")
+    _add_scope(cs)
     cl = cp.add_parser("load", help="latest valid checkpoint + health (never silent)")
     cl.add_argument("--exec", dest="exec_id", required=True)
+    _add_scope(cl)
     cr = cp.add_parser("replay", help="all valid checkpoints + health")
     cr.add_argument("--exec", dest="exec_id", required=True)
+    _add_scope(cr)
     cv = cp.add_parser("verify", help="full-chain integrity report (exit 1 if damaged)")
     cv.add_argument("--exec", dest="exec_id", required=True)
+    _add_scope(cv)
     cp.add_parser("list", help="list executions present in the checkpoint store")
 
     vf = sub.add_parser("verify", help="post-edit verification loop (bounded, gated)").add_subparsers(
@@ -121,6 +160,10 @@ def _build_parser() -> argparse.ArgumentParser:
     vr.add_argument("--exec", dest="exec_id", required=True)
     vr.add_argument("--stage", required=True)
     vr.add_argument("--cwd", default=".", help="task working dir holding .harness-verify.json")
+    vr.add_argument("--project-id", default=None,
+                    help="project namespace: the verify checkpoint link is scoped "
+                         "to this project (its --cwd is the task dir, not a "
+                         "project selector)")
     # dest renamed: a bare "--cmd" dest would shadow the top-level subparser
     # dest="cmd" (argparse applies nested defaults after the selection).
     vr.add_argument("--cmd", dest="verify_cmd", default=None,
@@ -291,7 +334,8 @@ def main(argv: list[str] | None = None) -> int:
                              ensure_ascii=True), file=sys.stderr)
             return 2
         if args.save:
-            store = state_mod.CheckpointStore(data_dir)
+            store = state_mod.CheckpointStore(data_dir,
+                                              project_id=_scoped_project(args))
             exec_id = args.exec_id or result["checkpoint_hint"]["execution_id"]
             rec = store.save(exec_id, "Plan", result, stage_index=0, status="done")
             result["saved_checkpoint"] = {"execution_id": exec_id,
@@ -389,9 +433,14 @@ def _verify_main(args: argparse.Namespace, data_dir: Path, pid: str) -> int:
     if args.vcmd == "run":
         telemetry.log(data_dir, cmd="verify.run", project_id=pid, argv=sys.argv)
         try:
+            # verify run's --cwd is the TASK directory (always a git repo),
+            # NOT a project-root selector — auto-deriving a namespace from it
+            # would silently move every existing caller's checkpoint link.
+            # Scope applies ONLY when explicitly requested via --project-id.
             result = loop.attempt(args.exec_id, args.stage,
                                   task_cwd=Path(args.cwd),
-                                  explicit_cmd=args.verify_cmd, token=args.token)
+                                  explicit_cmd=args.verify_cmd, token=args.token,
+                                  project_id=args.project_id)
         except ValueError as e:
             print(json.dumps({"error": "bad_input", "detail": str(e)},
                              ensure_ascii=True), file=sys.stderr)
@@ -434,7 +483,8 @@ def _read_payload(args: argparse.Namespace) -> dict:
 
 
 def _checkpoint_main(args: argparse.Namespace, data_dir: Path, pid: str) -> int:
-    store = state_mod.CheckpointStore(data_dir)
+    store = state_mod.CheckpointStore(data_dir,
+                                      project_id=_scoped_project(args))
     try:
         if args.ccmd == "begin":
             telemetry.log(data_dir, cmd="checkpoint.begin", project_id=pid, argv=sys.argv)
@@ -481,22 +531,39 @@ def _checkpoint_main(args: argparse.Namespace, data_dir: Path, pid: str) -> int:
 
 
 def _list_executions(store: state_mod.CheckpointStore) -> list[dict]:
-    """One summary row per execution log in the store (reader, tolerant)."""
+    """One summary row per execution log in the store (reader, tolerant).
+
+    Project-scoped logs (<project>~<execution_id>.jsonl) appear alongside
+    the flat ones and carry their project_id. Each file is read with a
+    purpose-built store, so namespaced ids are never double-prefixed by
+    whatever ambient scope `store` was constructed with (the store's dir is
+    the same either way — scoping only alters the filename prefix).
+    """
     rows = []
     log_dir = store._dir  # same-module introspection, read-only
     if not log_dir.is_dir():
         return rows
     for path in sorted(log_dir.glob("*.jsonl")):
         stem = path.stem
+        project_key, sep, rest = stem.partition(state_mod._PROJECT_SEP)
+        reader = state_mod.CheckpointStore(
+            log_dir.parent, project_id=(project_key if sep else None))
+        key = rest if sep else stem
         try:
-            records, health = store.replay(stem)
+            records, health = reader.replay(key)
             exec_id = records[0]["execution_id"] if records else stem
-            rows.append({"execution_id": exec_id, "checkpoints": len(records),
-                         "healthy": health["ok"],
-                         "active": store.active(stem) is not None})
+            row = {"execution_id": exec_id, "checkpoints": len(records),
+                   "healthy": health["ok"],
+                   "active": reader.active(key) is not None}
+            if records and records[0].get("project_id"):
+                row["project_id"] = records[0]["project_id"]
+            rows.append(row)
         except state_mod.CorruptStateError as e:
-            rows.append({"execution_id": stem, "checkpoints": 0,
-                         "healthy": False, "error": str(e)})
+            row = {"execution_id": stem, "checkpoints": 0,
+                   "healthy": False, "error": str(e)}
+            if sep:
+                row["project_id"] = project_key
+            rows.append(row)
     return rows
 
 

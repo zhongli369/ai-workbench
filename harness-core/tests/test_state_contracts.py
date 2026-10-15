@@ -34,7 +34,7 @@ def _save3(store, exec_id="exec-1"):
 
 # ---- roundtrip & lineage -----------------------------------------------------
 
-def test_roundtrip_and_parent_chain(store):
+def test_roundtrip_and_parent_chain(store, tmp_path):
     r1, r2, r3 = _save3(store)
     latest, health = store.load_latest("exec-1")
     assert health["ok"] is True
@@ -44,6 +44,26 @@ def test_roundtrip_and_parent_chain(store):
     records, health = store.replay("exec-1")
     assert [r["stage"] for r in records] == ["collect", "render", "verify"]
     assert store.verify("exec-1")["ok"] is True
+
+    # project scoping: the SAME exec_id under two projects is two
+    # independent chains (namespaced <project>~<exec_id> logs), each record
+    # carries its project_id, and the flat store stays untouched.
+    sa = CheckpointStore(tmp_path, project_id="projA")
+    ra = sa.save("task-9", "collect", {"who": "A"}, stage_index=1)
+    assert ra["project_id"] == "projA"
+    assert ra["payload"] == {"who": "A"}
+    sb = CheckpointStore(tmp_path, project_id="projB")
+    rb = sb.save("task-9", "collect", {"who": "B"}, stage_index=1)
+    assert rb["project_id"] == "projB"
+    assert (tmp_path / "checkpoints" / "projA~task-9.jsonl").is_file()
+    assert (tmp_path / "checkpoints" / "projB~task-9.jsonl").is_file()
+    # cross-project isolation: A never sees B's chain
+    latest_b_through_a, _ = sa.load_latest("task-9")
+    assert latest_b_through_a["payload"] == {"who": "A"}
+    # scoped chains are invisible to the flat store (and vice versa)
+    flat, _ = store.load_latest("task-9")
+    assert flat is None
+    assert CheckpointStore(tmp_path, project_id="projA").load_latest("x")[0] is None
 
 
 def test_absent_is_not_damage(store):
@@ -251,3 +271,41 @@ def test_cli_list_and_bad_payload(tmp_path, capsys):
     assert cli.main(["--data-dir", dd, "checkpoint", "save",
                      "--exec", "e1", "--stage", "s2",
                      "--payload", '[1,2]']) == 2   # non-object payload rejected
+
+    # project scoping through the CLI: the same exec_id under two projects
+    # must be fully independent — no cross-project read/write, even with
+    # identical exec ids. --project-id wins, --cwd derives the namespace.
+    assert cli.main(["--data-dir", dd, "checkpoint", "save",
+                     "--exec", "e1", "--stage", "s1", "--project-id", "projA",
+                     "--payload", '{"who": "A"}']) == 0
+    capsys.readouterr()
+    assert cli.main(["--data-dir", dd, "checkpoint", "save",
+                     "--exec", "e1", "--stage", "s1", "--project-id", "projB",
+                     "--payload", '{"who": "B"}']) == 0
+    capsys.readouterr()
+    assert cli.main(["--data-dir", dd, "checkpoint", "load",
+                     "--exec", "e1", "--project-id", "projA"]) == 0
+    load_a = json.loads(capsys.readouterr().out)
+    assert load_a["checkpoint"]["payload"] == {"who": "A"}
+    assert load_a["checkpoint"]["project_id"] == "projA"
+    assert load_a["health"]["ok"] is True
+    assert cli.main(["--data-dir", dd, "checkpoint", "load",
+                     "--exec", "e1", "--project-id", "projB"]) == 0
+    load_b = json.loads(capsys.readouterr().out)
+    assert load_b["checkpoint"]["payload"] == {"who": "B"}
+    # flat (unscoped) chain still holds the original e1/s2 s1={} records
+    flat_latest, _flat_health = CheckpointStore(tmp_path).load_latest("e1")
+    assert "project_id" not in flat_latest
+    # --cwd derives a project namespace from the directory's project_id
+    assert cli.main(["--data-dir", dd, "checkpoint", "save",
+                     "--exec", "k9", "--stage", "s1", "--cwd", str(tmp_path),
+                     "--payload", '{"from_cwd": true}']) == 0
+    capsys.readouterr()
+    # list enumerates all four chains (flat + 2 scoped + cwd-derived)
+    assert cli.main(["--data-dir", dd, "checkpoint", "list"]) == 0
+    listed = json.loads(capsys.readouterr().out)
+    tags = {(r.get("project_id"), r["execution_id"]) for r in listed}
+    assert (None, "e1") in tags
+    assert ("projA", "e1") in tags and ("projB", "e1") in tags
+    derived = {r["execution_id"] for r in listed if r.get("project_id")}
+    assert derived  # every non-flat row carries a project_id

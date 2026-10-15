@@ -381,6 +381,22 @@ def test_allpass_writes_done_checkpoint(tmp_path):
     assert latest["payload"] == {"verify": "ok"}
     assert loop.can_claim_done("exe") is True
 
+    # project-scoped verify: the checkpoint link lands in the <project>~
+    # namespace and carries the project_id — it must never clobber the flat
+    # chain nor reach into another project's namespace.
+    scoped = loop.attempt("exe", stage="Lint", task_cwd=t,
+                          project_id="projA")
+    assert scoped["status"] == "pass"
+    s_latest, s_health = CheckpointStore(ddir, project_id="projA").load_latest("exe")
+    assert s_health["ok"] is True
+    assert s_latest["status"] == "done"
+    assert s_latest["project_id"] == "projA"
+    assert s_latest["payload"] == {"verify": "ok"}
+    assert loop.can_claim_done("exe") is True
+    # flat chain untouched by the scoped write
+    flat_latest, _h2 = CheckpointStore(ddir).load_latest("exe")
+    assert flat_latest["status"] == "done" and "project_id" not in flat_latest
+
 
 # --------------------------------------------------------------------------- #
 # evidence integrity (tamper / corruption is never silent ok)

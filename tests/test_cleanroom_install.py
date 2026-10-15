@@ -52,6 +52,14 @@ def test_install_renders_all_paths_and_never_leaks_personal_paths(tmp_path):
     target = tmp_path / "wb"
     r = install(target)
     assert r.returncode == 0, r.stdout + r.stderr
+    # The install completion hint must print a VALID CLI order: --target is
+    # a GLOBAL option, so it must precede the `launch` subcommand. Regression:
+    # v0.1.0-preview.3 printed `launch --target X`, which argparse rejects as
+    # "unrecognized arguments: --target X".
+    hints = [ln.strip() for ln in r.stdout.splitlines() if "启动: python " in ln]
+    assert len(hints) == 1 and "launch --target" not in hints[0]
+    toks = hints[0].replace('"', "").split()
+    assert "--target" in toks and toks.index("--target") < toks.index("launch")
     # rendered configs exist and contain the target path, not template holes
     settings = json.loads((target / ".claude" / "settings.json").read_text(encoding="utf-8"))
     assert str(target.resolve()).replace("\\", "/") in settings["env"]["HARNESS_DATA_DIR"]
@@ -124,6 +132,13 @@ def test_install_refuses_foreign_dir_then_force_backs_up(tmp_path):
 def test_reinstall_is_idempotent_and_preserves_user_gate_config(tmp_path):
     target = tmp_path / "wb"
     assert install(target).returncode == 0
+    # PROJECTS.md quick-reference template is authored at first install...
+    projects = target / "PROJECTS.md"
+    assert projects.is_file()
+    assert "项目登记表" in projects.read_text(encoding="utf-8")
+    # ...and the user's own edits survive a reinstall (it is user data,
+    # never clobbered by the stock template).
+    projects.write_text("# my own projects\n", encoding="utf-8")
     gate = target / "harness-data" / "gate.json"
     cfg = json.loads(gate.read_text(encoding="utf-8"))
     cfg["mode"] = "enforce"
@@ -131,6 +146,7 @@ def test_reinstall_is_idempotent_and_preserves_user_gate_config(tmp_path):
     r = install(target)  # reinstall
     assert r.returncode == 0 and "幂等" in r.stdout
     assert json.loads(gate.read_text(encoding="utf-8"))["mode"] == "enforce"
+    assert projects.read_text(encoding="utf-8") == "# my own projects\n"
 
 
 # ---------------- status / launch / benchmark ----------------
@@ -173,6 +189,7 @@ def test_uninstall_removes_only_owned_files_and_preserves_data(tmp_path):
     assert r.returncode == 0
     assert not (target / "CLAUDE.md").exists()
     assert not (target / "harness-core").exists()
+    assert not (target / "PROJECTS.md").exists()  # owned file removed too
     assert data_file.is_file() and stranger.is_file()
     # purge removes everything
     r2 = run_wb("--target", str(target), "uninstall", "--yes", "--purge-data")
