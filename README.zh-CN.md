@@ -90,7 +90,7 @@ python tools/workbench.py launch            # 打印确切启动命令
 ├─ harness-core/              ← 纯 stdlib, 171 项契约工具包（feedback · gate · plan · checkpoint · verify · snap）
 ├─ hooks/harness_gate.py      ← 唯一的 PreToolUse 闸门 hook
 ├─ vendor/ecc/                ← everything-claude-code pin 2.0.0-rc.1（MIT, 见 NOTICE）
-├─ capabilities/              ← 14 个按需能力的注册表 + wiring
+├─ capabilities/              ← 15 个按需能力的注册表 + wiring
 ├─ harness-data/              ← 你的本地数据: gate.json、feedback.jsonl、checkpoints
 └─ install-manifest.json      ← 本安装自有的全部文件清单
 ```
@@ -150,7 +150,7 @@ python harness-core/harness/cli.py gate mode --set enforce
 - **项目本地的 harness 数据。** `snap` 快照以 git ref 的形式存在**目标仓库**里（`refs/harness/snaps/`）, 验证配置（`.harness-verify.json`）位于任务目录 — 传 `--cwd <project>`。
 - **不扫盘、默认不写。** 项目识别靠用户告知或项目速查表 — 工作台从不扫盘找项目。唯一的 `PreToolUse` hook 是限定 Bash 的闸门; 没有任何脚本会静默修改目标项目。会话加载的某个项目的 `CLAUDE.md` 只是上下文, **不能**覆盖全局安全底线（不硬编码密钥、系统边界校验输入、错误显式处理、不可逆命令走闸门）。
 
-## 6. 按需智能: 成本策略 + 14 个能力
+## 6. 按需智能: 成本策略 + 15 个能力
 
 工作台 `CLAUDE.md` 为每个任务分级（这是**指引**而非强制 — 没人会硬拦一个 FAST 任务去用 DEEP 能力）:
 
@@ -159,7 +159,7 @@ python harness-core/harness/cli.py gate mode --set enforce
 - **DEEP** — 架构 / 高风险 / 跨系统: 先规划（`plan` 或 planner）, 明确验收标准, 允许查历史与调专家 agent, 完成后 review（code-reviewer, 敏感路径加 security-reviewer）, 完整测试证据, 长时程任务留检查点。
 - **RECOVERY** — 仅当确实卡住（同一错误重复、无有效进展、缺外部状态）: 先失败触发查历史, 再缩小范围回主 agent。单次普通测试失败永不触发恢复链, 恢复也永不关闭闸门。
 
-**14 个按需能力**（`python tools/workbench.py capability list`）:
+**15 个按需能力**（`python tools/workbench.py capability list`）:
 
 | 能力 | 来源 | 触发方式 | 默认 |
 |---|---|---|---|
@@ -176,9 +176,48 @@ python harness-core/harness/cli.py gate mode --set enforce
 | `repomix` — 仓库地图 / 上下文打包 | external-optional | 大仓库定位, 内置搜索不足时 | off |
 | `agent-browser` — 真实 UI 验收 | external-optional | 启动应用、点击、DOM/console/network 断言、截图 | off |
 | `superpowers` — 方法论包（TDD/调试） | external-plugin | 用户经 `/plugin install superpowers@claude-plugins-official` 安装 | off |
-| `playwright-mcp` — 浏览器服务器（兜底） | external-optional | 仅当需要持久浏览器会话时 | off |
+| `superpowers-systematic-debugging` — 根因优先调试 skill | extract:superpowers | 非显然失败: 解释不通的 bug 或没修住的修复 | off |
+| `playwright-mcp` — 浏览器服务器（按需, 固定版本） | external-optional | 仅当需要持久浏览器会话时 | off |
 
-`capability enable <id>` / `capability disable <id>` 记录你的意图; 外部能力**永不自动安装** — `capability doctor` 打印手动步骤。
+`capability enable <id>` / `capability disable <id>` / `capability status
+<id>` 按接线类型执行; 外部能力**永不自动安装** — `capability doctor` 打印手动步骤。
+
+### 6.1 经 Playwright MCP 使用浏览器（mcp-config 接线, v1.2）
+
+`capability enable playwright-mcp` 把**一条托管条目** — `aiwb-playwright`,
+`npx -y @playwright/mcp@0.0.83 --headless --isolated --browser chromium` —
+写入目标项目的 `.mcp.json`（不存在才新建）, 同时写一份托管 SKILL.md, 教模型
+如何驱动浏览器服务器。闸门顺序: 与 `agent-browser` 互斥 → **fail-closed 离线
+就绪闸**（node、npm、pin 住的包可由 npx 缓存或项目内安装解析、配置通道对应的
+浏览器 — 缺任何一项 ⇒ enable 拒绝并打印精确的手动安装步骤; 工作台**永不自动
+安装**外部软件）→ 写条目 → 真实 stdio MCP 握手（`initialize` + `tools/list`）。
+握手失败只是 WARN 并如实报状态, 绝不是硬失败。
+
+- **作用域**: 条目写在*项目*的 `.mcp.json` 里, 服务器只对该项目的 Claude Code
+  会话可见 — 且仍需项目级批准（`/mcp`）后工具才可调用。全局 `~/.claude` 配置
+  不被写入。
+- **状态**: `capability status playwright-mcp` 实时探测, 报告四态之一:
+  `not-installed` / `installed-not-enabled` / `enabled-not-connected` /
+  `connected-tested`。
+- **关闭**: `capability disable playwright-mcp` 只移除托管条目（同一文件里的
+  用户条目逐字节保留）; 由工作台自己创建且已清空的 `.mcp.json` 一并删除。
+  `workbench uninstall` 清扫所有托管条目 + SKILL.md, 每个都以完好的
+  `<!-- aiwb-managed:... -->` 标记为门槛 — 被你剥掉标记的文件一律不动。
+- **局限（诚实）**: 桌面浏览器自动化 ≠ 真机移动端 — 响应式布局测试只收窄
+  视口并断言布局, 不宣称 Android 保真; `npx` 首次使用会把 pin 住的包拉进 npm
+  缓存（需要一次网络, `@playwright/mcp@0.0.83` 固定 — 绝不用 `latest`）; 默认
+  `chromium` 通道需要 `npx playwright install chromium` 或指向已有浏览器的
+  `PLAYWRIGHT_BROWSERS_PATH`。
+
+### 6.2 根因优先调试 skill（skill-file 接线, 纯内容）
+
+`capability enable superpowers-systematic-debugging` 把带标记的 SKILL.md
+（superpowers systematic-debugging 的改编移植, pin `bb92a77`, MIT 全文在文件
+内）写入目标 `.claude/skills/aiwb-...`。纯内容 — 无外部工具、无 hook、无自动
+安装; 模板存在性检查就是 enable 时的闸门。该 skill 是只在非显然失败（症状≠根
+因、没修住的修复、跨组件故障）时触发的边界, 且连续 3 次修复失败后停止。因与
+精选 ECC skills 重复而被拒: superpowers 的 test-driven-development 与
+requesting-code-review（证据见 `docs/decisions/2026-10-15-superpowers.md`）。
 
 ## 7. snap 与 verify: 安全撤销, 诚实完成
 
@@ -258,8 +297,8 @@ flowchart LR
 
 ## 10. 真实证据
 
-- **397 项离线契约** = **171 harness-core** + **226 项 tests**（164 干净室安装/CLI + 15 项 `tests/multiproj/` 多项目隔离 + 47 项 `tests/test_wiring_mcp.py` mcp-config 接线; 该数字由 `tools/check_docs_drift.py` 对照 pytest 收集结果实时校验; 核心为纯 stdlib, 171 项契约且确定性）。
-- **24 个 battle 测试**在 `tests/battle/`（5 个场景）端到端打真实 CLI; 结果计入 164 干净室子集。
+- **401 项离线契约** = **171 harness-core** + **230 项 tests**（168 干净室安装/CLI + 15 项 `tests/multiproj/` 多项目隔离 + 47 项 `tests/test_wiring_mcp.py` mcp-config 接线; 该数字由 `tools/check_docs_drift.py` 对照 pytest 收集结果实时校验; 核心为纯 stdlib, 171 项契约且确定性）。
+- **24 个 battle 测试**在 `tests/battle/`（5 个场景）端到端打真实 CLI; 结果计入 168 干净室子集。
 - **CI** — [ci.yml](.github/workflows/ci.yml): 契约覆盖 `windows-latest`/`ubuntu-latest`/`macos-latest` × Python 3.10–3.12, 另有静态检查（卫生、docs-drift gate、冻结的公开表面）与 CLI 冒烟。**安全** — [security.yml](.github/workflows/security.yml): `trivy` fs 扫描, 诚实退出语义（0 干净 / 1 发现 / 2 用法 / 3 基建故障）, release 路径永远拦截。
 - **Demo** — 三个可复现、可离线验收的演示在 [docs/demos.md](docs/demos.md): [Demo 1 — 一个工作台, 两个规则冲突的项目](docs/demos.md#demo-1) · [Demo 2 — 会话 A 记录的失败在会话 B 被复用](docs/demos.md#demo-2) · [Demo 3 — 多文件功能 + 按需能力](docs/demos.md#demo-3)。
 - **发布** — `v0.1.0-preview.3` 以 GitHub prerelease 发布在[这里](https://github.com/zhongli369/ai-workbench/releases/tag/v0.1.0-preview.3), 附带 `zip` 与 `.sha256` 旁证。校验制品: `Get-FileHash ai-workbench-0.1.0-preview.3.zip -Algorithm SHA256`（或 `sha256sum`）并与旁证比对。

@@ -110,7 +110,7 @@ An installed root looks like this:
 ├─ harness-core/              ← stdlib, 171 contracts toolkit (feedback · gate · plan · checkpoint · verify · snap)
 ├─ hooks/harness_gate.py      ← the single PreToolUse gate hook
 ├─ vendor/ecc/                ← everything-claude-code pin 2.0.0-rc.1 (MIT, see NOTICE)
-├─ capabilities/              ← registry + wiring for the 14 on-demand capabilities
+├─ capabilities/              ← registry + wiring for the 15 on-demand capabilities
 ├─ harness-data/              ← your local data: gate.json, feedback.jsonl, checkpoints
 └─ install-manifest.json      ← exactly the files this install owns
 ```
@@ -189,7 +189,7 @@ One installed workbench, many projects, no re-setup per project:
   line (no hardcoded secrets, input validation at boundaries, explicit error
   handling, gated irreversible commands).
 
-## 6. On-demand intelligence: cost policy + 14 capabilities
+## 6. On-demand intelligence: cost policy + 15 capabilities
 
 The workspace `CLAUDE.md` grades every task (guidance, not enforcement —
 nobody hard-stops a FAST task from using a DEEP capability):
@@ -209,7 +209,7 @@ nobody hard-stops a FAST task from using a DEEP capability):
   problem back to the main agent. A single ordinary test failure never
   triggers a recovery cascade, and recovery never disables the gate.
 
-The **14 on-demand capabilities** (`python tools/workbench.py capability list`):
+The **15 on-demand capabilities** (`python tools/workbench.py capability list`):
 
 | Capability | Origin | Trigger | Default |
 |---|---|---|---|
@@ -226,11 +226,59 @@ The **14 on-demand capabilities** (`python tools/workbench.py capability list`):
 | `repomix` — repo-map / context packing | external-optional | large-repo orientation when built-in search is insufficient | off |
 | `agent-browser` — real UI acceptance | external-optional | launch app, click, DOM/console/network asserts, screenshots | off |
 | `superpowers` — methodology pack (TDD/debugging) | external-plugin | user installs via `/plugin install superpowers@claude-plugins-official` | off |
-| `playwright-mcp` — browser server (fallback) | external-optional | only when a persistent browser session is required | off |
+| `superpowers-systematic-debugging` — root-cause-first debugging skill | extract:superpowers | non-obvious failure: unexplained bug or a fix that didn't hold | off |
+| `playwright-mcp` — browser server (on-demand, pinned) | external-optional | only when a persistent browser session is required | off |
 
-`capability enable <id>` / `capability disable <id>` record your intent;
-external capabilities are **never auto-installed** — `capability doctor`
-prints the manual steps.
+`capability enable <id>` / `capability disable <id>` / `capability status
+<id>` act per wiring type; external capabilities are **never auto-installed**
+— `capability doctor` prints the manual steps.
+
+### 6.1 Browser via Playwright MCP (mcp-config wiring, v1.2)
+
+`capability enable playwright-mcp` wires **one managed entry** —
+`aiwb-playwright`, `npx -y @playwright/mcp@0.0.83 --headless --isolated
+--browser chromium` — into the target project's `.mcp.json` (created only if
+absent), plus a managed SKILL.md that teaches the model how to drive the
+browser server. Gate order: mutex vs `agent-browser` → **fail-closed offline
+readiness gate** (node, npm, the pinned package resolvable via npx cache or a
+project-local install, a browser for the configured channel — any of these
+missing ⇒ enable refuses and prints the exact manual install steps; the
+workbench **never auto-installs** external software) → write entry → live
+stdio MCP handshake (`initialize` + `tools/list`). A failed handshake is a
+WARN with the honest state, never a hard failure.
+
+- **Scope**: the entry lives in the *project's* `.mcp.json`, so the server
+  appears for Claude Code sessions in that project only — and still requires
+  project-level approval (`/mcp`) before tools are callable. Nothing is
+  written to global `~/.claude` config.
+- **Status**: `capability status playwright-mcp` probes live and reports one
+  of four states: `not-installed` / `installed-not-enabled` /
+  `enabled-not-connected` / `connected-tested`.
+- **Close**: `capability disable playwright-mcp` removes only the managed
+  entry (user entries in the same file are preserved byte-wise); an empty
+  `.mcp.json` the workbench itself created is removed. `workbench uninstall`
+  sweeps every managed entry + SKILL.md, each gated on an intact
+  `<!-- aiwb-managed:... -->` marker — a file whose marker you stripped is
+  left alone.
+- **Limits (honest)**: desktop-browser automation ≠ real mobile devices —
+  the responsive-layout test narrows the viewport and asserts layout, it does
+  not claim Android fidelity; `npx` fetches the pinned package into the npm
+  cache on first use (needs network once, `@playwright/mcp@0.0.83` is pinned
+  — never `latest`); the default `chromium` channel needs `npx playwright
+  install chromium` or a `PLAYWRIGHT_BROWSERS_PATH` with the browser.
+
+### 6.2 Root-cause-first debugging skill (skill-file wiring, pure content)
+
+`capability enable superpowers-systematic-debugging` writes a marked
+SKILL.md (adapted port of superpowers' systematic-debugging skill, pin
+`bb92a77`, MIT text in-file) into `.claude/skills/aiwb-...` of the target.
+Pure content — no external tool, no hook, no auto-install; the
+template-existence check is the enable-time gate. The skill is a boundary
+that fires only on non-obvious failures (symptom ≠ root cause, a fix that
+didn't hold, cross-component breakage) and stops after 3 failed
+fix-attempts. Rejected as duplicating curated ECC skills: superpowers'
+test-driven-development and requesting-code-review (evidence in
+`docs/decisions/2026-10-15-superpowers.md`).
 
 ## 7. snap & verify: safe undo, honest completion
 
@@ -350,14 +398,14 @@ Roles:
 
 ## 10. Real evidence
 
-- **397 offline contracts** = **171 harness-core** + **226 tests** (164
+- **401 offline contracts** = **171 harness-core** + **230 tests** (168
   clean-room install/CLI + 15 multi-project isolation under
   `tests/multiproj/` + 47 mcp-config wiring in `tests/test_wiring_mcp.py`;
   this exact number is verified live by
   `tools/check_docs_drift.py` against the pytest collection; the core is
   stdlib, 171 contracts and deterministic).
 - **24 battle tests** under `tests/battle/` (5 scenarios) hit the real CLI
-  end-to-end; results are part of the 164 clean-room subset.
+  end-to-end; results are part of the 168 clean-room subset.
 - **CI** — [ci.yml](.github/workflows/ci.yml): contracts across
   `windows-latest`/`ubuntu-latest`/`macos-latest` × Python 3.10–3.12, plus
   static checks (hygiene, docs-drift gate, frozen public surface) and CLI
