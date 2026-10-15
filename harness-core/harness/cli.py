@@ -16,6 +16,7 @@ from harness import feedback, gate, plan as plan_mod, project_id  # noqa: E402
 from harness import report as report_mod, telemetry  # noqa: E402
 from harness import state as state_mod  # noqa: E402
 from harness import verify as verify_mod  # noqa: E402
+from harness import worktree_snap as snap_mod  # noqa: E402
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -129,6 +130,33 @@ def _build_parser() -> argparse.ArgumentParser:
     vs = vf.add_parser("status", help="latest verdict + evidence health + can_claim_done; "
                                       "exit 0 only when done is mechanically claimable")
     vs.add_argument("--exec", dest="exec_id", required=True)
+
+    sn = sub.add_parser("snap", help="git-backed workspace file snapshots + safe restore").add_subparsers(
+        dest="scmd", required=True)
+    ss = sn.add_parser("save", help="capture tracked+untracked files into refs/harness/snaps/")
+    ss.add_argument("--cwd", default=".")
+    ss.add_argument("--exec", dest="exec_id", required=True)
+    ss.add_argument("--note", default="")
+    sl = sn.add_parser("list", help="list snapshots (reader)")
+    sl.add_argument("--cwd", default=".")
+    sl.add_argument("--exec", dest="exec_id", default=None)
+    sd = sn.add_parser("diff", help="per-file plan vs current worktree (reader)")
+    sd.add_argument("snap_id")
+    sd.add_argument("--cwd", default=".")
+    sv = sn.add_parser("verify", help="manifest+ref+commit chain integrity (reader); exit 1 if damaged")
+    sv.add_argument("snap_id")
+    sv.add_argument("--cwd", default=".")
+    sr = sn.add_parser("restore", help="dry-run by default (prints plan); --apply writes managed "
+                                       "files only, conflicts fail closed, rescue ref first; "
+                                       "gate: AUDIT logs, ENFORCE pattern may block")
+    sr.add_argument("snap_id")
+    sr.add_argument("--cwd", default=".")
+    sr.add_argument("--apply", action="store_true", help="perform the restore (explicit approval)")
+    sr.add_argument("--token", default=None, help="one-shot gate token (ENFORCE mode)")
+    sp = sn.add_parser("prune", help="delete old snapshots for an execution (keeps newest N)")
+    sp.add_argument("--cwd", default=".")
+    sp.add_argument("--exec", dest="exec_id", required=True)
+    sp.add_argument("--keep", type=int, default=5)
     return p
 
 
@@ -281,6 +309,75 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "verify":
         return _verify_main(args, data_dir, pid)
 
+    if args.cmd == "snap":
+        return _snap_main(args, data_dir, pid)
+
+    return 2
+
+
+def _snap_main(args: argparse.Namespace, data_dir: Path, pid: str) -> int:
+    snapper = snap_mod.WorktreeSnapper(data_dir)
+    try:
+        if args.scmd == "save":
+            telemetry.log(data_dir, cmd="snap.save", project_id=pid, argv=sys.argv)
+            print(json.dumps(snapper.save(args.cwd, args.exec_id, note=args.note),
+                             ensure_ascii=True, indent=2))
+            return 0
+        if args.scmd == "list":
+            # pure reader — never logged (self-exclusion)
+            print(json.dumps(snapper.list(args.cwd, execution_id=args.exec_id),
+                             ensure_ascii=True, indent=2))
+            return 0
+        if args.scmd == "diff":
+            # pure reader — never logged
+            print(json.dumps(snapper.diff(args.cwd, args.snap_id),
+                             ensure_ascii=True, indent=2))
+            return 0
+        if args.scmd == "verify":
+            # pure reader — never logged; exit 1 when the chain is damaged
+            rep = snapper.verify(args.cwd, args.snap_id)
+            print(json.dumps(rep, ensure_ascii=True, indent=2))
+            return 0 if rep.get("ok") else 1
+        if args.scmd == "restore":
+            if not args.apply:
+                # dry-run: plan only, zero writes — always allowed
+                print(json.dumps(snapper.restore(args.cwd, args.snap_id, dry_run=True),
+                                 ensure_ascii=True, indent=2))
+                return 0
+            # --apply: explicit operator approval + gate consult
+            command = f"harness snap restore {args.snap_id}"
+            decision = gate.evaluate(data_dir, command, token=args.token)
+            if decision["decision"] in ("block", "block-error"):
+                print(json.dumps({"status": "blocked", "reason": "gate: "
+                                  + (decision.get("reason") or decision["decision"]),
+                                  "gate": decision}, ensure_ascii=True, indent=2),
+                      file=sys.stderr)
+                return 1
+            if decision["decision"] == "audit":
+                gate.log_decision(data_dir, mode="audit", decision="audit",
+                                  command=command, matched=decision.get("matched"))
+            telemetry.log(data_dir, cmd="snap.restore", project_id=pid, argv=sys.argv)
+            result = snapper.restore(args.cwd, args.snap_id,
+                                     dry_run=False, approve=True)
+            print(json.dumps(result, ensure_ascii=True, indent=2))
+            return 0 if result.get("status") == "restored" else 1
+        if args.scmd == "prune":
+            telemetry.log(data_dir, cmd="snap.prune", project_id=pid, argv=sys.argv)
+            print(json.dumps(snapper.prune(args.cwd, args.exec_id, keep=args.keep),
+                             ensure_ascii=True, indent=2))
+            return 0
+    except snap_mod.CorruptSnapError as e:
+        print(json.dumps({"error": "corrupt_snap", "detail": str(e)},
+                         ensure_ascii=True), file=sys.stderr)
+        return 1
+    except snap_mod.SnapStoreError as e:
+        print(json.dumps({"error": "snap_store", "detail": str(e)},
+                         ensure_ascii=True), file=sys.stderr)
+        return 1
+    except ValueError as e:
+        print(json.dumps({"error": "bad_input", "detail": str(e)},
+                         ensure_ascii=True), file=sys.stderr)
+        return 2
     return 2
 
 

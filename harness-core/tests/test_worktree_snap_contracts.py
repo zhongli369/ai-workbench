@@ -103,7 +103,8 @@ def test_restore_dry_run_default_writes_nothing(data_dir, tmp_path):
     wf(repo, "f.txt", "DAMAGED\n")
     result = snap.restore(os.fspath(repo), sid)          # no approve
     assert result["dry_run"] is True
-    assert result["status"] == "restored"
+    # a dry run wrote nothing — it must never claim "restored"
+    assert result["status"] == "planned"
     assert any(r["action"] == "write" for r in result["plan"])
     assert rf(repo, "f.txt") == b"DAMAGED\n"             # workspace untouched
 

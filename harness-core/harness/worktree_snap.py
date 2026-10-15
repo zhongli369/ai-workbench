@@ -733,7 +733,9 @@ class WorktreeSnapper:
                 plan.append(row)
 
         plan_result = {
-            "status": "conflict" if conflicts else "restored",
+            # dry-run must never claim "restored" — nothing was written.
+            # "planned" = the plan applies cleanly; "conflict" = fail closed.
+            "status": "conflict" if conflicts else ("planned" if dry_run else "restored"),
             "snap_id": snap_id,
             "execution_id": execution_id,
             "ref": payload["ref"],
