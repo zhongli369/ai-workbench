@@ -33,4 +33,21 @@ What was NOT taken from ECC:
   - Install scripts and profiles (this distribution has its own installer).
 
 ----------------------------------------------------------------------
+superpowers — systematic-debugging (adapted port)
+----------------------------------------------------------------------
+Source:    https://github.com/obra/superpowers
+License:   MIT, Copyright (c) 2025 Jesse Vincent (full text reproduced in the
+           ported skill file)
+Bundled:   capabilities/wiring/superpowers-systematic-debugging.skill.md
+           (condensed adaptation; not a byte copy)
+Pin:       commit bb92a77741419a4ab5f06e711a283343f1ada0c3 (fetched 2026-10-15)
+
+What was NOT taken from superpowers:
+  - The SessionStart hook and forced phase-gated workflow language
+    (mandatory-workflow injection conflicts with the FAST task tiers).
+  - The plugin bootstrap (index.js, package.json, install scripts).
+  - The other 12 skills — two candidates reviewed and rejected as duplicating
+    curated ECC skills (see docs/decisions/2026-10-15-superpowers.md).
+
+----------------------------------------------------------------------
 Everything else in this repository is original work licensed MIT (see LICENSE).
