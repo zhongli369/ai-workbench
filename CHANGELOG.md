@@ -3,6 +3,61 @@
 All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.1.0-preview.4] — OPERATION ONE WORKSPACE — Unreleased
+
+One workspace, many projects: natural-language multi-project experience plus
+a full README rebuild. 350 offline contracts (171 harness-core + 179 tests).
+Development version — no GitHub Release is cut for this entry yet; the
+latest published release remains `v0.1.0-preview.3`.
+
+### Added
+- **Per-project checkpoint namespacing** (`harness-core`): `checkpoint
+  begin/save/load/replay/verify` and `plan` accept `--cwd` / `--project-id`;
+  scoped records land in `<project>~<exec>.jsonl` (flat layout byte-identical
+  when omitted), so the same exec name in two projects no longer collides.
+  `verify run` gains `--project-id` passthrough. Isolation assertions folded
+  into existing contract files (no new pytest items).
+- **PROJECTS.md scaffold**: install writes a project quick-reference template
+  (never overwritten on reinstall, removed by owns-only uninstall, tracked in
+  the install manifest). Project identification stays user-driven — no disk
+  scanning, no project database.
+- **Multi-project operation protocol** (`workbench/CLAUDE.md` +
+  `docs/multi-project.md`): identification rules, `--add-dir` /
+  `CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD` behavior verified against
+  the installed CC build (2.1.x), per-project harness scoping, `git -C`
+  discipline, and an honest capability classification (native / wired-trigger
+  / on-demand / explicitly-authorized).
+- **Multi-project isolation suite** (`tests/multiproj/`, 15 contracts, cases
+  A–E): dual-project data isolation with per-stage byte fingerprints,
+  cross-project read-only probes (zero writes), snap/verify scoping,
+  gate-hook enforcement matrix driven through real stdin JSON (disabled /
+  audit / enforce / one-time-token replay / corrupt-config fail-closed), and
+  zero-overhead plain-project checks — all against real temporary git repos.
+- **README.md / README.zh-CN.md fully rebuilt**: 12-section structure,
+  delivered-capability inventory with trigger classification (native /
+  wired-trigger / on-demand / explicitly-authorized), live-verified counts,
+  mermaid architecture diagram, honest limitations list, and real links only
+  (CI / security / release / license).
+
+### Changed
+- `tests/multiproj/` is collected by the default `pytest tests/` run; repo
+  totals reconciled everywhere (README ×2, this file, ci.yml, claims.json):
+  **350 offline contracts = 171 harness-core + 179 tests**.
+- `test_gate_is_not_vacuous` now asserts the figure gate stays *armed*
+  (`figure_docs` configured) instead of requiring a non-empty figure
+  whitelist — an empty whitelist is the honest state when the docs carry no
+  perf figures; the synthetic negative contracts keep the figure path proven.
+
+### Fixed
+- **Launch hint argument order** (`tools/workbench.py`): install's completion
+  message printed `launch --target X`, but `--target` is a global option and
+  copying the hint failed with `unrecognized arguments: --target` (confirmed
+  against the published preview.3 bundle). Now prints `--target X launch`
+  plus the `--run` variant; regression-asserted in the clean-room suite.
+- **Checkpoint cross-project collision**: two projects using the same
+  checkpoint exec name overwrote each other's flat store records; fixed by
+  the scoped namespacing above.
+
 ## [0.1.0-preview.3] — OPERATION ARSENAL — 2026-10-15
 
 Absorption of three externally-proven mechanisms into harness-core (origins
