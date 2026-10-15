@@ -323,6 +323,31 @@
       "wiring": "active (CI workflow; trivy v0.75.0 pinned by GitHub server-side sha256 digest; actions pinned by commit SHA)",
       "default_enabled": true,
       "evidence": "24 contracts (exit semantics, ignore expiry, license fallback); first live CI run pending"
+    },
+    {
+      "id": "harness-snap",
+      "name": "Git-backed workspace file snapshots + safe restore",
+      "origin": "extract:cline@789f79e4 (Apache-2.0, algorithm reimplemented stdlib+git argv)",
+      "version": "0.2.0",
+      "license": "MIT",
+      "applies_to": [
+        "recovery",
+        "workspace-safety"
+      ],
+      "deps": [
+        "git"
+      ],
+      "cost_hint": "zero resident; per-invocation CLI call; refs + manifest only",
+      "trigger": "operator: harness snap save --exec <id> (cheap, safe to run at phase boundaries); restore is always dry-run first",
+      "mutex": [],
+      "security": "NEVER reset --hard / clean -fd; restore writes managed-set only, unknown untracked never deleted; three-way concurrent modification -> conflict fail closed; rescue ref before any write; interrupted-restore journal; --apply explicit approval + gate consult",
+      "health": {
+        "type": "file",
+        "path": "harness-core/harness/worktree_snap.py"
+      },
+      "wiring": "active (harness CLI snap save|list|diff|verify|restore|prune)",
+      "default_enabled": true,
+      "evidence": "24 contracts + integrator Cases 1/2/4 (sha256-exact restore, unknown-untracked survives, three-way conflict never overwrites, dry-run status honest)"
     }
   ]
 }
