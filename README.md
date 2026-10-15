@@ -2,216 +2,426 @@
 
 *A lightweight, governed, on-demand engineering workbench for Claude Code.*
 
-**What it is.** A thin, install-once workspace layer on top of
-[Claude Code](https://claude.com/claude-code) — not another skills mega-pack.
-You launch one workspace and point it at any project; irreversible commands
-pass through a three-tier gate; expert capabilities load per-task instead of
-taxing every prompt; small tasks stay cheap.
+`v0.1.0-preview.3` (Public Preview) — [release](https://github.com/zhongli369/ai-workbench/releases/tag/v0.1.0-preview.3) · [中文](README.zh-CN.md)
 
-**The pain it fixes.** ① juggling several repos means re-establishing context
-in every session; ② capability packs charge every prompt for rules you don't
-need today; ③ one mistaken irreversible command can ruin your day — the gate
-makes it a deliberate act. (A cross-session failure-memory oracle is included
-as an **experimental** capability — mechanism verified, in-vivo retrieval
-benefit unproven; see [Honest performance notes](#honest-performance-notes).)
+| Badge | Status |
+|---|---|
+| CI (contracts + static + CLI smoke) | [![ci](https://github.com/zhongli369/ai-workbench/actions/workflows/ci.yml/badge.svg)](https://github.com/zhongli369/ai-workbench/actions/workflows/ci.yml) |
+| Supply-chain security scan | [![security](https://github.com/zhongli369/ai-workbench/actions/workflows/security.yml/badge.svg)](https://github.com/zhongli369/ai-workbench/actions/workflows/security.yml) |
+| Release (preview) | [![release](https://img.shields.io/github/v/release/zhongli369/ai-workbench?include_prereleases\&sort=semver)](https://github.com/zhongli369/ai-workbench/releases/tag/v0.1.0-preview.3) |
+| License | [![license](https://img.shields.io/github/license/zhongli369/ai-workbench)](LICENSE) |
 
-**How it's different** — honestly split by origin:
+---
+
+## 1. What this is
+
+**One sentence.** AI Workbench is a thin, install-once workspace layer on top
+of Claude Code — not another skills mega-pack — that operates **many projects
+from one session**, loads expert capabilities **per task instead of resident**,
+and routes irreversible commands through a **three-tier gate**.
+
+**The pain it fixes.**
+
+1. Juggling several repositories means re-establishing context in every
+   session; a single launch should serve any project.
+2. Capability packs charge every prompt for rules you do not need today;
+   heavy rules should load only when a task needs them.
+3. One mistaken irreversible command can ruin a day's work; it should be a
+   deliberate, gated act instead.
+
+**How it honestly splits from what already exists** (split by origin):
 
 | | native Claude Code | everything-claude-code (ECC) | AI Workbench |
 |---|---|---|---|
-| Edit, test, ship in one project | ✔ (this is CC itself) | | |
+| Edit / test / ship inside one project | ✔ (that is CC itself) | | |
 | 60+ agents / 240+ skills catalog | | ✔ (upstream project) | |
-| Curated ECC subset, on-demand not resident | | | ✔ (30 skills / 16 agents, pinned) |
+| Curated ECC subset, on-demand not resident | | | ✔ **(30+16+14)** skills/agents/commands, pinned |
 | One workspace operating many projects | | | ✔ (self-developed) |
-| Cross-session failure memory + repeat-error oracle *(experimental)* | | | ✔ (self-developed, harness-core — benefit unproven in vivo) |
-| FAST/STANDARD/DEEP cost policy | | | ✔ (self-developed) |
-| Three-tier gate for irreversible commands | | | ✔ (self-developed) |
+| Cross-session failure memory + repeat-error oracle *(experimental)* | | | ✔ (self-developed; in-vivo gain unproven) |
+| FAST / STANDARD / DEEP / RECOVERY cost policy | | | ✔ (self-developed, guidance) |
+| Three-tier gate for irreversible commands | | | ✔ (self-developed, enforced) |
 
-**Install** (Python ≥ 3.10 + Claude Code CLI; Windows primary, Linux/macOS via CI):
+**Honest capability classification.** Claims in this README use these four
+grades, and nothing weaker is promoted to something stronger:
 
-```bash
-git clone https://github.com/zhongli369/ai-workbench.git && cd ai-workbench
-python tools/workbench.py doctor
-python tools/workbench.py install && python tools/workbench.py launch
-```
-
-**See it work** — three reproducible demos (offline verifiable):
-[1 · one workspace, two projects with conflicting rules](docs/demos.md#demo-1) ·
-[2 · a failure recorded in session A is reused in session B](docs/demos.md#demo-2) ·
-[3 · multi-file feature with on-demand capabilities](docs/demos.md#demo-3).
-Measured results, including the ones we're not proud of: [Performance](#honest-performance-notes).
-
-```
-workbench/            ← launch Claude Code here; it loads this workspace's CLAUDE.md
-harness-core/         ← self-developed: failure store, gate, telemetry, checkpoints, planning, post-edit verification, workspace snapshots (stdlib, 171 contracts)
-hooks/                ← PreToolUse gate hook (fail-closed in ENFORCE mode)
-vendor/ecc/           ← third-party: everything-claude-code snapshot (MIT, pin recorded)
-tools/workbench.py    ← installer / doctor / launcher / uninstaller
-```
-
-## What you get
-
-| # | Differentiator | How |
+| Grade | Examples | Nature |
 |---|---|---|
-| 1 | One entry, many projects | Launch once, then `cd`-free cross-project work (absolute paths, `git -C`) |
-| 2 | Correct rules per target | Project-level `claudeMdExcludes` keeps global rule packs from shadowing a target project's own CLAUDE.md |
-| 3 | ECC capabilities on demand | 30 skills / 16 agents from everything-claude-code, loaded per-task, not resident |
-| 4 | Cross-session failure memory **(experimental)** | `harness-core` records why approaches failed; the oracle is queried when a failure is hit (fail-triggered). Mechanism contract-verified; in-vivo retrieval benefit **unproven** across six controlled experiments — see honest notes |
-| 5 | Complexity-matched tokens | FAST / STANDARD / DEEP policy: small fixes skip planning, agents, and bookkeeping; RECOVERY mode handles stuck states with explicit signals (a single test failure never triggers a recovery cascade, and safety rails are never disabled to get unstuck) |
-| 6 | Deterministic quality & safety | 335 offline contracts; three-tier gate (DISABLED / AUDIT / ENFORCE) for irreversible commands; versioned checkpoints with torn-tail recovery for long-horizon work |
-| 6c | Post-edit verification loop | `harness verify run`: bounded lint/test verification per stage (config `.harness-verify.json` or gate-approved `--cmd`); a stage whose latest verdict is not `pass` cannot be claimed done (`verify status` is the mechanical gate) |
-| 6d | Workspace file snapshots | `harness snap save/restore`: git-backed file-level snapshots; restore is dry-run first, writes only snapshot-managed files, fails closed on concurrent edits, keeps a rescue ref — never `reset --hard` / `clean -fd` |
-| 6b | DEEP-mode planning scaffold | `harness plan`: deterministic 13-archetype phase + acceptance-criteria scaffold, on-demand CLI, never auto-injected; phases double as checkpoint stages |
-| 7 | No per-project harness install | Install the workbench once; target projects stay untouched |
+| **Natively automatic** | CC's own edit / test / git | mechanism |
+| **Wired trigger** | gate `PreToolUse` hook, `--add-dir` loads a target project's `CLAUDE.md`, `claudeMdExcludes` exemption | mechanism — active once installed |
+| **Task-grade on-demand** | ECC skills/agents, every `harness-core` CLI command | convention-driven invocation |
+| **Explicit authorization** | gate `ENFORCE` interception of high-risk commands, release publishing | mechanism — enforced |
 
-## Install
+Protocol written in the workspace `CLAUDE.md` — task grading (FAST/STANDARD/DEEP),
+"verify *before* claiming done", fail-triggered failure-store queries — is
+**guidance** (约定/指引), not a system-enforced guarantee. Only mechanisms
+(the gate hook, `ENFORCE` mode, CLI exit codes) are enforced.
 
-Requirements: **Python ≥ 3.10**, Claude Code CLI. Windows is the primary tested
-platform; Linux/macOS use the POSIX code paths exercised in CI.
+## 2. What you get (delivered capabilities)
+
+| # | Capability | How it is triggered |
+|---|---|---|
+| 1 | One launch, many projects | Wired: launcher sets `CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1`; `/add-dir` or launch `--add-dir <project>` loads a target project's `CLAUDE.md`; absolute paths / `git -C` work across projects |
+| 2 | Correct rules per target project | Wired: workspace `claudeMdExcludes: ["**/.claude/rules/ecc/**"]` stops global rule packs from shadowing a project's own `CLAUDE.md` |
+| 3 | Curated ECC subset on demand | Task-grade: `Skill` / agent loading per task — 30 skills / 16 agents / 14 commands, pinned `vendor/ecc/` |
+| 4 | `harness-core` CLI (stdlib-only, deterministic, 171 contracts) | On-demand: `feedback` · `report` · `gate` · `telemetry` · `checkpoint` · `plan` · `verify` · `snap` |
+| 5 | Cross-session failure memory **(experimental)** | Fail-triggered: `feedback record` writes a lesson; `feedback query` is consulted only when a real failure is hit — never by default on a fresh task (mechanism contract-verified; in-vivo gain unproven) |
+| 6 | Three-tier irreversible-command gate | Wired: single `PreToolUse` hook (`hooks/harness_gate.py`); mode via `gate mode` |
+| 7 | Post-edit verification loop | On-demand: `verify run` / `verify status`; config `.harness-verify.json` lives in the target project |
+| 8 | Workspace file snapshots | On-demand: `snap save/list/diff/verify/restore/prune`; restore is always dry-run first |
+| 9 | DEEP-mode planning scaffold | On-demand: `plan "<task>"`; never auto-injected, never a required step |
+| 10 | Versioned task-state checkpoints | On-demand: `checkpoint begin/save/load/replay/verify/list` |
+| 11 | Release supply-chain gate | CI-only: `trivy` fs scan in `.github/workflows/security.yml` (push main / `v*` tags / PR-to-main block; schedule + non-main PRs audit) |
+| 12 | Complexity-matched cost policy | Guidance: FAST / STANDARD / DEEP / RECOVERY task grading from the workspace `CLAUDE.md` |
+
+## 3. Quick install
+
+Requirements: **Python ≥ 3.10** and the **Claude Code CLI**.
+Windows is the primary tested platform; Linux/macOS exercise the POSIX code
+paths in CI (Python 3.10–3.12, three OSes). `harness-core` is stdlib-only —
+no `pip install` is needed beyond Python itself.
 
 ```bash
 git clone https://github.com/zhongli369/ai-workbench.git
 cd ai-workbench
-python tools/workbench.py doctor                      # preflight, never mutates
-python tools/workbench.py install --scope standalone  # default: platform data dir
-python tools/workbench.py launch                      # prints the exact launch command
+python tools/workbench.py doctor            # preflight, never mutates
+python tools/workbench.py install --yes     # standalone by default
+python tools/workbench.py launch            # prints the exact launch command
 ```
 
-Scopes: `standalone` (default, single dir) · `project` (`.ai-workbench/` inside a
-repo) · `user` (prints manual global-config steps — **never** edits your global
-config silently).
+- `doctor` reports PASS/WARN/FAIL and never mutates anything.
+- `install` is idempotent and dry-run-able; it writes **only** into its target
+  directory and records every file it owns in `install-manifest.json`. Scopes:
+  `standalone` (default, one directory) · `project` (`.ai-workbench/` inside a
+  repo) · `user` (prints manual global-config steps — never edits your global
+  config silently).
+- Point every subcommand at a non-default install location with the global
+  `--target` flag (place it **before** the subcommand: `--target <dir> install`);
+  omitting it uses the platform data directory (on Windows
+  `%LOCALAPPDATA%\ai-workbench`, on POSIX `$XDG_DATA_HOME/ai-workbench`).
+- `launch` prints the exact `claude --settings …` command (via
+  `launch/workbench.ps1` on Windows or `launch/workbench.sh` on POSIX).
 
-Uninstall removes only files this distribution owns (tracked in
-`install-manifest.json`) and preserves your feedback data unless `--purge-data`:
+An installed root looks like this:
 
-```bash
-python tools/workbench.py uninstall --yes
+```
+<workbench>/                  ← your installed workbench root (--target)
+├─ CLAUDE.md                  ← session policy: cost policy, gate rules, capabilities
+├─ .claude/                   ← workspace settings: PreToolUse gate hook, claudeMdExcludes, ECC subset
+├─ harness-core/              ← stdlib, 171 contracts toolkit (feedback · gate · plan · checkpoint · verify · snap)
+├─ hooks/harness_gate.py      ← the single PreToolUse gate hook
+├─ vendor/ecc/                ← everything-claude-code pin 2.0.0-rc.1 (MIT, see NOTICE)
+├─ capabilities/              ← registry + wiring for the 14 on-demand capabilities
+├─ harness-data/              ← your local data: gate.json, feedback.jsonl, checkpoints
+└─ install-manifest.json      ← exactly the files this install owns
 ```
 
-## 5-minute quickstart
-
-1. `python tools/workbench.py install --yes`
-2. Run the command printed by `python tools/workbench.py launch`
-3. Inside the session, point at any project: *"fix the failing test in D:\some\other\repo"*
-4. Deliberately trigger a guardrail: *"git push"* — watch the gate log an AUDIT entry
-   (switch to ENFORCE with `python harness-core/harness/cli.py gate mode --set enforce`)
-5. Next session, the failure store is still there: `status` shows your accumulated records.
-
-## The failure-memory demo (experimental — mechanism, not proven payoff)
+Uninstall removes only files the manifest owns, preserves your data unless you
+opt out, and never touches your global Claude configuration:
 
 ```bash
-# session 1 — a failure happens and is recorded
+python tools/workbench.py uninstall --yes           # keeps feedback/checkpoints
+python tools/workbench.py uninstall --yes --purge-data
+```
+
+## 4. Five-minute quickstart
+
+A real shortest path, all offline:
+
+```bash
+python tools/workbench.py doctor
+python tools/workbench.py install --yes
+python tools/workbench.py launch        # run the exact command it prints
+```
+
+In the session that opens:
+
+1. Point at any project with `/add-dir <project>` (or just name its path).
+2. Ask something small and concrete — *"fix the failing test in <project>"* —
+   and note that small fixes skip planning, agents, and bookkeeping (FAST).
+3. Use the harness CLI to record one lesson (commands below).
+4. Deliberately trigger a guardrail: tell the session *"git push"*. In the
+   default `AUDIT` mode the gate logs the decision; switch to enforcement with
+   `python harness-core/harness/cli.py gate mode --set enforce`.
+5. Open a **new** session and query the failure store back.
+
+```bash
+# record a verified lesson (session 1)
 python harness-core/harness/cli.py feedback record \
-  --project-id demo --cause permission_tool_mismatch \
-  --summary "allowedTools listed Bash(python:*) but the model used the PowerShell tool" \
+  --project-id <project> --cause permission_tool_mismatch \
+  --summary "allowedTools listed Bash(python:*) but the model used PowerShell" \
   --source human-verified --confidence 1.0
 
-# session 2 — the same error class appears; query before retrying
-python harness-core/harness/cli.py feedback query --project-id demo --keyword allowedTools --json
-# → the past fix surfaces; you don't pay for the same debugging twice
+# consult the store before re-debugging (session 2)
+python harness-core/harness/cli.py feedback query \
+  --project-id <project> --keyword allowedTools --json
+
+# switch the gate to enforcement
+python harness-core/harness/cli.py gate mode --set enforce
 ```
 
-The oracle is consulted when a failure is actually **encountered** (fail-triggered) or on explicit request — not on every
-task. (Measured: consulting it on a fresh single-defect bugfix roughly doubled
-cost with zero quality gain. The policy now encodes that.)
+> The commands above are repo-relative (you run them from the clone you
+> installed with). Once installed, the same harness CLI lives at
+> `<workbench>/harness-core/harness/cli.py`, where `<workbench>` is your
+> install root — the commands work identically from any directory.
 
-## Honest performance notes
+## 5. Multi-project workspace
 
-Measured on the reference machine (Claude Code 2.1.x, `--output-format json` usage):
+One installed workbench, many projects, no re-setup per project:
 
-- **Resident context** (structural, model-independent, `workbench benchmark`):
-  workbench L0 ≈ 1.7 k chars; L0 + full skill index ≈ 9.0 k chars vs the
-  equivalent global rule layer at ≈ 20.7 k chars → **−57%** (L0 alone −92%).
-- **Fixed trivial prompt**: vnext $0.0199 vs baseline $0.0228 (same model, same
-  prompt, N=1 each).
-- **Task-level cost is the hard part**: our first controlled bugfix A/B
-  measured vnext at **2.33×** baseline cost ($1.335 vs $0.569). Root-caused to
-  (a) permission-pattern trial-and-error and (b) oracle consultation on fresh
-  defects. After shipping both fixes, the controlled rerun measured **1.22×**
-  ($0.540 vs $0.444, both arms PASS, zero oracle calls in either arm). The
-  residual gap is turn-count behavior, not resident context (vnext non-cached
-  input was 62% *lower*). Not yet "≈ baseline" — tracked in
-  `RELEASE_READINESS.md` (G4). We publish negative results, we don't delete them.
-- **Full task-type matrix** (all N=1 per arm, transcripts audited; details in
-  `RELEASE_READINESS.md` G10 and `docs/POLICY_VERIFICATION.md`):
-  trivial **0.87×** · bugfix **1.22×** · multi-file feature **0.84×** ·
-  test-diagnosis **1.81×** (the fail-triggered policy costs ≈$0.34 when the
-  store is empty — that tax is also what populates the store; the same arm
-  organically recorded its correct diagnosis back).
-- **Fusion-arm exploratory benchmark (2026-10, `claude-haiku-4-5`, N=1 per cell):**
-  early exploratory benchmarks showed lower task cost in three small tasks
-  (fusion/native cost ratios 0.85× / 0.70× / 0.64×), with all six runs passing.
-  Larger controlled studies are pending. These cells establish "no large tax on
-  easy tasks" — they do **not** establish superiority, turn-count effects, or
-  cross-model behavior.
-- **Repeat-error oracle: honest-null, disclosed.** Across three controlled
-  pairs with seeded failure history (including one purpose-built scenario
-  whose root cause lived in data state, not code), the seeded arm **never
-  queried the oracle** — the model self-diagnosed, once independently
-  choosing the seed's own recommended fix. The mechanism (record → store →
-  query → project isolation) is contract-verified and the policy never
-  produced wasteful queries, but an in-vivo retrieval benefit is **unproven**
-  and we say so. The oracle's plausible domain is failures whose root cause
-  is not readable anywhere in the project (environment/config/history).
+- **Launch once.** The workbench session is your entry. Operate any project
+  with absolute paths, `git -C <project>`, or `python -m pytest <project>`.
+- **The target project's own rules load in its own tree.** The launcher sets
+  `CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1`; `/add-dir <project>` (or
+  launch passthrough `--add-dir <project>`) makes Claude Code read that
+  project's `CLAUDE.md`. Demo 1 shows two projects with *contradicting* rules
+  staying isolated (see [docs/demos.md](docs/demos.md)).
+- **`claudeMdExcludes` keeps global rule packs from shadowing a project.**
+  The workspace settings exempt `**/.claude/rules/ecc/**`, so a project's own
+  conventions win inside its tree while the workbench's global tools still apply.
+- **Project-local harness data.** `snap` snapshots are stored as git refs in
+  the **target repository** (`refs/harness/snaps/`), and the verify config
+  (`.harness-verify.json`) lives in the task directory — pass `--cwd <project>`.
+- **No disk scanning, no default write access.** Project identification comes
+  from the user or a project cheat sheet — the workbench never scans your disk
+  for projects. The only `PreToolUse` hook is the Bash-scoped gate; no script
+  silently edits a target project. A project whose `CLAUDE.md` a session loads
+  gets its rules as context and **cannot** override the global security bottom
+  line (no hardcoded secrets, input validation at boundaries, explicit error
+  handling, gated irreversible commands).
 
-## What is inherited vs self-developed
+## 6. On-demand intelligence: cost policy + 14 capabilities
 
-| Component | Origin |
-|---|---|
-| Skills / agents / commands (30+16+14) | **Inherited** — [everything-claude-code](https://github.com/affaan-m/everything-claude-code), MIT, pinned snapshot in `vendor/ecc/` (see `NOTICE`) |
-| harness-core (feedback, gate, report, telemetry, checkpoint, plan, verify, snap) | **Self-developed**, stdlib-only, deterministic, 171 contracts |
-| Installer / launcher / uninstaller | **Self-developed** |
-| FAST/STANDARD/DEEP cost policy | **Self-developed**, driven by measurements above |
+The workspace `CLAUDE.md` grades every task (guidance, not enforcement —
+nobody hard-stops a FAST task from using a DEEP capability):
 
-## Safety semantics (read before relying on the gate)
+- **FAST** — single-file small fix / query / explicit instruction: do it
+  directly; no agents, no global scan, no failure-store query by default,
+  run only the relevant tests, no bookkeeping.
+- **STANDARD** — multi-file / new feature / bugfix: load the relevant skill
+  (tdd, language patterns), verify after changes, consult the failure store
+  **only when a real failure is hit** (fail-triggered).
+- **DEEP** — architecture / high-risk / cross-system: plan first (`plan` or a
+  planner), define acceptance criteria, may query history and call expert
+  agents, then review (code-reviewer, +security-reviewer on sensitive paths),
+  full test evidence, checkpoints for long-horizon work.
+- **RECOVERY** — only when genuinely stuck (repeating same error, no progress,
+  missing external state): fail-triggered history query first, shrink the
+  problem back to the main agent. A single ordinary test failure never
+  triggers a recovery cascade, and recovery never disables the gate.
 
-- `DISABLED`: gate does nothing.
-- `AUDIT`: records and prompts — **this is observability, not protection**.
-- `ENFORCE`: configured high-risk patterns are blocked unless pre-approved
-  (TTL approvals); unreadable config fails **closed**.
-- One-time approvals: `gate approve --once --action "git push origin main"`
-  issues a single-use token (`awt-…`, SHA-256 stored, TTL-bound, replay-safe)
-  consumed by exactly one matching command; the raw token is printed once
-  and never written to the audit log.
-- `claude --print` (non-interactive) does not execute PreToolUse hooks — gate
-  enforcement applies to interactive sessions. Verified 2026-10 on CC 2.1.x.
+The **14 on-demand capabilities** (`python tools/workbench.py capability list`):
 
-## Known limitations (Public Preview)
+| Capability | Origin | Trigger | Default |
+|---|---|---|---|
+| `harness-oracle` — failure-memory oracle | self | fail-triggered `feedback query`, never by default | on |
+| `harness-gate` — three-tier gate | self | every Bash call in interactive sessions (hook) | on |
+| `ecc-skills` — curated ECC skills | ECC pin | `Skill` tool per task need | on |
+| `ecc-agents` — curated ECC agents | ECC pin | STANDARD+/DEEP tasks only | on |
+| `cost-policy` — FAST/STANDARD/DEEP/RECOVERY | self | model self-classifies per task (guidance) | on |
+| `harness-plan` — deterministic phase+AC scaffold | self | DEEP tasks, explicit `plan` invocation | on |
+| `harness-checkpoints` — versioned task-state checkpoints | self | long-horizon work: `checkpoint begin/save/load/verify` | on |
+| `harness-verify` — post-edit verification loop | extract:aider | `verify run|status` (config in target repo) | on |
+| `harness-snap` — git-backed file snapshots | extract:cline | `snap save/list/diff/verify/restore/prune` | on |
+| `supply-chain-gate` — release trivy scan | integrate:trivy | CI only: push main / `v*` tags / PR-to-main (blocking) | on |
+| `repomix` — repo-map / context packing | external-optional | large-repo orientation when built-in search is insufficient | off |
+| `agent-browser` — real UI acceptance | external-optional | launch app, click, DOM/console/network asserts, screenshots | off |
+| `superpowers` — methodology pack (TDD/debugging) | external-plugin | user installs via `/plugin install superpowers@claude-plugins-official` | off |
+| `playwright-mcp` — browser server (fallback) | external-optional | only when a persistent browser session is required | off |
 
-- **Windows is the primary tested platform.** Linux/macOS exercise the POSIX
-  code paths in CI; fresh-install acceptance on those platforms is not yet
+`capability enable <id>` / `capability disable <id>` record your intent;
+external capabilities are **never auto-installed** — `capability doctor`
+prints the manual steps.
+
+## 7. snap & verify: safe undo, honest completion
+
+**`harness snap`** — git-backed file snapshots whose restore can never blow
+away unrelated work:
+
+```bash
+python harness-core/harness/cli.py snap save --cwd <project> --exec demo
+python harness-core/harness/cli.py snap list --cwd <project>
+python harness-core/harness/cli.py snap diff <snap_id> --cwd <project>
+python harness-core/harness/cli.py snap verify <snap_id> --cwd <project>
+python harness-core/harness/cli.py snap restore <snap_id> --cwd <project>          # dry-run
+python harness-core/harness/cli.py snap restore <snap_id> --cwd <project> --apply  # explicit
+python harness-core/harness/cli.py snap prune --cwd <project> --exec demo --keep 5
+```
+
+> `<snap_id>` comes from `snap list`; `<project>` is the target repo's path.
+> Inside an installed workbench the CLI is `<workbench>/harness-core/harness/cli.py`.
+
+- `restore` is **dry-run by default**: it prints the plan and writes nothing;
+  exit `0` only for a clean plan, exit `1` on conflict/blocked/error
+  (script-safe fail-closed semantics).
+- `--apply` writes **only** snapshot-managed files, creates a rescue git ref
+  first, and fails closed if the worktree has concurrent edits. It never uses
+  `reset --hard` or `clean -fd`.
+- The gate is consulted: `AUDIT` logs, `ENFORCE` may block (pass `--token`).
+- `snap verify <snap_id>` exit `1` means the manifest/ref/commit chain is broken.
+
+**`harness verify`** — a bounded, gated post-edit verification loop:
+
+```bash
+python harness-core/harness/cli.py verify run    --exec <id> --stage <stage> --cwd <project>
+python harness-core/harness/cli.py verify status --exec <id>
+```
+
+- `verify run` exit codes: `0` pass · `1` fail/refused/exhausted ·
+  `2` bad input · `3` skipped (nothing configured — distinct from pass).
+- `verify status` exits `0` **only** when done is mechanically claimable
+  (`can_claim_done`), `1` otherwise; tampering with the evidence log after a
+  pass flips it back to `1`.
+- Commands come from `.harness-verify.json` in the task directory
+  (`commands`, `timeout_s`, `max_reflections`), or from an explicit gated
+  `--cmd` path: `AUDIT` logs and allows, `ENFORCE` needs `--token`, `DISABLED`
+  refuses.
+- Honesty: `can_claim_done` is **advisory**. The harness ships **no** hook
+  that forces a model to consult it — the single `PreToolUse` hook is the
+  gate. What the CLI can do is make a stage that has not passed **impossible
+  to claim as done** through its own exit contract.
+
+## 8. Security & reliability
+
+- **Three-tier gate** (`DISABLED` / `AUDIT` / `ENFORCE`):
+  - `DISABLED` — the gate does nothing.
+  - `AUDIT` — records and prompts; **this is observability, not protection**.
+  - `ENFORCE` — configured high-risk patterns (`git push`, `git reset --hard`,
+    `git clean -f`, `rm -rf`, publish/deploy commands) are blocked unless
+    pre-approved; an unreadable gate config **fails closed**.
+- **One-time approvals.** `gate approve --once --action "git push origin main"`
+  issues a single-use token (`awt-…`, SHA-256 stored, TTL-bound) consumed by
+  exactly one matching command; the raw token is printed once and never written
+  to the audit log.
+- **Single hook.** The only `PreToolUse` hook is the Bash-scoped
+  `hooks/harness_gate.py` — no daemon, no background service.
+- **`claude --print` caveat.** Non-interactive `claude --print` does not
+  execute `PreToolUse` hooks (verified 2026-10 on CC 2.1.x), so `ENFORCE`
+  applies to interactive sessions.
+- **Zero network at install.** Install copies files; nothing is downloaded
+  at runtime. The supply-chain gate is a **CI-only** `trivy` fs scan with the
+  binary pinned by SHA-256 and GitHub Actions pinned by commit SHA.
+- **Byte-level restore.** `snap` restore verifies SHA-256s; a restore returns
+  the tree byte-identical to the snapshot, and concurrent edits conflict
+  closed instead of being merged or destroyed.
+- **Battle-tested.** `tests/` carries 24 battle tests across 5 scenarios
+  (`tests/battle/`) that exercise the **real** CLI against real filesystems,
+  real git, and real subprocesses: malformed target dirs (S1), broken config
+  fail-closed (S2), agent-pretending-to-finish (S3), cross-session resume (S4),
+  edge filesystems (S5).
+- **FAST audit, 8/8** (verified): no resident service, no auto-plan injection,
+  no snapshot storm, exactly one gate hook, zero network at install,
+  idempotent reinstall, owns-only uninstall, and machine-path hygiene
+  (`tools/check_hygiene.py`).
+
+## 9. Architecture
+
+```mermaid
+flowchart LR
+    W[workbench: install / launch] --> CC[Claude Code session]
+    CC --> G[gate hook PreToolUse]
+    CC --> C[harness-core CLI]
+    CC --> E[ECC subset pins]
+    CC --> PA[target project A]
+    CC --> PB[target project B]
+    G --> PA
+    G --> PB
+    C --> PA
+    C --> PB
+    E --> PA
+    E --> PB
+    PA --> PL[project-local data: .harness-verify.json, refs/harness/snaps]
+    PB --> PQ[project-local data: .harness-verify.json, refs/harness/snaps]
+    C --> H[workbench harness-data: gate.json, feedback.jsonl, checkpoints]
+```
+
+Roles:
+
+- **Install/launch** (`tools/workbench.py`) puts a workspace under `<workbench>`
+  and launches Claude Code against it with a `--settings` file that wires the
+  gate hook, `claudeMdExcludes`, and `CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1`.
+- **Claude Code session** is the runtime; the workspace `CLAUDE.md` is
+  guidance, the hook + CLI are mechanisms.
+- **Gate hook / harness-core CLI / ECC subset** are the three load-bearing
+  columns — mechanism (hook), mechanism (CLI + exit contracts), and
+  convention (on-demand skill/agent loading).
+- **Target projects A/B** are never modified by install; `.harness-verify.json`
+  and snap refs belong to the project that owns them, and harness bookkeeping
+  (`feedback`, `checkpoint`, `gate`) lives in the workbench's `harness-data/`.
+
+## 10. Real evidence
+
+- **335 offline contracts** = **171 harness-core** + **164 clean-room
+  install/CLI** (this exact number is verified live by
+  `tools/check_docs_drift.py` against the pytest collection; the core is
+  stdlib, 171 contracts and deterministic).
+- **24 battle tests** under `tests/battle/` (5 scenarios) hit the real CLI
+  end-to-end; results are part of the 164.
+- **CI** — [ci.yml](.github/workflows/ci.yml): contracts across
+  `windows-latest`/`ubuntu-latest`/`macos-latest` × Python 3.10–3.12, plus
+  static checks (hygiene, docs-drift gate, frozen public surface) and CLI
+  smoke. **Security** — [security.yml](.github/workflows/security.yml):
+  `trivy` fs scan with honest exit semantics (0 clean / 1 findings / 2 usage /
+  3 infra-failure), release paths always blocking.
+- **Demos** — three reproducible, offline-verifiable demonstrations in
+  [docs/demos.md](docs/demos.md): [Demo 1 — one workspace, two conflicting
+  projects](docs/demos.md#demo-1) · [Demo 2 — a failure recorded in session A
+  is reused in session B](docs/demos.md#demo-2) · [Demo 3 — multi-file feature
+  with on-demand capabilities](docs/demos.md#demo-3).
+- **Release** — `v0.1.0-preview.3` published as a GitHub prerelease
+  [here](https://github.com/zhongli369/ai-workbench/releases/tag/v0.1.0-preview.3),
+  with a `zip` and a `.sha256` sidecar. Verify the artifact:
+  `Get-FileHash ai-workbench-0.1.0-preview.3.zip -Algorithm SHA256` (or
+  `sha256sum`) and compare with the sidecar.
+
+## 11. Limitations & boundaries (Public Preview, honest)
+
+- **The failure oracle is experimental and its in-vivo retrieval benefit is
+  unproven.** Mechanism (record → store → fail-triggered query → project
+  isolation) is contract-verified; controlled runs showed arms **never**
+  querying it (the model self-diagnosed). Its plausible domain is failures
+  whose root cause is not readable anywhere in the project
+  (environment/config/history). Do not treat it as a guarantee.
+- **`can_claim_done` is advisory.** It is a mechanical CLI state that `verify
+  status` reports; no hook forces a model to consult it. The admission that a
+  stage is verifiable does not prove the work is correct.
+- **Windows is the primary tested platform.** Linux/macOS run the POSIX code
+  paths in CI; fresh-install acceptance on those platforms is not yet
   human-verified.
-- The gate's ENFORCE mode applies to **interactive** sessions only
-  (`claude --print` skips PreToolUse hooks — verified on CC 2.1.x).
-- The repeat-error oracle's in-vivo retrieval benefit is **unproven** (see
-  honest performance notes); the mechanism is contract-verified.
-- The bundled ECC snapshot is pinned at a 2026-05 revision; upstream fixes
-  published after that date are not included (see `NOTICE`).
-- First interactive launch in a fresh directory may require Claude Code's own
-  trust confirmation — that prompt is yours to answer; the installer never
-  bypasses it.
+- **Preview API.** `v0.1.0-preview.*` surfaces can change without a major
+  bump; `docs/surface.json` freezes the CLI/schema surface — additive changes
+  are free, breaking changes require a major release.
+- **ECC is pinned.** The bundled snapshot is `v2.0.0-rc.1`
+  (commit `928076cc`, 2026-05-25); upstream fixes published after the pin are
+  not included (see `NOTICE`).
+- **Gate scope.** `ENFORCE` applies to interactive sessions; `claude --print`
+  skips `PreToolUse` hooks (verified on CC 2.1.x).
+- **First launch may prompt.** Claude Code's own trust confirmation in a fresh
+  directory is yours to answer; the installer never bypasses it.
+- **Policy is guidance.** Fast/STANDARD/DEEP grading and "verify before done"
+  are conventions in the workspace `CLAUDE.md`, not enforced by a hook.
 
-## Contributing & roadmap
+## 12. Contributing, docs & license
 
-Issues and PRs are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
-The near-term roadmap (benchmark batch 2, platform acceptance, ECC pin
-refresh) is tracked as gates in [RELEASE_READINESS.md](RELEASE_READINESS.md).
+Issues and PRs are welcome. The project values **evidence over enthusiasm**:
+changes ship with contracts, measurements, or both. See
+[CONTRIBUTING.md](CONTRIBUTING.md). Near-term roadmap (platform acceptance,
+bench batch 2, ECC pin refresh) is tracked as gates in
+[RELEASE_READINESS.md](RELEASE_READINESS.md).
 
-## Docs
+Maintainer gates that keep this README honest:
+[docs/claims.json](docs/claims.json) (release claims verified live),
+[docs/surface.json](docs/surface.json) (frozen public CLI/schema surface), and
+[docs/incidents/registry.json](docs/incidents/registry.json) (named historical
+failures locked as permanent regression tests).
 
-- [README.zh-CN.md](README.zh-CN.md) — 中文说明
-- [NOTICE](NOTICE) — third-party attribution & ECC pin rationale
-- [SECURITY.md](SECURITY.md) — threat model & reporting
-- [CHANGELOG.md](CHANGELOG.md) — release history
-- [RELEASE_READINESS.md](RELEASE_READINESS.md) — gate-by-gate PASS/FAIL/PENDING status
-- [harness-core/README.md](harness-core/README.md) — the memory/safety toolkit, usable standalone
-- Maintainer gates: [docs/claims.json](docs/claims.json) (release claims verified
-  against live sources), [docs/surface.json](docs/surface.json) (frozen public
-  CLI/schema surface — additive changes are free, breaking changes require a
-  major bump), [docs/incidents/registry.json](docs/incidents/registry.json)
-  (named historical failures locked as permanent regression tests)
+Related docs: [中文 README](README.zh-CN.md) ·
+[NOTICE](NOTICE) (third-party attribution) · [SECURITY.md](SECURITY.md)
+(threat model & reporting) · [CHANGELOG.md](CHANGELOG.md) (release history) ·
+[harness-core/README.md](harness-core/README.md) (the toolkit, usable
+standalone) · [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) ·
+[docs/POLICY_VERIFICATION.md](docs/POLICY_VERIFICATION.md).
 
 ## License
 
-MIT (this distribution's own code). everything-claude-code is MIT by its
+MIT for this distribution's own code. everything-claude-code is MIT by its
 respective authors — see `vendor/ecc/LICENSE` and `NOTICE`.
