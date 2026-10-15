@@ -277,6 +277,52 @@
       "wiring": "recorded-intent (v1): enable/disable records operator intent; installation stays user-side",
       "default_enabled": false,
       "evidence": "M1 recon 2026-10-13; upstream itself recommends CLI+skill over MCP for coding agents"
+    },
+    {
+      "id": "harness-verify",
+      "name": "Post-edit verification loop (bounded, gated)",
+      "origin": "extract:aider@5dc9490b (Apache-2.0, mechanism reimplemented stdlib-only)",
+      "version": "0.2.0",
+      "license": "MIT",
+      "applies_to": [
+        "verification",
+        "completion-gate"
+      ],
+      "deps": [],
+      "cost_hint": "zero resident; per-invocation CLI call only; commands run on demand",
+      "trigger": "operator: harness verify run --exec <id> --stage <s> (or .harness-verify.json in task repo)",
+      "mutex": [],
+      "security": "argv-only execution (no shell); arbitrary --cmd fail-closed when gate DISABLED; ENFORCE consumes one-shot token; output truncated; evidence log append+fsync+sha256",
+      "health": {
+        "type": "file",
+        "path": "harness-core/harness/verify.py"
+      },
+      "wiring": "active (harness CLI verify run|status; checkpoint store linked on fail)",
+      "default_enabled": true,
+      "evidence": "26 contracts + CLI smoke (skipped/refused/pass/fail-checkpoint/status-gate); max_reflections default 3 hard cap 10"
+    },
+    {
+      "id": "supply-chain-gate",
+      "name": "Release supply-chain gate (trivy fs: vuln+secret+misconfig+license)",
+      "origin": "integrate:aquasecurity/trivy@2bba9548 (Apache-2.0, CI-only, binary pinned by sha256)",
+      "version": "0.2.0",
+      "license": "MIT",
+      "applies_to": [
+        "release",
+        "supply-chain"
+      ],
+      "deps": [],
+      "cost_hint": "CI-layer only; zero FAST/token overhead in daily sessions",
+      "trigger": "CI: push main / v* tags / release published / PR-to-main (blocking); schedule + non-main PRs (audit)",
+      "mutex": [],
+      "security": "exit 3 (tool-missing/infra-failure) never reads as PASS; reports to artifacts only (secret text never logged); .securityignore exceptions expire-aware; minimal permissions contents:read; trivy binary (Apache-2.0) fetched at CI time, never vendored",
+      "health": {
+        "type": "file",
+        "path": ".github/workflows/security.yml"
+      },
+      "wiring": "active (CI workflow; trivy v0.75.0 pinned by GitHub server-side sha256 digest; actions pinned by commit SHA)",
+      "default_enabled": true,
+      "evidence": "24 contracts (exit semantics, ignore expiry, license fallback); first live CI run pending"
     }
   ]
 }
