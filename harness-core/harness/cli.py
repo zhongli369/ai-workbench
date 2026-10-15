@@ -340,10 +340,13 @@ def _snap_main(args: argparse.Namespace, data_dir: Path, pid: str) -> int:
             return 0 if rep.get("ok") else 1
         if args.scmd == "restore":
             if not args.apply:
-                # dry-run: plan only, zero writes — always allowed
-                print(json.dumps(snapper.restore(args.cwd, args.snap_id, dry_run=True),
-                                 ensure_ascii=True, indent=2))
-                return 0
+                # dry-run: plan only, zero writes — always allowed. Exit 0
+                # only for a clean plan; conflict/blocked/error exit 1 so
+                # scripted callers can trust the exit code alone (symmetric
+                # with --apply, which already fails non-zero on those).
+                result = snapper.restore(args.cwd, args.snap_id, dry_run=True)
+                print(json.dumps(result, ensure_ascii=True, indent=2))
+                return 0 if result.get("status") == "planned" else 1
             # --apply: explicit operator approval + gate consult
             command = f"harness snap restore {args.snap_id}"
             decision = gate.evaluate(data_dir, command, token=args.token)

@@ -118,10 +118,10 @@ def test_s1_three_way_conflict_fails_closed(tmp_path):
     write(repo / "f.txt", b"v3\n")
 
     # restoring snap_b sees a three-way concurrent modification.
-    # NOTE: dry-run REPORTS the conflict but exits 0 (see P2 finding: a dry-run
-    # caller must parse JSON, the exit code cannot tell conflict from clean).
+    # dry-run REPORTS the conflict and exits 1 (P2-1 fixed: the exit code now
+    # distinguishes a clean plan from conflict/blocked, JSON has the detail).
     rc, out, err = run_cli(data, "snap", "restore", snap_b, "--cwd", str(repo))
-    assert rc == 0, out + err
+    assert rc == 1, out + err
     r = json.loads(out)
     assert r["status"] == "conflict"
     assert any(c["path"] == "f.txt" and "three-way" in c.get("reason", "")
@@ -153,7 +153,7 @@ def test_s1_added_then_modified_conflicts(tmp_path):
     # agent modifies the added file after the snapshot
     write(repo / "u.txt", b"added-b\n")
     rc, out, err = run_cli(data, "snap", "restore", snap, "--cwd", str(repo))
-    assert rc == 0, out + err            # dry-run reports conflict, exit 0
+    assert rc == 1, out + err            # dry-run reports conflict, exit 1 (P2-1)
     r = json.loads(out)
     assert r["status"] == "conflict"
     assert r["conflicts"][0]["path"] == "u.txt"
@@ -175,9 +175,9 @@ def test_s1_head_divergence_fails_closed_but_fast_forward_allows(tmp_path):
                         "--exec", "e-head")["snap_id"]
     write(repo / "f.txt", b"wip\n")
     run_git(repo, "commit", "-q", "--amend", "-m", "amended")
-    # dry-run: reports blocked but exits 0 (P2 finding, same as conflict)
+    # dry-run: reports blocked and exits 1 (P2-1 fixed, same as conflict)
     rc, out, err = run_cli(data, "snap", "restore", snap, "--cwd", str(repo))
-    assert rc == 0, out
+    assert rc == 1, out
     assert json.loads(out)["status"] == "blocked"
     # --apply fail-closes with a REAL non-zero exit
     rc, out, err = run_cli(data, "snap", "restore", snap, "--cwd",
