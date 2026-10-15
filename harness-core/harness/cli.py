@@ -15,6 +15,7 @@ from harness import data_dir as dd  # noqa: E402
 from harness import feedback, gate, plan as plan_mod, project_id  # noqa: E402
 from harness import report as report_mod, telemetry  # noqa: E402
 from harness import state as state_mod  # noqa: E402
+from harness import verify as verify_mod  # noqa: E402
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -111,6 +112,23 @@ def _build_parser() -> argparse.ArgumentParser:
     cv = cp.add_parser("verify", help="full-chain integrity report (exit 1 if damaged)")
     cv.add_argument("--exec", dest="exec_id", required=True)
     cp.add_parser("list", help="list executions present in the checkpoint store")
+
+    vf = sub.add_parser("verify", help="post-edit verification loop (bounded, gated)").add_subparsers(
+        dest="vcmd", required=True)
+    vr = vf.add_parser("run", help="run the verification commands for a stage; "
+                                   "exit 0 pass / 1 fail-refused-exhausted / 2 bad input / 3 skipped")
+    vr.add_argument("--exec", dest="exec_id", required=True)
+    vr.add_argument("--stage", required=True)
+    vr.add_argument("--cwd", default=".", help="task working dir holding .harness-verify.json")
+    # dest renamed: a bare "--cmd" dest would shadow the top-level subparser
+    # dest="cmd" (argparse applies nested defaults after the selection).
+    vr.add_argument("--cmd", dest="verify_cmd", default=None,
+                    help="one explicit command (operator path: gate AUDIT logs+allows, "
+                         "ENFORCE needs --token, DISABLED refuses; prefer .harness-verify.json)")
+    vr.add_argument("--token", default=None, help="one-shot gate token (gate approve --once)")
+    vs = vf.add_parser("status", help="latest verdict + evidence health + can_claim_done; "
+                                      "exit 0 only when done is mechanically claimable")
+    vs.add_argument("--exec", dest="exec_id", required=True)
     return p
 
 
@@ -260,6 +278,41 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "checkpoint":
         return _checkpoint_main(args, data_dir, pid)
 
+    if args.cmd == "verify":
+        return _verify_main(args, data_dir, pid)
+
+    return 2
+
+
+def _verify_main(args: argparse.Namespace, data_dir: Path, pid: str) -> int:
+    loop = verify_mod.VerificationLoop(data_dir)
+    if args.vcmd == "run":
+        telemetry.log(data_dir, cmd="verify.run", project_id=pid, argv=sys.argv)
+        try:
+            result = loop.attempt(args.exec_id, args.stage,
+                                  task_cwd=Path(args.cwd),
+                                  explicit_cmd=args.verify_cmd, token=args.token)
+        except ValueError as e:
+            print(json.dumps({"error": "bad_input", "detail": str(e)},
+                             ensure_ascii=True), file=sys.stderr)
+            return 2
+        result["can_claim_done"] = loop.can_claim_done(args.exec_id)
+        print(json.dumps(result, ensure_ascii=True, indent=2))
+        status = result["status"]
+        if status == "pass":
+            return 0
+        if status == "skipped":
+            return 3  # honest "nothing configured" — distinct from pass
+        return 1
+    if args.vcmd == "status":
+        # pure reader — never logged (self-exclusion)
+        health = loop.health(args.exec_id)
+        done = loop.can_claim_done(args.exec_id)
+        print(json.dumps({"latest": loop.latest(args.exec_id),
+                          "health": health,
+                          "can_claim_done": done},
+                         ensure_ascii=True, indent=2))
+        return 0 if done else 1
     return 2
 
 
