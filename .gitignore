@@ -6,6 +6,9 @@ dist/
 .hypothesis/
 tools/bench/results/
 
+# Playwright MCP server snapshots (written into the cwd it is launched in)
+.playwright-mcp/
+
 # launch-sprint throwaway (machine-specific GitHub relay), never ships
 tools/_relay_github.py
 .release-state/

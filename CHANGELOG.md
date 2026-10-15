@@ -6,11 +6,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [0.1.0-preview.4] — OPERATION ONE WORKSPACE — Unreleased
 
 One workspace, many projects: natural-language multi-project experience plus
-a full README rebuild. 350 offline contracts (171 harness-core + 179 tests).
+a full README rebuild. 397 offline contracts (171 harness-core + 226 tests).
 Development version — no GitHub Release is cut for this entry yet; the
 latest published release remains `v0.1.0-preview.3`.
 
 ### Added
+- **`mcp-config` wiring type** (`tools/wiring_mcp.py` + 47 contracts in
+  `tests/test_wiring_mcp.py`): wires a browser capability to the target
+  project's native `.mcp.json` on demand — default OFF, readiness-gated
+  (node/npm/pinned package/browser, never auto-installed), owns-only mutation
+  of one reserved server key (`aiwb-playwright`), idempotent re-enable, and a
+  four-state status (`not-installed` / `installed-not-enabled` /
+  `enabled-not-connected` / `connected-tested`) backed by a real stdio MCP
+  handshake. Pinned to `@playwright/mcp@0.0.83`; optional SKILL.md half wired
+  from `capabilities/wiring/playwright-mcp.skill.md`. See
+  `docs/decisions/2026-10-15-playwright.md`.
 - **Per-project checkpoint namespacing** (`harness-core`): `checkpoint
   begin/save/load/replay/verify` and `plan` accept `--cwd` / `--project-id`;
   scoped records land in `<project>~<exec>.jsonl` (flat layout byte-identical
@@ -42,7 +52,7 @@ latest published release remains `v0.1.0-preview.3`.
 ### Changed
 - `tests/multiproj/` is collected by the default `pytest tests/` run; repo
   totals reconciled everywhere (README ×2, this file, ci.yml, claims.json):
-  **350 offline contracts = 171 harness-core + 179 tests**.
+  **397 offline contracts = 171 harness-core + 226 tests**.
 - `test_gate_is_not_vacuous` now asserts the figure gate stays *armed*
   (`figure_docs` configured) instead of requiring a non-empty figure
   whitelist — an empty whitelist is the honest state when the docs carry no
