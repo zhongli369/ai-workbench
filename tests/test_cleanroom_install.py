@@ -340,13 +340,32 @@ def test_external_capture_is_decode_safe(monkeypatch):
             self.stdout = out
             self.stderr = b""
 
+    import subprocess as real_sp
+
     def fake_run(argv, capture_output=True, timeout=15):
         # simulate a succeed-but-binary console (UTF-16LE garbage + newline)
         if "powershell" in argv[0].lower():
             return FakeProc(b"RemoteSigned\r\n\x85\x02")
         return FakeProc(b"\xff\xfe\x81\x01 ok\r\n")
 
-    monkeypatch.setattr(wb.subprocess, "run", fake_run)
+    class FakeSubprocess:
+        """Stand-in for the workbench module's own `subprocess` reference.
+
+        Patching wb.subprocess.run directly would replace the PROCESS-GLOBAL
+        subprocess.run (wb.subprocess IS the global module object), breaking
+        unrelated stdlib callers — e.g. platform.release() on Windows <
+        3.12 shells out via check_output, which calls run(stdout=PIPE) and
+        dies on fake_run's strict signature. Scope the patch to the wb
+        module attribute instead; everything else delegates to the real
+        module.
+        """
+        run = staticmethod(fake_run)
+        TimeoutExpired = real_sp.TimeoutExpired
+
+        def __getattr__(self, name):  # delegate everything else
+            return getattr(real_sp, name)
+
+    monkeypatch.setattr(wb, "subprocess", FakeSubprocess())
     v = wb._claude_version()
     assert isinstance(v, str)  # replacement-decoded, never raised
     # Powershell probe path: cmd_doctor must complete without exception.
