@@ -8,7 +8,7 @@ origin: harness-core
 
 ## 模型
 
-工作台目录 (`workbench-vnext/`) 是唯一启动入口;目标项目 = 任意其他目录。
+工作台目录 (`workbench/`, ai-workbench 发行内) 是唯一启动入口;目标项目 = 任意其他目录。
 不切换 cwd 也能操作: 工具用绝对路径,git 用 `git -C <dir>`,pytest 用 `python -m pytest <dir>`。
 
 ## 目标项目规则加载
