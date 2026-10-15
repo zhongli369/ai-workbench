@@ -3,12 +3,16 @@
 All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [0.1.0-preview.3] — OPERATION ARSENAL (feat/arsenal-integration)
+## [0.1.0-preview.3] — OPERATION ARSENAL — 2026-10-15
 
 Absorption of three externally-proven mechanisms into harness-core (origins
 recorded per capability in `capabilities/registry.json`; every mechanism
 reimplemented stdlib-only — no vendored code, no new runtime dependencies).
-311 offline contracts (171 harness-core + 140 clean-room install).
+335 offline contracts (171 harness-core + 164 tests). The increment over
+preview.2 is 24 battle tests under `tests/battle/` (real-behavior checks for
+snap/verify/gate/checkpoint) plus 6 clean-room installer regressions;
+drift-gate claims in README / README.zh-CN / CI are reconciled to the live
+counts.
 
 ### Added
 - **`harness snap`** (`harness-core/harness/worktree_snap.py`, algorithm
