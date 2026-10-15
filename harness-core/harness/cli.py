@@ -12,7 +12,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from harness import data_dir as dd  # noqa: E402
-from harness import feedback, gate, project_id, report as report_mod, telemetry  # noqa: E402
+from harness import feedback, gate, plan as plan_mod, project_id  # noqa: E402
+from harness import report as report_mod, telemetry  # noqa: E402
+from harness import state as state_mod  # noqa: E402
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -77,7 +79,38 @@ def _build_parser() -> argparse.ArgumentParser:
     gc.add_argument("command")
     gc.add_argument("--token", default=None, help="one-time approval token (awt-...)")
 
+    pl = sub.add_parser("plan", help="DEEP-mode: deterministic phase scaffold + AC (on-demand)")
+    pl.add_argument("task", nargs="+", help="task description")
+    pl.add_argument("--archetype", default=None,
+                    help="override classification (one of: " + ", ".join(plan_mod.ARCHETYPES) + ")")
+    pl.add_argument("--save", action="store_true",
+                    help="persist the plan as stage-0 checkpoint (requires --exec)")
+    pl.add_argument("--exec", dest="exec_id", default=None,
+                    help="execution id for --save (default: slugified task)")
+
     t = sub.add_parser("telemetry", help="invocation ledger summary (reader, not counted)")
+
+    cp = sub.add_parser("checkpoint", help="task-state checkpoints (t8-class integrity)").add_subparsers(
+        dest="ccmd", required=True)
+    cb = cp.add_parser("begin", help="mark a stage in-flight (crash marker)")
+    cb.add_argument("--exec", dest="exec_id", required=True)
+    cb.add_argument("--stage", required=True)
+    cb.add_argument("--index", type=int, default=0)
+    cs = cp.add_parser("save", help="append one checkpoint (never truncates)")
+    cs.add_argument("--exec", dest="exec_id", required=True)
+    cs.add_argument("--stage", required=True)
+    cs.add_argument("--index", type=int, default=0)
+    cs.add_argument("--status", default="done",
+                    choices=["started", "done", "failed", "blocked"])
+    cs.add_argument("--payload", default=None, help="JSON object string")
+    cs.add_argument("--payload-file", default=None, help="path to JSON file ('-' = stdin)")
+    cl = cp.add_parser("load", help="latest valid checkpoint + health (never silent)")
+    cl.add_argument("--exec", dest="exec_id", required=True)
+    cr = cp.add_parser("replay", help="all valid checkpoints + health")
+    cr.add_argument("--exec", dest="exec_id", required=True)
+    cv = cp.add_parser("verify", help="full-chain integrity report (exit 1 if damaged)")
+    cv.add_argument("--exec", dest="exec_id", required=True)
+    cp.add_parser("list", help="list executions present in the checkpoint store")
     return p
 
 
@@ -203,11 +236,115 @@ def main(argv: list[str] | None = None) -> int:
                          ensure_ascii=True))
         return 0
 
+    if args.cmd == "plan":
+        telemetry.log(data_dir, cmd="plan", project_id=pid, argv=sys.argv)
+        try:
+            result = plan_mod.plan(" ".join(args.task), archetype=args.archetype)
+        except ValueError as e:
+            print(json.dumps({"error": "bad_input", "detail": str(e)},
+                             ensure_ascii=True), file=sys.stderr)
+            return 2
+        if args.save:
+            store = state_mod.CheckpointStore(data_dir)
+            exec_id = args.exec_id or result["checkpoint_hint"]["execution_id"]
+            rec = store.save(exec_id, "Plan", result, stage_index=0, status="done")
+            result["saved_checkpoint"] = {"execution_id": exec_id,
+                                          "checkpoint_id": rec["checkpoint_id"]}
+        print(json.dumps(result, ensure_ascii=True, indent=2))
+        return 0
+
     if args.cmd == "telemetry":
         telemetry.print_summary(data_dir)
         return 0
 
+    if args.cmd == "checkpoint":
+        return _checkpoint_main(args, data_dir, pid)
+
     return 2
+
+
+def _read_payload(args: argparse.Namespace) -> dict:
+    """Payload from --payload JSON string, --payload-file path, or {} default."""
+    raw = None
+    if args.payload_file == "-":
+        raw = sys.stdin.read()
+    elif args.payload_file:
+        raw = Path(args.payload_file).read_text(encoding="utf-8-sig")
+    elif args.payload is not None:
+        raw = args.payload
+    if raw is None:
+        return {}
+    obj = json.loads(raw)
+    if not isinstance(obj, dict):
+        raise ValueError("checkpoint payload must be a JSON object")
+    return obj
+
+
+def _checkpoint_main(args: argparse.Namespace, data_dir: Path, pid: str) -> int:
+    store = state_mod.CheckpointStore(data_dir)
+    try:
+        if args.ccmd == "begin":
+            telemetry.log(data_dir, cmd="checkpoint.begin", project_id=pid, argv=sys.argv)
+            marker = store.begin(args.exec_id, args.stage, args.index)
+            print(json.dumps(marker, ensure_ascii=True))
+            return 0
+        if args.ccmd == "save":
+            telemetry.log(data_dir, cmd="checkpoint.save", project_id=pid, argv=sys.argv)
+            rec = store.save(args.exec_id, args.stage, _read_payload(args),
+                             stage_index=args.index, status=args.status)
+            print(json.dumps(rec, ensure_ascii=True))
+            return 0
+        if args.ccmd == "load":
+            # pure reader — never logged (self-exclusion)
+            rec, health = store.load_latest(args.exec_id)
+            print(json.dumps({"checkpoint": rec, "health": health,
+                              "active_marker": store.active(args.exec_id)},
+                             ensure_ascii=True, indent=2))
+            return 0
+        if args.ccmd == "replay":
+            # pure reader — never logged
+            records, health = store.replay(args.exec_id)
+            print(json.dumps({"checkpoints": records, "health": health},
+                             ensure_ascii=True, indent=2))
+            return 0
+        if args.ccmd == "verify":
+            # pure reader — never logged
+            report = store.verify(args.exec_id)
+            print(json.dumps(report, ensure_ascii=True, indent=2))
+            return 0 if report["ok"] else 1
+        if args.ccmd == "list":
+            # pure reader — never logged
+            print(json.dumps(_list_executions(store), ensure_ascii=True, indent=2))
+            return 0
+    except state_mod.CorruptStateError as e:
+        print(json.dumps({"error": "corrupt_state", "detail": str(e)},
+                         ensure_ascii=True), file=sys.stderr)
+        return 1
+    except (ValueError, json.JSONDecodeError) as e:
+        print(json.dumps({"error": "bad_input", "detail": str(e)},
+                         ensure_ascii=True), file=sys.stderr)
+        return 2
+    return 2
+
+
+def _list_executions(store: state_mod.CheckpointStore) -> list[dict]:
+    """One summary row per execution log in the store (reader, tolerant)."""
+    rows = []
+    log_dir = store._dir  # same-module introspection, read-only
+    if not log_dir.is_dir():
+        return rows
+    for path in sorted(log_dir.glob("*.jsonl")):
+        stem = path.stem
+        try:
+            records, health = store.replay(stem)
+            exec_id = records[0]["execution_id"] if records else stem
+            rows.append({"execution_id": exec_id, "checkpoints": len(records),
+                         "healthy": health["ok"],
+                         "active": store.active(stem) is not None})
+        except state_mod.CorruptStateError as e:
+            rows.append({"execution_id": stem, "checkpoints": 0,
+                         "healthy": False, "error": str(e)})
+    return rows
 
 
 if __name__ == "__main__":

@@ -14,7 +14,7 @@ ECC 能力按需调用; harness-core 提供失败史、经验回流与执行保�
 
 - **FAST** (单文件小改 / 查询 / 明确指令): 直接做。不起 agent, 不全局扫描, **不查失败史**, 只跑相关测试, 不写经验记录。
 - **STANDARD** (多文件 / 新功能 / 修 bug): 按需加载相关 Skill (tdd-workflow / python-testing / 语言 patterns); 改后必须验证。**查失败史的时机 (fail-triggered)**: ①遇到报错/测试失败/命令失败, 动手调试或重试之前——先查一次本项目历史, 命中即换方案不盲目重试 ②用户明确要求。**任务开始时不默认查** (实测: 新鲜任务默认查 ~2x 成本零增益)。失败明确后再回流, 微操作不记账。
-- **DEEP** (架构 / 高风险 / 跨系统): 先 planner 或 architect 规划并明确验收标准; 允许查失败史与调专家 agent; 完成后 code-reviewer (+ 安全敏感时 security-reviewer); 完整测试证据。
+- **DEEP** (架构 / 高风险 / 跨系统): 先 planner 或 architect 规划并明确验收标准; 允许查失败史与调专家 agent; 完成后 code-reviewer (+ 安全敏感时 security-reviewer); 完整测试证据。长时程/多阶段任务: `harness plan "<task>" --save` 生成确定性阶段+验收脚手架 (on-demand, 零模型成本), 各阶段用 `harness checkpoint begin/save` 留检查点, 支持跨会话恢复与 `checkpoint verify` 完整性校验。
 
 - **RECOVERY** (仅当明确卡住): 信号 = 同一错误重复 / 修复后仍失败 / 缺项目外部状态 / 工具连续失败 / 无有效进展。动作 = 先 fail-triggered 查历史 → 缩小范围回主 agent → 收缩计划。**一次正常测试失败 ≠ 卡住, 不触发恢复链**。观察到空查询/无效 agent/重复规划时: 停查 oracle、停起子 agent、收缩上下文 — 但永不关闭安全检查和 gate。
 

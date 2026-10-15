@@ -34,7 +34,7 @@ python tools/workbench.py install && python tools/workbench.py launch
 
 ```
 workbench/            ← 在此启动 Claude Code; 自动加载工作台 CLAUDE.md
-harness-core/         ← 自研: 失败存储 / 闸门 / telemetry (纯 stdlib, 64 项契约)
+harness-core/         ← 自研: 失败存储 / 闸门 / telemetry / 检查点 / 规划 (纯 stdlib, 120 项契约)
 hooks/                ← PreToolUse 闸门 hook (ENFORCE 模式 fail-closed)
 vendor/ecc/           ← 第三方: everything-claude-code 快照 (MIT, pin 已记录)
 tools/workbench.py    ← 安装器 / doctor / 启动器 / 卸载器
@@ -49,7 +49,8 @@ tools/workbench.py    ← 安装器 / doctor / 启动器 / 卸载器
 | 3 | ECC 能力按需调用 | 30 skills / 16 agents 来自 everything-claude-code, 按任务加载非常驻 |
 | 4 | 跨会话失败记忆 **(实验性)** | `harness-core` 记录失败原因; 遇到失败时 (fail-triggered) oracle 先查历史。机制契约级验证; 六轮受控实验 in-vivo 收益**未证明** — 见诚实说明 |
 | 5 | 复杂度匹配的 token 策略 | FAST / STANDARD / DEEP: 小修不规划、不起 agent、不记账; RECOVERY 模式用明确信号处理卡死状态 (单次测试失败永不触发恢复链, 恢复永不关闭安全护栏) |
-| 6 | 确定性质量与安全 | 174 项离线契约; 三档闸门 (DISABLED / AUDIT / ENFORCE) 管不可逆命令 |
+| 6 | 确定性质量与安全 | 230 项离线契约; 三档闸门 (DISABLED / AUDIT / ENFORCE) 管不可逆命令; 版本化检查点支持撕裂行恢复, 服务长时程任务 |
+| 6b | DEEP 模式规划脚手架 | `harness plan`: 确定性 13 原型阶段+验收标准脚手架, 按需 CLI 调用, 永不自动注入; 阶段名直接作为检查点 stage |
 | 7 | 目标项目零侵入 | 工作台装一次, 目标项目不被修改 |
 
 ## 安装
@@ -135,7 +136,7 @@ oracle 只在**遇到失败时** (fail-triggered) 或用户明确要求时查询
 | 组件 | 来源 |
 |---|---|
 | Skills / agents / commands (30+16+14) | **继承** — [everything-claude-code](https://github.com/affaan-m/everything-claude-code), MIT, pin 快照在 `vendor/ecc/` (见 `NOTICE`) |
-| harness-core (feedback / gate / report / telemetry) | **自研**, 纯 stdlib, 确定性, 64 项契约 |
+| harness-core (feedback / gate / report / telemetry / checkpoint / plan) | **自研**, 纯 stdlib, 确定性, 120 项契约 |
 | 安装器 / 启动器 / 卸载器 | **自研** |
 | FAST/STANDARD/DEEP 成本策略 | **自研**, 由上述实测驱动 |
 

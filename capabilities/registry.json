@@ -115,10 +115,10 @@
       "evidence": "driven by measured matrix: trivial 0.87x / bugfix 1.22x / feature 0.84x / diagnosis 1.81x (all disclosed)"
     },
     {
-      "id": "planning-kernel",
-      "name": "CodeLike planning kernel (plan/AC/risk prompt factory)",
-      "origin": "codelike (optional, external to this distribution)",
-      "version": "unpinned",
+      "id": "harness-plan",
+      "name": "Deterministic phase scaffold + acceptance criteria (DEEP mode)",
+      "origin": "self (TOTAL FUSION: minimal extraction of the retired CodeLike planning kernel — classifier/templates/AC only)",
+      "version": "1.0.0",
       "license": "MIT",
       "applies_to": [
         "deep"
@@ -126,17 +126,43 @@
       "deps": [
         "python>=3.10"
       ],
-      "cost_hint": "zero until explicitly invoked via its CLI",
-      "trigger": "DEEP tasks only, on explicit request; NEVER a required step",
+      "cost_hint": "zero resident; per-invocation CLI call only, deterministic (no model)",
+      "trigger": "DEEP tasks only, explicit `harness plan` invocation; NEVER auto-injected, never a required step",
       "mutex": [],
-      "security": "set AIWB_CODELIKE_CLI to the absolute path of brain/cli.py; not bundled",
+      "security": "local only; no network; pure stdlib",
       "health": {
-        "type": "env",
-        "var": "AIWB_CODELIKE_CLI"
+        "type": "file",
+        "path": "harness-core/harness/plan.py"
       },
-      "wiring": "recorded-intent (v1): enable/disable records operator intent; invocation stays manual",
-      "default_enabled": false,
-      "evidence": "516 tests green upstream; 0 external pulls in telemetry — value unproven, optional"
+      "wiring": "active (harness CLI `plan`; phases double as checkpoint stage names)",
+      "default_enabled": true,
+      "evidence": "37 contracts (13-archetype bilingual classifier + phase/risk/AC templates + precedence traps); replaces the external CodeLike pointer (0 external pulls upstream)"
+    },
+    {
+      "id": "harness-checkpoints",
+      "name": "Versioned task-state checkpoints with t8-class integrity",
+      "origin": "self (TOTAL FUSION: replaces SystemKernel FileCheckpointStore — torn-tail silent-loss fixed)",
+      "version": "1.0.0",
+      "license": "MIT",
+      "applies_to": [
+        "deep",
+        "long-horizon",
+        "multi-session"
+      ],
+      "deps": [
+        "python>=3.10"
+      ],
+      "cost_hint": "zero resident; per-invocation CLI call only",
+      "trigger": "long-horizon/multi-session work: `harness checkpoint begin/save/load/verify/list`",
+      "mutex": [],
+      "security": "append-only JSONL; payload sha256 per record; corruption explicit, never silent; evidence never overwritten",
+      "health": {
+        "type": "file",
+        "path": "harness-core/harness/state.py"
+      },
+      "wiring": "active (harness CLI `checkpoint`; `harness plan --save` writes stage-0)",
+      "default_enabled": true,
+      "evidence": "19 contracts (torn tail / BOM / CRLF / hash mismatch / chain breaks / crash marker / CLI exit codes)"
     },
     {
       "id": "repomix",

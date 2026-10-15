@@ -3,10 +3,46 @@
 All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.1.0-preview.2] — TOTAL FUSION (refactor/total-fusion)
+
+Engineering annexation of the three retired legacy projects
+(SystemKernel / WorkFlow / CodeLike): useful mechanisms absorbed as native
+stdlib components, duplicates deleted, external pointers removed.
+
+### Added
+- **`harness checkpoint`** (`harness-core/harness/state.py`): versioned,
+  append-only task-state checkpoints with t8-class integrity — per-record
+  payload sha256, torn-tail detection reported explicitly (damage is never
+  indistinguishable from absence — the SystemKernel `load_latest` silent-None
+  bug class), BOM/CRLF-tolerant reads, pure-ASCII writes, atomic crash marker
+  for in-flight stages, parent-chain + stage-order `verify` (exit 1 on any
+  damage). Raw evidence is never truncated, overwritten, or repaired.
+- **`harness plan`** (`harness-core/harness/plan.py`): deterministic DEEP-mode
+  scaffold — bilingual 13-archetype classifier → ordered phases with
+  per-phase static risk + per-archetype acceptance criteria. Minimal
+  extraction of the retired CodeLike planning kernel (classifier / templates /
+  risk / AC only; feedback adaptation, prompt factory, regex enrichment and
+  project-scan coupling deliberately NOT migrated — the native failure oracle
+  already covers failure memory). `--save` persists the plan as a stage-0
+  checkpoint; phase names double as checkpoint stages.
+
+### Changed
+- **Capability Registry**: the external `planning-kernel` entry (pointed at a
+  CodeLike checkout via `AIWB_CODELIKE_CLI`, 0 external pulls upstream) is
+  replaced by two native capabilities: `harness-plan` and
+  `harness-checkpoints`, both file-health-checked, zero-dependency, on by
+  default at zero resident cost.
+- Workbench DEEP policy: long-horizon/multi-phase work uses `harness plan
+  --save` + per-phase `harness checkpoint` for cross-session resume and
+  integrity verification.
+- Contract totals: 230 offline contracts (up from 174; harness-core 120,
+  up from 64: +19 state, +37 plan). Public surface: additive only
+  (checkpoint/plan commands), 0 breaking.
+
 ## [0.1.0-preview.1] — 2026-10-14
 
 First **Public Preview**. Everything from 0.1.0-rc.1 plus the FUSION OMEGA
-milestones M3–M5 below. 174 offline contracts, hygiene / ECC-provenance /
+milestones M3–M5 below. 230 offline contracts, hygiene / ECC-provenance /
 compile gates all green on the release commit.
 
 ### Added (post-RC hardening — legacy power-up P1)

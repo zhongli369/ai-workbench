@@ -14,9 +14,10 @@ stable advantages.
 | 60+ agents / 240+ skills catalog, rules | **ECC upstream** (MIT) | curated subset (30 skills / 16 agents / 14 commands), pinned snapshot, on-demand loading |
 | Everything below | **Self-developed** | — |
 
-Self-developed: harness-core (feedback store, gate, report, telemetry),
-installer/launcher/uninstaller, FAST/STANDARD/DEEP cost policy, capability
-registry + wiring, bench infrastructure (internal).
+Self-developed: harness-core (feedback store, gate, report, telemetry,
+checkpoints, plan scaffold), installer/launcher/uninstaller,
+FAST/STANDARD/DEEP cost policy, capability registry + wiring, bench
+infrastructure (internal).
 
 ## 2. Mechanism-by-mechanism evidence
 
@@ -89,7 +90,43 @@ registry + wiring, bench infrastructure (internal).
 - **Real invocations**: 0 across all paid bench sessions. These are
   Claude-Code-native behaviors the workbench does not override; no
   workbench-specific planning/routing component has fired in vivo.
-- **Product status**: not advertised.
+- **Product status**: not advertised. (The TOTAL FUSION `harness plan`
+  scaffold below is a *deterministic* on-demand CLI, not a routing layer.)
+
+### Checkpoints (t8-class state integrity) — **NEW, DEFAULT ON (on-demand CLI)**
+
+- **Trigger**: long-horizon / multi-session work — explicit
+  `harness checkpoint begin/save/load/verify/list`; `harness plan --save`
+  writes the stage-0 record.
+- **Origin**: TOTAL FUSION Batch 1, replacing SystemKernel's
+  `FileCheckpointStore` (its `load_latest` returned silent `None` on a torn
+  tail — damage indistinguishable from absence). Kept: append-only JSONL +
+  crash marker + lineage. Fixed: explicit health reports, per-record payload
+  sha256, schema versioning, BOM/CRLF tolerance, atomic marker writes.
+- **Evidence**: structural — 19 contracts (roundtrip, torn tail, corrupt
+  middle line, hash mismatch, unknown schema, BOM, CRLF, pure-ASCII disk
+  bytes, crash-marker lifecycle, chain breaks, non-monotonic stages, CLI
+  exit codes incl. `verify` exit 1 on damage).
+- **Cost**: zero resident; stdlib file I/O only.
+- **Honest limit**: single-process writer; multi-process concurrent append
+  not stress-tested.
+
+### Plan scaffold (DEEP-mode phases + AC) — **NEW, ON-DEMAND CLI**
+
+- **Trigger**: DEEP tasks only, explicit `harness plan "<task>"`; NEVER
+  auto-injected, never a required step.
+- **Origin**: TOTAL FUSION Batch 3 — minimal extraction of the retired
+  CodeLike planning kernel (0 external pulls upstream). Kept: 13-archetype
+  bilingual classifier, phase templates, static per-phase risk, per-archetype
+  AC. Dropped: feedback-adaptation path (native oracle already covers it —
+  would be a second, duplicate failure-memory), prompt factory, regex
+  enrichment, project-scan coupling.
+- **Evidence**: structural — 37 contracts (classification incl. the verbatim
+  precedence traps, phase/risk/AC shape, determinism, ASCII serializability,
+  `--save` checkpoint wiring).
+- **Cost**: zero resident, zero model tokens (pure stdlib, deterministic).
+- **Honest limit**: template phases are scaffolds, not task understanding;
+  value is structure + resumability, not intelligence.
 
 ### Telemetry — **DEFAULT ON (local, self-excluding)**
 
@@ -108,6 +145,8 @@ registry + wiring, bench infrastructure (internal).
 | Oracle | **on-demand only** | 6 experiments, 0 real reads; no attributable benefit |
 | Planning/routing extras | **absent** | native CC behavior suffices; nothing to default |
 | Telemetry | **on (local)** | self-excluding; powers the failure-pattern report |
+| Checkpoints | **on-demand CLI** | zero resident cost; long-horizon integrity, t8 lesson encoded |
+| Plan scaffold | **on-demand CLI** | zero resident, zero model tokens; DEEP-only by policy |
 
 ## 4. The honest one-liner
 

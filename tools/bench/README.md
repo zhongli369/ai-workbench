@@ -20,8 +20,9 @@ the installed payload** (`workbench install` does not copy this directory).
   turns / cost / denials / Task / Skill / harness-CLI invocations.
 
 Scenario builders (e.g. `build_e4.py`) are deliberately **not** here: they
-are scenario-specific and live with the experiment archive under
-`harness-experiments/`.
+are scenario-specific and lived with the experiment archive under
+`harness-experiments/` (retired 2026-10-15; recovery point
+`_snapshots/fusion-omega-m0-20261013/harness-experiments/`).
 
 ## Fairness rules (binding for any published number)
 
