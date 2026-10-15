@@ -18,7 +18,7 @@ Python 3.12.6，git 可用，PowerShell RemoteSigned。
 | 常驻进程（本仓库相关） | **0** | tasklist：python×1=scrapling MCP、node×4=claude-baton/codegraph MCP；命令行均无 ai-workbench 路径 |
 | 启动路径网络调用 | **0** | `harness/*.py`、`hooks/*.py` 无 urllib/socket/http 导入；`tools/workbench.py` 仅本地子进程（`claude --version`/`git`/`powershell Get-ExecutionPolicy`）；`project_id.py` 仅本地 `git remote -v` |
 | 网络能力脚本（非启动路径） | `tools/release_publish.sh`（curl，人工发布）、`tools/_relay_github.py`（本地 relay，dev-only）、`.github/workflows/*`（仅 CI） | 静态读码 |
-| 强制流程要求（只列事实） | `workbench/CLAUDE.md`：安全底线×4（验证才说完成/无硬编码密钥/不可逆命令经 gate/边界校验）· 任务分级 FAST/STANDARD/DEEP/RECOVERY · telemetry CLI 自动记录 · 失败史仅 fail-triggered · 多项目协议×6（绝对路径/`git -C`/PROJECTS.md 不扫盘/未授权只读）· 诚实分级。`F:\Claude\CLAUDE.md`（工作区）：原生执行优先 · plan/checkpoint/snap/verify/gate/feedback **按需不自动注入** · 改后按任务验证 · 退役系统禁引用 | 两文档原文 |
+| 强制流程要求（只列事实） | `workbench/CLAUDE.md`：安全底线×4（验证才说完成/无硬编码密钥/不可逆命令经 gate/边界校验）· 任务分级 FAST/STANDARD/DEEP/RECOVERY · telemetry CLI 自动记录 · 失败史仅 fail-triggered · 多项目协议×6（绝对路径/`git -C`/PROJECTS.md 不扫盘/未授权只读）· 诚实分级。工作区 `CLAUDE.md`：原生执行优先 · plan/checkpoint/snap/verify/gate/feedback **按需不自动注入** · 改后按任务验证 · 退役系统禁引用 | 两文档原文 |
 
 观测：本会话读取 `workbench/` 下文件后，CC 自动发现并列出 30 个 skill（系统提示实测）——即进入
 工作台树会触发 skill 索引加载，属 workspace 层开销而非本仓库进程开销。
