@@ -1,4 +1,4 @@
-# Capability Evidence Register (2026-10-14)
+# Capability Evidence Register (2026-10-14; ARSENAL additions 2026-10-15)
 
 Directive §5 product-value audit: what AI Workbench adds over native Claude
 Code + ECC, judged only on recorded evidence. Every enhancement lists its
@@ -12,10 +12,14 @@ stable advantages.
 |---|---|---|
 | Edit / test / ship loop, tool use, planning | **Claude Code native** | none — not counted as our value |
 | 60+ agents / 240+ skills catalog, rules | **ECC upstream** (MIT) | curated subset (30 skills / 16 agents / 14 commands), pinned snapshot, on-demand loading |
-| Everything below | **Self-developed** | — |
+| Workspace snapshot algorithm (`harness snap`) | **cline@789f79e4** (Apache-2.0) | reimplemented stdlib-only (no vendored code); safety rules redesigned per directive (never `reset --hard` / `clean -fd`) |
+| Post-edit verify loop (`harness verify`) | **aider@5dc9490b** (Apache-2.0) | reimplemented stdlib-only; gate-consulted, bounded reflections |
+| Supply-chain scanning (release gate) | **trivy** (Apache-2.0, binary fetched at CI time, never vendored) | pinned version+sha256 wrapper with honest exit semantics |
+| Everything else below | **Self-developed** | — |
 
 Self-developed: harness-core (feedback store, gate, report, telemetry,
-checkpoints, plan scaffold), installer/launcher/uninstaller,
+checkpoints, plan scaffold, verify loop, workspace snapshots), release
+supply-chain gate, installer/launcher/uninstaller,
 FAST/STANDARD/DEEP cost policy, capability registry + wiring, bench
 infrastructure (internal).
 
@@ -135,6 +139,86 @@ infrastructure (internal).
   masquerade as product usage (contract-locked).
 - **Cost**: none (local JSONL).
 
+### Workspace file snapshots (`harness snap`) — **NEW, ON-DEMAND CLI (ARSENAL)**
+
+- **Trigger**: explicit `harness snap save/list/diff/verify/restore/prune`;
+  restore is dry-run by default and writes nothing until `--apply` (an
+  explicit operator act that also consults the gate).
+- **Origin**: OPERATION ARSENAL agent A — git-backed snapshots adapted from
+  cline@789f79e4 (Apache-2.0), reimplemented stdlib-only. The directive's
+  absolute boundary is encoded in the design: **never** `git reset --hard` /
+  `git clean -fd`; writes are restricted to the snapshot's managed file set
+  via `checkout-index`; unknown untracked files are never deleted.
+- **Evidence**: structural — 24 contracts. Real acceptance on a live repo:
+  deleted + corrupted files restored sha256-byte-exact; unknown scratch file
+  survived untouched; a rescue ref (`refs/harness/restore-tx/<txid>`) was
+  created *before* any write; a three-way concurrent edit (snapshot ≠
+  baseline ≠ current) fails closed as `conflict` and the user's newer work
+  is never silently overwritten; dry-run reports status `planned`, never
+  `restored`.
+- **User value**: agent edits become reversible without destructive git
+  operations; "Agent 修改失败不会导致原本不相关的用户数据丢失" is the
+  acceptance standard this mechanism is built to.
+- **Cost**: zero resident; local git plumbing only, no model tokens.
+- **Opt-out**: on-demand only; nothing snapshots automatically.
+- **Mis-trigger risk**: interrupted restore is detected via a journal and
+  reported, not silently resumed; manifest chain is sha256-verified
+  (`snap verify` exit 1 on damage).
+- **Honest limit**: git-backed — a non-git working tree gets an explicit
+  `skipped`, not a snapshot.
+
+### Post-edit verification loop (`harness verify`) — **NEW, ON-DEMAND CLI (ARSENAL)**
+
+- **Trigger**: explicit `harness verify run` after an edit stage; commands
+  come from a pre-authorized `.harness-verify.json` or an explicit `--cmd`
+  that is gate-consulted (DISABLED refuses fail-closed; AUDIT logs+allows;
+  ENFORCE consumes a one-shot `awt-` token).
+- **Origin**: OPERATION ARSENAL agent B — bounded post-edit verify adapted
+  from aider@5dc9490b (Apache-2.0), reimplemented stdlib-only. Reflections
+  are bounded (default 3, hard cap 10); there is no unbounded auto-retry and
+  no hidden model call.
+- **Evidence**: structural — 26 contracts. Real acceptance: a broken config
+  made `verify run` fail (exit 1, `can_claim_done` false); after
+  `snap restore --apply`, the same command passed (exit 0). `verify status`
+  is the mechanical completion gate: a stage whose latest verdict is not
+  `pass` **cannot be claimed done**; failures write `status="failed"`
+  checkpoints carrying the failed command + output preview.
+- **User value**: "未通过验证就不能被系统标记为 VERIFIED" — done-ness becomes
+  a mechanical fact, not a claim (the Silent-Exit Guard made executable).
+- **Cost**: zero resident; argv-only subprocess execution, output truncated,
+  verdicts appended to a sha256 evidence log.
+- **Opt-out**: on-demand only; nothing runs automatically.
+- **Mis-trigger risk**: `skipped` (no configured command) is exit 3 — never
+  conflated with pass; readers (`verify status`) are never telemetry-logged.
+- **Honest limit**: verifies only what the operator configured; it is a
+  gate on claims, not a proof of correctness.
+
+### Release supply-chain gate (`security.yml` + `security_scan.py`) — **NEW, CI-ONLY (ARSENAL)**
+
+- **Trigger**: CI only — blocking on push to main / `v*` tags /
+  release-published / PR-to-main; AUDIT on schedule, non-main PRs, and
+  `audit_only` dispatch. Zero daily-session or FAST-path overhead.
+- **Origin**: OPERATION ARSENAL agent C — trivy-class supply-chain gate.
+  The trivy binary is pinned by version + sha256 (GitHub's server-side
+  digest over TLS-verified `api.github.com`) and fetched at CI time — never
+  vendored; all actions pinned by commit SHA; no third-party scanning
+  action runs in our token scope.
+- **Evidence**: structural — 24 contracts (fake-trivy JSON parsing incl.
+  positive secret detection, license fallback, `.securityignore`
+  expire-aware exceptions, redaction). Local run without the binary:
+  exit 3 `infra-failure` — **never** read as PASS; `--licenses` fallback
+  exit 0. First live blocking CI run happens with this release's PR.
+- **User value**: release artifacts cannot ship with known secret-shaped
+  findings or scanner infra failures silently downgraded; "扫描未完成"
+  and "未通过" are distinct, explicit states.
+- **Cost**: CI minutes only; zero local tokens, zero resident hooks.
+- **Opt-out**: AUDIT mode for non-release refs; release path is never audit.
+- **Mis-trigger risk**: matched secret text is never logged (counts only in
+  step summary; parsed report goes to a private artifact); tests use fake
+  scanner output — no real secrets are ever used.
+- **Honest limit**: a scanner is only as current as its pinned DB; the gate
+  proves "scanned, honestly reported", not "no vulnerabilities exist".
+
 ## 3. Defaults decision (directive §5C)
 
 | Enhancement | Default | Rationale |
@@ -147,9 +231,14 @@ infrastructure (internal).
 | Telemetry | **on (local)** | self-excluding; powers the failure-pattern report |
 | Checkpoints | **on-demand CLI** | zero resident cost; long-horizon integrity, t8 lesson encoded |
 | Plan scaffold | **on-demand CLI** | zero resident, zero model tokens; DEEP-only by policy |
+| Workspace snapshots | **on-demand CLI** | reversible edits without destructive git; dry-run default, `--apply` gated |
+| Verify loop | **on-demand CLI** | done-ness made mechanical; bounded reflections, fail-closed `--cmd` |
+| Supply-chain gate | **CI-only, blocking on release refs** | zero daily overhead; honest exit semantics (3 ≠ PASS) |
 
 ## 4. The honest one-liner
 
-AI Workbench today = **governed safety + curated on-demand capabilities +
-low resident cost + honest engineering evidence**. Memory retrieval and
-complex-task superiority are open bets, labeled as such — not sold as facts.
+AI Workbench today = **governed safety (command gate + reversible snapshots +
+mechanical done-ness + release supply-chain gate) + curated on-demand
+capabilities + low resident cost + honest engineering evidence**. Memory
+retrieval and complex-task superiority are open bets, labeled as such — not
+sold as facts.
