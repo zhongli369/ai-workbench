@@ -1,0 +1,162 @@
+name: security
+
+# Release supply-chain gate (OPERATION ARSENAL — agent C).
+#
+# What fails closed here:
+#   - a real secret-shaped finding on any blocking ref
+#   - a llicense anomaly (vendored package without a LICENSE*/NOTICE* file)
+#   - a scanner infra failure (crash / vuln-DB download failure) on a
+#     blocking ref — it is an environment problem, NEVER read as PASS
+#
+# Honest exit semantics come from tools/security_scan.py, not from trivy's
+# own --exit-code 1. The wrapper parses trivy's JSON and returns:
+#   0 clean | 1 findings | 2 usage | 3 tool-missing / infra-failure
+# `--allow-infra-failure` downgrades ONLY infra-failure 3->0 for AUDIT mode
+# (daily scheduled / non-main PRs / workflow_dispatch with audit_only=true).
+# Release is never audit.
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  schedule:
+    - cron: "15 3 * * *"   # daily AUDIT run
+  workflow_dispatch:
+    inputs:
+      audit_only:
+        description: "audit only (never blocks on findings/infra-failure)"
+        type: boolean
+        default: false
+  release:
+    types: [published]
+
+permissions:
+  # The gate is read-only: checkout + run scanners + upload an artifact.
+  # No secrets are used and the runner token is never exposed.
+  contents: read
+
+concurrency:
+  group: security-scan-${{ github.ref }}
+  cancel-in-progress: true
+
+# WHY binary pinning and not aquasecurity/trivy-action:
+# this is the SUPPLY-CHAIN gate; trusting a third-party*action* means letting
+# code other people write execute in our token scope on every run, and
+# @master / bare tags are mutable. Pinning the trivy release BINARY by
+# version + a literal sha256 we verified ourselves is strictly stronger.
+#
+# The checksum below is a PLACEHOLDER until the integrator verifies the real
+# one. The `verify pinned trivy` step FAILS the job while the placeholder is
+# present, so this workflow cannot accidentally run against an unverified
+# binary. Rejecting the placeholder is intentional.
+env:
+  TRIVY_VERSION: "v0.58.2"
+    # TODO(integrator): confirm the current stable trivy release before merge.
+  TRIVY_SHA256: "REPLACE-ME-with-verified-sha256-of-trivy-Linux-64bit.tar.gz"
+
+jobs:
+  supply-chain:
+    name: supply-chain gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # AUDIT = daily schedule, non-main PRs, or an explicit audit_only dispatch.
+    # Everything else (push main, tag push, release published, PR-to-main)
+    # is BLOCKING.
+    env:
+      AUDIT: >-
+        ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.audit_only == 'true') || (github.event_name == 'pull_request' && github.base_ref != 'main') }}
+
+    steps:
+      - uses: actions/checkout@v4
+        # TODO(integrator): consider pinning actions/checkout and
+        # actions/upload-artifact by commit SHA too.
+
+      - name: setup python (wrapper is stdlib-only)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: verify pinned trivy placeholder is resolved
+        run: |
+          if grep -Fq 'REPLACE-ME-with-verified-sha256' .github/workflows/security.yml; then
+            echo "::error::security.yml TRIVY_SHA256 is still a placeholder. Integrator must download trivy_${TRIVY_VERSION#v}_Linux-64bit.tar.gz from the GitHub release, verify it, and paste its sha256 into the TRIVY_SHA256 constant before this gate can run."
+            exit 1
+          fi
+          echo "trivy pin OK: ${TRIVY_VERSION} sha256 ${TRIVY_SHA256}"
+
+      - name: install pinned trivy binary (curl + sha256 verify, no 3rd-party action)
+        run: |
+          set -euo pipefail
+          asset="trivy_${TRIVY_VERSION#v}_Linux-64bit.tar.gz"
+          url="https://github.com/aquasecurity/trivy/releases/download/${TRIVY_VERSION}/${asset}"
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/trivy.tar.gz" "$url"
+          echo "${TRIVY_SHA256}  $RUNNER_TEMP/trivy.tar.gz" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/trivy-extract" "$RUNNER_TEMP/trivy-bin"
+          tar -xzf "$RUNNER_TEMP/trivy.tar.gz" -C "$RUNNER_TEMP/trivy-extract" trivy
+          install -m 0755 "$RUNNER_TEMP/trivy-extract/trivy" "$RUNNER_TEMP/trivy-bin/trivy"
+          echo "$RUNNER_TEMP/trivy-bin" >> "$GITHUB_PATH"
+          trivy --version
+
+      - name: run supply-chain scan (blocking vs audit per mode)
+        run: |
+          set +e
+          if [ "$AUDIT" = "true" ]; then
+            scan_mode="audit"
+            python tools/security_scan.py "$GITHUB_WORKSPACE" --allow-infra-failure --json > scan-report.json
+            scan_rc=$?
+            run_fails=0
+          else
+            scan_mode="blocking"
+            python tools/security_scan.py "$GITHUB_WORKSPACE" --json > scan-report.json
+            scan_rc=$?
+            run_fails=$scan_rc
+          fi
+          set -e
+          export SCAN_MODE="$scan_mode"
+          # Summary reports COUNTS only; the artifact carries the parsed
+          # findings (which may include matched secret text). Matched secret
+          # text is never echoed to logs or step summaries.
+          python - <<'PY'
+          import json, os
+          r = json.load(open("scan-report.json"))
+          line = "status=%s findings=%d exit=%d" % (r["status"], len(r["findings"]), r["exit_code"])
+          print("::notice::supply-chain (%s) %s" % (os.environ["SCAN_MODE"], line))
+          try:
+              with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as fh:
+                  fh.write("## supply-chain scan (%s)\n\n%s\n\n" % (os.environ["SCAN_MODE"], line))
+                  counts = {}
+                  for f in r["findings"]:
+                      counts[f["rule"]] = counts.get(f["rule"], 0) + 1
+                  fh.write("Findings by rule (never the matched text):\n\n")
+                  for rule, n in sorted(counts.items()):
+                      fh.write("- `%s` x %d\n" % (rule, n))
+          except KeyError:
+              pass
+          PY
+          if [ "$AUDIT" = "true" ]; then
+            if [ "$scan_rc" != "0" ]; then
+              echo "::warning::audit run degraded (exit $scan_rc); not blocking. See the uploaded scan-report.json. status=$(python -c 'import json;print(json.load(open("scan-report.json"))["status"])')"
+            fi
+            exit 0
+          fi
+          if [ "$run_fails" != "0" ]; then
+            echo "::error::supply-chain scan failed on a BLOCKING ref (exit $run_fails): findings or scanner infra failure. Full parsed report is uploaded as the supply-chain-report artifact."
+            exit "$run_fails"
+          fi
+
+      # Scan reports may contain matched secret text, so they go ONLY to an
+      # artifact (private to the org), never into PR comments or job logs.
+      - name: upload scan report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: supply-chain-report
+          path: scan-report.json
+          if-no-files-found: error
+
+      # Local/offline license inventory (vendor/ packages lacking a
+      # LICENSE*/NOTICE* file) available to maintainers without trivy:
+      #   python tools/security_scan.py . --licenses
+      # Trivy's `license` analyzer covers the same ground when the DB is
+      # reachable; this tasks keeps the deterministic fallback documented.
