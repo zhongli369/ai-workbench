@@ -46,14 +46,16 @@ concurrency:
 # @master / bare tags are mutable. Pinning the trivy release BINARY by
 # version + a literal sha256 we verified ourselves is strictly stronger.
 #
-# The checksum below is a PLACEHOLDER until the integrator verifies the real
-# one. The `verify pinned trivy` step FAILS the job while the placeholder is
-# present, so this workflow cannot accidentally run against an unverified
-# binary. Rejecting the placeholder is intentional.
+# Pin resolution (integrator, 2026-10-15): latest stable was v0.76.0 (one day
+# old); v0.75.0 was chosen as the newest release at least two weeks old. The
+# sha256 below is GitHub's own server-side digest for the release asset (REST
+# API `digest` field, fetched over TLS-verified api.github.com) — the same
+# content GitHub serves to the runner at download time.
+# The `verify pinned trivy` step still FAILS if anyone reintroduces a
+# placeholder, so this gate cannot run against an unverified binary.
 env:
-  TRIVY_VERSION: "v0.58.2"
-    # TODO(integrator): confirm the current stable trivy release before merge.
-  TRIVY_SHA256: "REPLACE-ME-with-verified-sha256-of-trivy-Linux-64bit.tar.gz"
+  TRIVY_VERSION: "v0.75.0"
+  TRIVY_SHA256: "c6e65abddb348e25f10549df887045629cf28cc72453cd1c63acb717316b3f3f"
 
 jobs:
   supply-chain:
@@ -68,12 +70,12 @@ jobs:
         ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.audit_only == 'true') || (github.event_name == 'pull_request' && github.base_ref != 'main') }}
 
     steps:
-      - uses: actions/checkout@v4
-        # TODO(integrator): consider pinning actions/checkout and
-        # actions/upload-artifact by commit SHA too.
+      # Actions pinned by commit SHA (tags are mutable; the supply-chain gate
+      # itself must not run mutable third-party code). v4 line to match ci.yml.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: setup python (wrapper is stdlib-only)
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.12"
 
@@ -149,7 +151,7 @@ jobs:
       # artifact (private to the org), never into PR comments or job logs.
       - name: upload scan report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: supply-chain-report
           path: scan-report.json
