@@ -5,10 +5,13 @@ Workbench workspace"; every test gets a FRESH per-test copy of the shared
 harness-data dir so tests are fully independent.  Two target projects
 (proj-a / proj-b) are real git repos with deliberately conflicting
 CLAUDE.md rules.
+
+This suite is collected by the default `pytest tests/` run and counted in
+the repo totals (350 = 171 harness-core + 179 tests); the docs-drift gate
+reconciles those counts live.
 """
 from __future__ import annotations
 
-import os
 import shutil
 import subprocess
 import sys
@@ -19,26 +22,6 @@ import pytest
 from multiproj_util import (
     WORKBENCH_CLI, base_env, mk_project,
 )
-
-
-def pytest_ignore_collect(collection_path, config) -> bool:
-    """Opt-in suite: only collect tests/multiproj when named explicitly.
-
-    This subtree is a standalone CI-ready suite. The repo's frozen totals
-    (the docs-drift gate's `pytest:all` / `pytest:tests` sources and the
-    numbers pinned in README / CHANGELOG / ci.yml) must stay unchanged when
-    the default `pytest tests/` runs, so the suite skips default collection
-    and is picked up only when the caller names `tests/multiproj` itself:
-
-        python -m pytest tests/multiproj/ -q   # collects this suite
-        python -m pytest tests/ -q             # suite NOT collected
-    """
-    if "multiproj" not in Path(collection_path).parts:
-        return False
-    explicit = any(
-        isinstance(a, str) and "multiproj" in a.replace(os.sep, "/")
-        for a in getattr(config, "args", ()))
-    return not explicit
 
 
 @pytest.fixture(scope="session")

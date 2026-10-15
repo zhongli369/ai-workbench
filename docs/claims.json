@@ -10,7 +10,7 @@
     {"id": "contracts-harness-readme-zh-table", "doc": "README.zh-CN.md", "regex": "确定性, (\\d+) 项契约", "source": "pytest:harness-core/tests", "required": true},
     {"id": "contracts-harness-own-readme", "doc": "harness-core/README.md", "regex": "(\\d+) contracts", "source": "pytest:harness-core/tests", "required": true},
     {"id": "contracts-ci-harness-step", "doc": ".github/workflows/ci.yml", "regex": "harness-core contracts \\((\\d+)\\)", "source": "pytest:harness-core/tests", "required": true},
-    {"id": "contracts-ci-install-step", "doc": ".github/workflows/ci.yml", "regex": "clean-room install contracts \\((\\d+)\\)", "source": "pytest:tests", "required": true},
+    {"id": "contracts-ci-tests-step", "doc": ".github/workflows/ci.yml", "regex": "tests contracts \\((\\d+)\\)", "source": "pytest:tests", "required": true},
     {"id": "ecc-skills-readme-en", "doc": "README.md", "regex": "(\\d+) skills", "source": "ecc:skills", "required": true},
     {"id": "ecc-agents-readme-en", "doc": "README.md", "regex": "(\\d+) agents", "source": "ecc:agents", "required": true},
     {"id": "ecc-skills-readme-zh", "doc": "README.zh-CN.md", "regex": "(\\d+) skills", "source": "ecc:skills", "required": true},
