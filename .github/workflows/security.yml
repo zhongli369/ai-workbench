@@ -103,8 +103,9 @@ jobs:
         # AUDIT mode (daily schedule etc.): a failed download/extract must not
         # red the job — the scan wrapper then reports tool-missing (exit 3),
         # which --allow-infra-failure downgrades with a warning. Blocking
-        # mode stays fail-closed: infra failure is NOT a PASS.
-        continue-on-error: ${{ env.AUDIT == 'true' }}
+        # mode stays fail-closed: infra failure is NOT a PASS. (The github
+        # context is used directly: env is not a valid context here.)
+        continue-on-error: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.audit_only == 'true') || (github.event_name == 'pull_request' && github.base_ref != 'main') }}
         run: |
           set -euo pipefail
           asset="trivy_${TRIVY_VERSION#v}_Linux-64bit.tar.gz"
