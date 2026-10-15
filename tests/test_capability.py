@@ -126,8 +126,13 @@ def test_mutex_enforced_on_enable(tmp_path):
     assert "互斥" in r.stdout
     assert run_wb("capability", "disable", "agent-browser",
                   target=tmp_path, env_extra=env).returncode == 0
-    assert run_wb("capability", "enable", "playwright-mcp",
-                  target=tmp_path, env_extra=env).returncode == 0
+    # mutex released: playwright-mcp (v1.2 mcp-config wiring) now reaches its
+    # readiness gate — the fake env has no node/npm/browser, so it fails on
+    # readiness (not on mutex) with the never-auto-install message.
+    r = run_wb("capability", "enable", "playwright-mcp",
+               target=tmp_path, env_extra=env)
+    assert r.returncode == 1
+    assert "互斥" not in r.stdout and "未就绪" in r.stdout
 
 
 def test_unknown_capability_rejected(tmp_path):

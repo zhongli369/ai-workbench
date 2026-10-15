@@ -6,6 +6,7 @@ Subcommands (wired into tools/workbench.py):
   inspect   full declaration of one capability
   enable    record operator intent: on
   disable   record operator intent: off
+  status    four-state runtime status (mcp-config wiring only)
   doctor    health-check every capability against the install target
 
 Design rules:
@@ -14,6 +15,10 @@ Design rules:
     v1 semantics are per-capability (`wiring` field): "active" capabilities are
     wired by install itself; "recorded-intent" capabilities keep invocation
     manual — enable never auto-installs anything, never runs remote scripts.
+  - v1.1 "skill-file" wiring writes a marked SKILL.md into the target.
+  - v1.2 "mcp-config" wiring (tools/wiring_mcp.py) writes ONE managed entry
+    into the target project's .mcp.json after a fail-closed readiness gate,
+    and removes only what it owns. Same never-auto-install rule.
   - Nothing here touches global ~/.claude configuration.
 """
 import json
@@ -21,6 +26,8 @@ import os
 import shutil
 import sys
 from pathlib import Path
+
+import wiring_mcp
 
 STATE_NAME = "capability-state.json"
 REGISTRY_REL = Path("capabilities") / "registry.json"
@@ -222,26 +229,45 @@ def cmd_capability(args, target: Path, rc_root: Path) -> int:
                     return 1
         wired: list[str] = []
         if sub == "enable" and cap.get("wiring_action"):
-            # wiring v1.1: real integration, but only onto tooling the user
-            # already installed — health must pass; we NEVER auto-install.
-            # Pure-content skills (health type "manual") have no external
-            # tool to verify; the template-existence check inside the wire
-            # step below is their real fail-closed gate.
             wa_type = cap["wiring_action"].get("type")
-            pure_content = wa_type == "skill-file" and cap.get("health", {}).get("type") == "manual"
-            if not pure_content:
-                hs, hd = check_health(cap, target)
-                if hs != "ok":
-                    print(f"[FAIL] 健康检查未过 ({cap.get('health', {}).get('type')}: {hd})\n"
-                          f"       请先自行安装 {cap['id']}, 再 enable — 本工具从不自动安装外部软件")
-                    return 1
-            if wa_type == "skill-file":
-                ok, msg = _wire_skill_file(rc_root, target, cap)
-                if not ok:
-                    print(f"[FAIL] {msg}")
-                    return 1
-                wired.append(msg)
+            if wa_type == "mcp-config":
+                # v1.2: managed .mcp.json entry. The fail-closed readiness
+                # gate (node/npm/pinned package/browser) and the live MCP
+                # handshake probe live in wiring_mcp; handshake failure is a
+                # WARN, readiness failure is a hard FAIL. Never auto-installs.
+                rl = wiring_mcp.dispatch(sub, rc_root, target, cap)
+                if rl is not None:
+                    ok, msgs = rl
+                    for m in msgs:
+                        print("     " + m)
+                    if not ok:
+                        return 1
+            else:
+                # wiring v1.1: real integration, but only onto tooling the user
+                # already installed — health must pass; we NEVER auto-install.
+                # Pure-content skills (health type "manual") have no external
+                # tool to verify; the template-existence check inside the wire
+                # step below is their real fail-closed gate.
+                pure_content = wa_type == "skill-file" and cap.get("health", {}).get("type") == "manual"
+                if not pure_content:
+                    hs, hd = check_health(cap, target)
+                    if hs != "ok":
+                        print(f"[FAIL] 健康检查未过 ({cap.get('health', {}).get('type')}: {hd})\n"
+                              f"       请先自行安装 {cap['id']}, 再 enable — 本工具从不自动安装外部软件")
+                        return 1
+                if wa_type == "skill-file":
+                    ok, msg = _wire_skill_file(rc_root, target, cap)
+                    if not ok:
+                        print(f"[FAIL] {msg}")
+                        return 1
+                    wired.append(msg)
         if sub == "disable":
+            if cap.get("wiring_action", {}).get("type") == "mcp-config":
+                rl = wiring_mcp.dispatch(sub, rc_root, target, cap)
+                if rl is not None:
+                    ok, msgs = rl
+                    for m in msgs:
+                        print("     " + m)
             for rel in state.get("_wired", {}).get(cap["id"], []):
                 if cap.get("wiring_action", {}).get("type") == "skill-file":
                     ok, msg = _unwire_skill_file(target, cap, rel)
@@ -259,6 +285,23 @@ def cmd_capability(args, target: Path, rc_root: Path) -> int:
         if wiring.startswith("recorded-intent"):
             print("     v1 语义: 记录运维意图; 外部能力的安装/调用仍为手动步骤 (capability inspect 查看)")
         return 0
+
+    if sub == "status":
+        cap = next((c for c in reg["capabilities"] if c["id"] == args.id), None)
+        if not cap:
+            print(f"[FAIL] 未知能力: {args.id} (见 capability list)")
+            return 1
+        if cap.get("wiring_action", {}).get("type") != "mcp-config":
+            print(f"[INFO] {cap['id']}: 非 mcp-config 接线 — 用 capability list/inspect 查看")
+            return 0
+        rl = wiring_mcp.dispatch(sub, rc_root, target, cap)
+        if rl is None:
+            print(f"[FAIL] {cap['id']}: 无 status 处理器")
+            return 1
+        ok, msgs = rl
+        for m in msgs:
+            print("     " + m)
+        return 0 if ok else 1
 
     if sub == "doctor":
         rows = _rows(reg, state, target)
@@ -284,8 +327,8 @@ def cmd_capability(args, target: Path, rc_root: Path) -> int:
 
 
 def add_subparser(sub, rc_root_default=None):
-    c = sub.add_parser("capability", help="能力注册中心: list/inspect/enable/disable/doctor")
-    c.add_argument("cap_cmd", choices=["list", "inspect", "enable", "disable", "doctor"])
+    c = sub.add_parser("capability", help="能力注册中心: list/inspect/enable/disable/status/doctor")
+    c.add_argument("cap_cmd", choices=["list", "inspect", "enable", "disable", "status", "doctor"])
     c.add_argument("id", nargs="?", default=None)
     c.add_argument("--json", action="store_true")
     return c
