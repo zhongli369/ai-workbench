@@ -1,0 +1,73 @@
+/* web-demo fixture — the FIX for styles.css, applied as a narrow-screen patch.
+
+   Two changes, both responsive-only (desktop rendering is bit-identical):
+     1. the toolbar wraps and its controls may shrink below their content width
+     2. the card grid becomes fluid (auto-fit) instead of three fixed 320px tracks
+
+   Kept as a sibling file on purpose: the regression driver proves the breakage
+   and the fix from the same page, with no build step and no edit-in-place. */
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font: 15px/1.5 system-ui, "Segoe UI", sans-serif;
+  color: #1c2024;
+  background: #f6f7f9;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 20px;
+  background: #fff;
+  border-bottom: 1px solid #e3e6ea;
+  flex-wrap: wrap;              /* FIX */
+}
+
+.brand { font-size: 18px; margin: 0; }
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;              /* FIX 1a */
+  min-width: 0;
+}
+
+.btn {
+  flex: 0 1 auto;               /* FIX 1b: allowed to shrink */
+  min-width: 0;
+  padding: 8px 14px;
+  border: 1px solid #c8cdd4;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+}
+.btn-primary { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+.btn-primary[data-state="saved"] { background: #1a7f37; border-color: #1a7f37; }
+
+.slider { flex: 1 1 120px; width: auto; min-width: 80px; }   /* FIX 1c */
+.zoom-out { flex: 0 0 auto; width: 52px; text-align: right; }
+
+main { padding: 20px; }
+
+.counter { font-weight: 600; }
+.eventlog { color: #5b6470; font-variant-numeric: tabular-nums; }
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));   /* FIX 2 */
+  gap: 16px;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid #e3e6ea;
+  border-radius: 8px;
+  padding: 14px;
+  min-width: 0;
+}
+.card h2 { margin: 0 0 6px; font-size: 15px; }
+.card p { margin: 0; color: #5b6470; }

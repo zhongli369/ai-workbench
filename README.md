@@ -350,9 +350,10 @@ Roles:
 
 ## 10. Real evidence
 
-- **350 offline contracts** = **171 harness-core** + **179 tests** (164
+- **397 offline contracts** = **171 harness-core** + **226 tests** (164
   clean-room install/CLI + 15 multi-project isolation under
-  `tests/multiproj/`; this exact number is verified live by
+  `tests/multiproj/` + 47 mcp-config wiring in `tests/test_wiring_mcp.py`;
+  this exact number is verified live by
   `tools/check_docs_drift.py` against the pytest collection; the core is
   stdlib, 171 contracts and deterministic).
 - **24 battle tests** under `tests/battle/` (5 scenarios) hit the real CLI

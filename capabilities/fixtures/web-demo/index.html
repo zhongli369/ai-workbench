@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AIWB web-demo fixture</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="topbar">
+  <h1 class="brand">web-demo</h1>
+  <nav class="toolbar" id="toolbar">
+    <button id="cta" class="btn btn-primary" data-state="idle">保存</button>
+    <button id="reset" class="btn">重置</button>
+    <button id="export" class="btn">导出报表下载</button>
+    <input id="zoom" class="slider" type="range" min="0" max="100" value="30" step="1"
+           aria-label="缩放">
+    <output id="zoom-out" class="zoom-out" for="zoom">30%</output>
+  </nav>
+</header>
+
+<main>
+  <p id="counter" class="counter">已保存 0 次</p>
+  <p id="eventlog" class="eventlog" data-input="0" data-change="0">input=0 change=0</p>
+
+  <section class="cards" id="cards">
+    <article class="card"><h2>卡片一</h2><p>宽度固定的三列网格。</p></article>
+    <article class="card"><h2>卡片二</h2><p>窄屏时它会溢出视口。</p></article>
+    <article class="card"><h2>卡片三</h2><p>这就是待修复的布局缺陷。</p></article>
+  </section>
+</main>
+
+<script>
+(function () {
+  var clicks = 0;
+  var inputSeen = 0;
+  var changeSeen = 0;
+  var cta = document.getElementById('cta');
+  var reset = document.getElementById('reset');
+  var counter = document.getElementById('counter');
+  var log = document.getElementById('eventlog');
+  var zoom = document.getElementById('zoom');
+  var zoomOut = document.getElementById('zoom-out');
+
+  function render() {
+    log.textContent = 'input=' + inputSeen + ' change=' + changeSeen;
+    log.dataset.input = String(inputSeen);
+    log.dataset.change = String(changeSeen);
+  }
+
+  cta.addEventListener('click', function () {
+    clicks += 1;
+    cta.dataset.state = 'saved';
+    cta.textContent = '已保存';
+    counter.textContent = '已保存 ' + clicks + ' 次';
+  });
+
+  reset.addEventListener('click', function () {
+    clicks = 0;
+    inputSeen = 0;
+    changeSeen = 0;
+    cta.dataset.state = 'idle';
+    cta.textContent = '保存';
+    counter.textContent = '已保存 0 次';
+    zoom.value = '30';
+    zoomOut.textContent = '30%';
+    render();
+  });
+
+  zoom.addEventListener('input', function () {
+    inputSeen += 1;
+    zoomOut.textContent = zoom.value + '%';
+    render();
+  });
+  zoom.addEventListener('change', function () {
+    changeSeen += 1;
+    render();
+  });
+  render();
+})();
+</script>
+</body>
+</html>

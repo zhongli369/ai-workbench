@@ -1,0 +1,62 @@
+{
+  "argv": [
+    "cmd",
+    "/c",
+    "npx",
+    "-y",
+    "@playwright/mcp@0.0.83",
+    "--headless",
+    "--isolated",
+    "--browser",
+    "chrome"
+  ],
+  "cwd": "<WORKTREE>/capabilities/fixtures/web-demo",
+  "pid": 11876,
+  "ok": true,
+  "steps": {
+    "initialize": {
+      "ok": true,
+      "protocolVersion": "2025-06-18",
+      "serverInfo": {
+        "name": "Playwright",
+        "version": "1.64.0-alpha-1790635538000"
+      },
+      "capabilities": [
+        "tools"
+      ],
+      "error": null
+    },
+    "tools_list": {
+      "ok": true,
+      "count": 25,
+      "names": [
+        "browser_close",
+        "browser_resize",
+        "browser_console_messages",
+        "browser_handle_dialog",
+        "browser_emulate_media",
+        "browser_evaluate",
+        "browser_file_upload",
+        "browser_drop",
+        "browser_find",
+        "browser_fill_form",
+        "browser_press_key",
+        "browser_type"
+      ],
+      "error": null
+    },
+    "tool_calls": [
+      {
+        "name": "browser_navigate",
+        "ok": true,
+        "error": null,
+        "text_head": "### Ran Playwright code\n```js\nawait page.goto('http://127.0.0.1:8765/index.html');\n```\n### Page\n- Page URL: http://127.0.0.1:8765/index.html\n- Page Title: AIWB web-demo fixture\n### Snapshot\n- [Snapshot](.playwright-mcp\\page-2026-10-15T15-30-17-255Z.yml)",
+        "text_len": 253
+      }
+    ]
+  },
+  "stderr_tail": [],
+  "elapsed_ms": 1901,
+  "child_alive_after_kill": false,
+  "path_note": "absolute builder paths replaced with <WORKTREE>/<TEMP> placeholders for the hygiene gate"
+}
