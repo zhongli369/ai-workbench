@@ -18,6 +18,17 @@ No network, no upload, no machine-specific paths. Data lives in one local direct
   every row carries a source label (`cli` / `bench` via `HARNESS_BENCH=1` /
   `synthetic`), and the summary's adoption view counts only real `cli`
   invocations — benchmarks can never masquerade as product usage.
+- **checkpoint** — versioned task-state checkpoints (t8-class integrity):
+  append-only JSONL, per-record payload sha256, torn-tail detection with
+  explicit health (damage is never indistinguishable from absence), BOM/CRLF
+  tolerant reads, pure-ASCII writes, crash marker for in-flight stages,
+  parent-chain + stage-order verification. Raw evidence is never truncated,
+  overwritten, or "repaired" — `verify` reports, the human decides.
+- **plan** — deterministic DEEP-mode phase scaffold: bilingual 13-archetype
+  classifier → ordered phases with per-phase risk + acceptance criteria.
+  On-demand CLI only, never auto-injected; phases double as checkpoint
+  stage names for long-horizon work. (Minimal extraction of the retired
+  CodeLike planning kernel — zero legacy-repo dependency.)
 
 ## Usage
 
@@ -31,6 +42,12 @@ python harness/cli.py gate approve --pattern "git push.*" --ttl 600
 python harness/cli.py gate approve --once --action "git push origin main"   # single-use token (awt-...), printed once
 python harness/cli.py gate check "git push origin main" --token awt-<token>
 python harness/cli.py telemetry
+python harness/cli.py plan "migrate to the v2 API" --save     # DEEP scaffold → stage-0 checkpoint
+python harness/cli.py checkpoint begin --exec migrate-to-the-v2-api --stage "Assess Impact" --index 1
+python harness/cli.py checkpoint save  --exec migrate-to-the-v2-api --stage "Assess Impact" --index 1 --payload '{"done": true}'
+python harness/cli.py checkpoint load --exec migrate-to-the-v2-api
+python harness/cli.py checkpoint verify --exec migrate-to-the-v2-api   # exit 1 on any damage
+python harness/cli.py checkpoint list
 ```
 
 - Data dir precedence: `--data-dir` > `HARNESS_DATA_DIR` > platform default
@@ -51,7 +68,7 @@ applies to interactive sessions (verified 2026-10, CC 2.1.x).
 ## Tests
 
 ```bash
-python -m pytest tests/ -q     # 64 contracts, stdlib + pytest only
+python -m pytest tests/ -q     # 120 contracts, stdlib + pytest only
 ```
 
 ## Honest limits
