@@ -553,3 +553,66 @@ def test_live_detection_with_real_trivy(tmp_path, monkeypatch):
         f"{report.stderr_tail}")
     assert report.exit_code == 1
     assert any(f["rule"] == "aws-access-key-id" for f in report.findings)
+
+# ---- bounded infra retry (FINAL SEAL Agent C4) ----
+# Retries apply ONLY to transient tool-side infra failures (scanner ran and
+# exited non-zero, e.g. trivy DB download 404). Timeouts, spawn failures and
+# real results (clean/findings) are never retried; fail-closed is preserved
+# because the returned status is always the last attempt's real status.
+
+def test_infra_retry_recovers_transient_failure(monkeypatch):
+    calls = {"n": 0}
+
+    def fake_run(*a, **k):
+        calls["n"] += 1
+        if calls["n"] < 3:
+            return ("infra-failure", [],
+                    "trivy exited 1 (crash or DB download failure)", "")
+        return "clean", [], "", ""
+
+    monkeypatch.setattr(ss, "_run_one", fake_run)
+    out = ss._run_one_with_retry("trivy", Path("t"), Path("x"), ("HIGH",), 60, delay_s=0)
+    assert out[0] == "clean" and calls["n"] == 3
+
+
+def test_infra_retry_is_bounded_and_preserves_failure(monkeypatch):
+    calls = {"n": 0}
+
+    def fake_run(*a, **k):
+        calls["n"] += 1
+        return ("infra-failure", [],
+                "trivy exited 1 (crash or DB download failure)", "")
+
+    monkeypatch.setattr(ss, "_run_one", fake_run)
+    status, _, msg, _ = ss._run_one_with_retry(
+        "trivy", Path("t"), Path("x"), ("HIGH",), 60, delay_s=0)
+    assert status == "infra-failure"
+    assert calls["n"] == 1 + ss._INFRA_RETRIES
+    assert "attempts" in msg
+
+
+def test_infra_retry_never_retries_timeout_or_spawn(monkeypatch):
+    for msg in ("scanner timed out after 60s", "scanner could not be executed: boom"):
+        calls = {"n": 0}
+
+        def fake_run(*a, _msg=msg, **k):
+            calls["n"] += 1
+            return "infra-failure", [], _msg, ""
+
+        monkeypatch.setattr(ss, "_run_one", fake_run)
+        status, *_ = ss._run_one_with_retry(
+            "trivy", Path("t"), Path("x"), ("HIGH",), 60, delay_s=0)
+        assert status == "infra-failure" and calls["n"] == 1
+
+
+def test_infra_retry_never_retries_findings(monkeypatch):
+    calls = {"n": 0}
+
+    def fake_run(*a, **k):
+        calls["n"] += 1
+        return "findings", [{"id": "x"}], "", ""
+
+    monkeypatch.setattr(ss, "_run_one", fake_run)
+    status, findings, *_ = ss._run_one_with_retry(
+        "trivy", Path("t"), Path("x"), ("HIGH",), 60, delay_s=0)
+    assert status == "findings" and calls["n"] == 1 and findings

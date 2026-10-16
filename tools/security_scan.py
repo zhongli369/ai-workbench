@@ -429,7 +429,7 @@ def scan(
                 "name": name, "status": "tool-missing", "findings": [],
                 "message": why, "stderr_tail": ""})
             continue
-        status, findings, message, stderr_tail = _run_one(
+        status, findings, message, stderr_tail = _run_one_with_retry(
             name, bin_path, target, sev, timeout_s, trivy_scanners)
         per.append({
             "name": name, "status": status, "findings": findings,
@@ -475,6 +475,43 @@ def scan(
         severity=sev,
         duration_s=duration,
     )
+
+
+_INFRA_RETRIES = 2        # extra attempts after the first run
+_INFRA_RETRY_DELAY_S = 20  # fixed, bounded; transient tool-side failures only
+
+
+def _run_one_with_retry(
+    name: str,
+    bin_path: Path,
+    target: Path,
+    severity: tuple[str, ...],
+    timeout_s: int,
+    trivy_scanners: tuple[str, ...] = TRIVY_SCANNERS,
+    retries: int = _INFRA_RETRIES,
+    delay_s: float = _INFRA_RETRY_DELAY_S,
+) -> tuple[str, list[dict], str, str]:
+    """Bounded retry around _run_one for TRANSIENT infra failures only.
+
+    Retries solely when the scanner process actually ran and exited non-zero
+    (e.g. a trivy DB download 404 from a registry mirror). Never retried:
+    timeouts and spawn failures (bounded wall-clock; a spawn failure does not
+    heal on its own) and clean/findings results (a finding is a result, not
+    an error). Fail-closed semantics unchanged: the returned status is always
+    the last attempt's real status.
+    """
+    for attempt in range(retries + 1):
+        status, findings, message, stderr_tail = _run_one(
+            name, bin_path, target, severity, timeout_s, trivy_scanners)
+        transient = (status == "infra-failure"
+                     and not message.startswith("scanner timed out")
+                     and not message.startswith("scanner could not be executed"))
+        if not transient or attempt == retries:
+            if attempt:
+                message = f"{message} (after {attempt + 1} attempts)"
+            return status, findings, message, stderr_tail
+        time.sleep(delay_s)
+    raise AssertionError("unreachable")
 
 
 def _run_one(
