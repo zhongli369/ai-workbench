@@ -109,7 +109,9 @@ harness-core 契约测试保持 171 项全绿。
 
 1. **项目识别**: 绝对路径 > `PROJECTS.md` > 问用户; 不扫盘。
 2. **进入项目**: 绝对路径读写; 目标 CLAUDE.md 显式 Read 或
-   `/add-dir <path>` / 重启 `launch --run --add-dir "<path>"` (下一会话自动加载)。
+   `/add-dir <path>` (会话内) / 重启时透传:
+   `python tools/workbench.py --target "<target>" launch --run -- --add-dir "<path>"`
+   (额外参数置于 `--` 之后, 下一会话自动加载)。
 3. **harness 一律带作用域**: checkpoint/plan `--cwd` / `--project-id`;
    verify run 的 `--cwd` 是**任务目录**, 其命名空间仅由显式 `--project-id` 生效;
    feedback `--project-id`; snap 已有 `--cwd`。
