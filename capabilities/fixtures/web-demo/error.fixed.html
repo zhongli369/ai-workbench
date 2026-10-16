@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AIWB web-demo error fixture</title>
+<link rel="icon" href="data:,">
+</head>
+<body>
+<p id="status">working</p>
+<script>
+document.body.dataset.boot = 'done';
+/* Fixed: the crashing line is removed; the rest of the boot script completes. */
+document.getElementById('status').textContent = 'completed';
+window.docsOk = true;
+</script>
+</body>
+</html>
