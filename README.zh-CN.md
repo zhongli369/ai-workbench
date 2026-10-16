@@ -90,7 +90,7 @@ python tools/workbench.py launch            # 打印确切启动命令
 ├─ harness-core/              ← 纯 stdlib, 204 项契约工具包（feedback · gate · plan · checkpoint · verify · snap）
 ├─ hooks/harness_gate.py      ← 唯一的 PreToolUse 闸门 hook
 ├─ vendor/ecc/                ← everything-claude-code pin 2.0.0-rc.1（MIT, 见 NOTICE）
-├─ capabilities/              ← 15 个按需能力的注册表 + wiring
+├─ capabilities/              ← 16 个按需能力的注册表 + wiring
 ├─ harness-data/              ← 你的本地数据: gate.json、feedback.jsonl、checkpoints
 └─ install-manifest.json      ← 本安装自有的全部文件清单
 ```
@@ -150,7 +150,7 @@ python harness-core/harness/cli.py gate mode --set enforce
 - **项目本地的 harness 数据。** `snap` 快照以 git ref 的形式存在**目标仓库**里（`refs/harness/snaps/`）, 验证配置（`.harness-verify.json`）位于任务目录 — 传 `--cwd <project>`。
 - **不扫盘、默认不写。** 项目识别靠用户告知或项目速查表 — 工作台从不扫盘找项目。唯一的 `PreToolUse` hook 是限定 Bash 的闸门; 没有任何脚本会静默修改目标项目。会话加载的某个项目的 `CLAUDE.md` 只是上下文, **不能**覆盖全局安全底线（不硬编码密钥、系统边界校验输入、错误显式处理、不可逆命令走闸门）。
 
-## 6. 按需智能: 成本策略 + 15 个能力
+## 6. 按需智能: 成本策略 + 16 个能力
 
 工作台 `CLAUDE.md` 为每个任务分级（这是**指引**而非强制 — 没人会硬拦一个 FAST 任务去用 DEEP 能力）:
 
@@ -159,7 +159,7 @@ python harness-core/harness/cli.py gate mode --set enforce
 - **DEEP** — 架构 / 高风险 / 跨系统: 先规划（`plan` 或 planner）, 明确验收标准, 允许查历史与调专家 agent, 完成后 review（code-reviewer, 敏感路径加 security-reviewer）, 完整测试证据, 长时程任务留检查点。
 - **RECOVERY** — 仅当确实卡住（同一错误重复、无有效进展、缺外部状态）: 先失败触发查历史, 再缩小范围回主 agent。单次普通测试失败永不触发恢复链, 恢复也永不关闭闸门。
 
-**15 个按需能力**（`python tools/workbench.py capability list`）:
+**16 个按需能力**（`python tools/workbench.py capability list`）:
 
 | 能力 | 来源 | 触发方式 | 默认 |
 |---|---|---|---|
@@ -178,6 +178,7 @@ python harness-core/harness/cli.py gate mode --set enforce
 | `superpowers` — 方法论包（TDD/调试） | external-plugin | 用户经 `/plugin install superpowers@claude-plugins-official` 安装 | off |
 | `superpowers-systematic-debugging` — 根因优先调试 skill | extract:superpowers | 非显然失败: 解释不通的 bug 或没修住的修复 | off |
 | `playwright-mcp` — 浏览器服务器（按需, 固定版本） | external-optional | 仅当需要持久浏览器会话时 | off |
+| `codex-review` — 按需只读第二意见（codex-cli） | 用户自装工具（skill-file） | 显式询问: "用 codex 审查" / "codex 第二意见" / "second opinion with codex"; 每次一问一审查, 有界 | off |
 
 `capability enable <id>` / `capability disable <id>` / `capability status
 <id>` 按接线类型执行; 外部能力**永不自动安装** — `capability doctor` 打印手动步骤。
@@ -209,6 +210,11 @@ python harness-core/harness/cli.py gate mode --set enforce
   `chromium` 通道需要 `npx playwright install chromium` 或指向已有浏览器的
   `PLAYWRIGHT_BROWSERS_PATH`; 浏览器缺失时 enable 默认拒绝且零写入, 除非显式
   接受: `capability enable playwright-mcp --allow-missing-browser`。
+- **CLI 对垒（已否决）**: 2026-10-16 与 `@playwright/cli@0.1.22` 的 B1–B4
+  真实浏览器对垒只达到对等 —— 双方 4/4 PASS —— 判定 REJECT（verdict C）:
+  `@playwright/mcp@0.0.83` 仍是唯一集成的浏览器路径, CLI 未接线。不作任何
+  token 节省声明 —— 未采集模型 token 日志（证据:
+  `docs/decisions/2026-10-16-playwright-cli.md`）。
 
 ### 6.2 根因优先调试 skill（skill-file 接线, 纯内容）
 
@@ -219,6 +225,26 @@ python harness-core/harness/cli.py gate mode --set enforce
 因、没修住的修复、跨组件故障）时触发的边界, 且连续 3 次修复失败后停止。因与
 精选 ECC skills 重复而被拒: superpowers 的 test-driven-development 与
 requesting-code-review（证据见 `docs/decisions/2026-10-15-superpowers.md`）。
+
+### 6.3 Codex 第二意见（skill-file 接线, 默认关闭）
+
+`capability enable codex-review` 写入一份受管 SKILL.md, 只教一件事: 如何向
+**用户自己安装的** OpenAI codex-cli 请求一次有界、只读的第二意见。硬边界:
+
+- **默认 OFF、零 hook、零默认模型调用。** 仅当用户显式要求（"用 codex 审查" /
+  "codex 第二意见" / "second opinion with codex"）且目标有界 —— 单个 commit、
+  单个分支 diff、或单个文件; 每次询问限一次有界审查。这**不是**自动双模型协作。
+- **永不自动安装。** 工作台不安装/升级 Codex; 机器上没有 codex-cli 时 enable 拒绝。
+  健康检查为 `cli-version` 探测（路径 + `--version` 前缀 `codex-cli`）—— 开发机
+  PATH 上的 `codex` 是无关的 npm 静态站生成器, 同名诱饵不予接受。
+- **只读由 CLI 自身强制**（`-c sandbox_mode=read-only` + `--ephemeral`）, 不靠
+  提示词自觉; 一次运行后 `git status --short` 必须为空。
+- **成本与数据**: 审查会把有界的 diff/文件内容发送给你配置的 Codex provider,
+  消耗你自己的 Codex 账号额度。
+- 2026-10-16 真实跑通过一次: 对一个 gate 加固 commit 的有界审查（exit 0, 约 7
+  分钟, 4 条实质发现 —— 其中 2 条是真实 gate 回归, 已修复并加回归契约）, 因此
+  这是已验证路径, 不是 "MODEL E2E UNVERIFIED"。证据:
+  `docs/decisions/2026-10-16-codex.md`。
 
 ## 7. snap 与 verify: 安全撤销, 诚实完成
 
@@ -261,7 +287,7 @@ python harness-core/harness/cli.py verify status --exec <id>
   - `AUDIT` — 记录并提示; **这是可观测性, 不是防护**。
   - `ENFORCE` — 配置的高危 pattern（`git push`、`git reset --hard`、`git clean -f`、`rm -rf`、publish/deploy 命令）未预授权即拦截; 配置不可读时 **fail closed**。
 - **一次性授权。** `gate approve --once --action "git push origin main"` 签发单次令牌（`awt-…`, 仅存 SHA-256, TTL 约束, 防重放）, 被且仅被一条匹配命令消费; 原始令牌只打印一次, 从不写入审计日志。
-- **唯一 hook。** 唯一的 `PreToolUse` hook 是限定 Bash 的 `hooks/harness_gate.py` — 无常驻进程、无后台服务。
+- **唯一 hook。** 唯一的 `PreToolUse` hook 是限定 Bash 的 `hooks/harness_gate.py` — 无常驻进程、无后台服务、**零默认模型调用**（codex-review 与 skill 质量门不经显式调用不产生任何模型调用）。
 - **`claude --print` 注意事项。** 非交互 `claude --print` 不执行 `PreToolUse` hooks（2026-10 在 CC 2.1.x 上实证）, 所以 `ENFORCE` 只作用于交互会话。
 - **安装零网络。** 安装只是复制文件; 运行时不下任何东西。供应链闸门是**仅 CI** 的 `trivy` fs 扫描, 二进制按 SHA-256 pin, GitHub Actions 按 commit SHA pin。
 - **字节级恢复。** `snap restore` 校验 SHA-256; 恢复后的树与快照逐字节一致, 并发编辑走冲突 fail-closed, 而不是被合并或破坏。
@@ -299,7 +325,7 @@ flowchart LR
 ## 10. 真实证据
 
 - **475 项离线契约** = **204 harness-core** + **271 项 tests**（232 项顶层 —— 含 48 项 `tests/test_wiring_mcp.py` mcp-config 接线、29 项 `tests/test_skills_quality.py` 技能质量门、28 项 `tests/test_security_scan.py` 安全扫描 + 24 项 `tests/battle/` 实战 + 15 项 `tests/multiproj/` 多项目隔离; 该数字由 `tools/check_docs_drift.py` 对照 pytest 收集结果实时校验; 核心为纯 stdlib, 204 项契约且确定性）。
-- **24 个 battle 测试**在 `tests/battle/`（5 个场景）端到端打真实 CLI; 结果计入 170 干净室子集。
+- **24 个 battle 测试**在 `tests/battle/`（5 个场景）端到端打真实 CLI; 已计入上面 271 项测试之内。
 - **CI** — [ci.yml](.github/workflows/ci.yml): 契约覆盖 `windows-latest`/`ubuntu-latest`/`macos-latest` × Python 3.10–3.12, 另有静态检查（卫生、docs-drift gate、冻结的公开表面）与 CLI 冒烟。**安全** — [security.yml](.github/workflows/security.yml): `trivy` fs 扫描, 诚实退出语义（0 干净 / 1 发现 / 2 用法 / 3 基建故障）, release 路径永远拦截。
 - **Demo** — 三个可复现、可离线验收的演示在 [docs/demos.md](docs/demos.md): [Demo 1 — 一个工作台, 两个规则冲突的项目](docs/demos.md#demo-1) · [Demo 2 — 会话 A 记录的失败在会话 B 被复用](docs/demos.md#demo-2) · [Demo 3 — 多文件功能 + 按需能力](docs/demos.md#demo-3)。
 - **发布** — `v0.1.0-preview.3` 以 GitHub prerelease 发布在[这里](https://github.com/zhongli369/ai-workbench/releases/tag/v0.1.0-preview.3), 附带 `zip` 与 `.sha256` 旁证。校验制品: `Get-FileHash ai-workbench-0.1.0-preview.3.zip -Algorithm SHA256`（或 `sha256sum`）并与旁证比对。

@@ -28,7 +28,9 @@ def run_wb(*args, target=None, env_extra=None):
     env = dict(os.environ)
     if env_extra:
         env.update(env_extra)
-    return subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", timeout=60, env=env)
+    # 180s: CI Windows runners have real Node, so enabling playwright-mcp runs
+    # npx readiness probing against the npm registry; under load this exceeds 60s.
+    return subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", timeout=180, env=env)
 
 
 @pytest.fixture()

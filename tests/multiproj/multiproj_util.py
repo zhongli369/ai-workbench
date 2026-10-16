@@ -147,6 +147,11 @@ def tree_fingerprint(root) -> list[tuple[str, str]]:
         if not p.is_file():
             continue
         rel = p.relative_to(root).as_posix()
+        # git's own background maintenance (gc --auto, spawned by the fixture's
+        # commits) holds transient *.lock files under .git/; they are not harness
+        # writes and vanish on their own, so they must not affect bit-identity.
+        if rel.startswith(".git/") and rel.endswith(".lock"):
+            continue
         out.append((rel, hashlib.sha256(p.read_bytes()).hexdigest()))
     return out
 
