@@ -110,7 +110,7 @@ An installed root looks like this:
 ├─ harness-core/              ← stdlib, 204 contracts toolkit (feedback · gate · plan · checkpoint · verify · snap)
 ├─ hooks/harness_gate.py      ← the single PreToolUse gate hook
 ├─ vendor/ecc/                ← everything-claude-code pin 2.0.0-rc.1 (MIT, see NOTICE)
-├─ capabilities/              ← registry + wiring for the 15 on-demand capabilities
+├─ capabilities/              ← registry + wiring for the 16 on-demand capabilities
 ├─ harness-data/              ← your local data: gate.json, feedback.jsonl, checkpoints
 └─ install-manifest.json      ← exactly the files this install owns
 ```
@@ -189,7 +189,7 @@ One installed workbench, many projects, no re-setup per project:
   line (no hardcoded secrets, input validation at boundaries, explicit error
   handling, gated irreversible commands).
 
-## 6. On-demand intelligence: cost policy + 15 capabilities
+## 6. On-demand intelligence: cost policy + 16 capabilities
 
 The workspace `CLAUDE.md` grades every task (guidance, not enforcement —
 nobody hard-stops a FAST task from using a DEEP capability):
@@ -209,7 +209,7 @@ nobody hard-stops a FAST task from using a DEEP capability):
   problem back to the main agent. A single ordinary test failure never
   triggers a recovery cascade, and recovery never disables the gate.
 
-The **15 on-demand capabilities** (`python tools/workbench.py capability list`):
+The **16 on-demand capabilities** (`python tools/workbench.py capability list`):
 
 | Capability | Origin | Trigger | Default |
 |---|---|---|---|
@@ -228,6 +228,7 @@ The **15 on-demand capabilities** (`python tools/workbench.py capability list`):
 | `superpowers` — methodology pack (TDD/debugging) | external-plugin | user installs via `/plugin install superpowers@claude-plugins-official` | off |
 | `superpowers-systematic-debugging` — root-cause-first debugging skill | extract:superpowers | non-obvious failure: unexplained bug or a fix that didn't hold | off |
 | `playwright-mcp` — browser server (on-demand, pinned) | external-optional | only when a persistent browser session is required | off |
+| `codex-review` — on-demand read-only second opinion (codex-cli) | user-installed tool (skill-file) | explicit ask: "用 codex 审查" / "codex 第二意见" / "second opinion with codex"; one bounded review per ask | off |
 
 `capability enable <id>` / `capability disable <id>` / `capability status
 <id>` act per wiring type; external capabilities are **never auto-installed**
@@ -268,6 +269,12 @@ WARN with the honest state, never a hard failure.
   install chromium` or a `PLAYWRIGHT_BROWSERS_PATH` with the browser; a
   missing browser refuses enable with zero writes unless you explicitly
   accept it via `capability enable playwright-mcp --allow-missing-browser`.
+- **CLI duel (REJECTED)**: a 2026-10-16 duel against `@playwright/cli@0.1.22`
+  (B1–B4 real-browser tasks) reached only parity — 4/4 PASS on both sides —
+  and was REJECTED (verdict C): `@playwright/mcp@0.0.83` stays the only
+  integrated browser path and the CLI is not wired. No token-savings claim
+  is made — no model token logs were collected (evidence:
+  `docs/decisions/2026-10-16-playwright-cli.md`).
 
 ### 6.2 Root-cause-first debugging skill (skill-file wiring, pure content)
 
@@ -281,6 +288,33 @@ didn't hold, cross-component breakage) and stops after 3 failed
 fix-attempts. Rejected as duplicating curated ECC skills: superpowers'
 test-driven-development and requesting-code-review (evidence in
 `docs/decisions/2026-10-15-superpowers.md`).
+
+### 6.3 Codex second opinion (skill-file wiring, default OFF)
+
+`capability enable codex-review` writes a managed SKILL.md teaching one
+thing: how to ask the **user-installed** OpenAI codex-cli for a bounded,
+read-only second opinion. Hard boundaries:
+
+- **Default OFF, zero hooks, zero default model calls.** Codex appears only
+  when the user explicitly asks ("用 codex 审查" / "codex 第二意见" /
+  "second opinion with codex") on a bounded target — one commit, one branch
+  diff, or one file; one bounded review per ask. This is **not** automatic
+  dual-model collaboration.
+- **Never auto-installed.** The workbench does not install or upgrade Codex;
+  if your machine has no codex-cli, enable refuses. Health check is a
+  `cli-version` probe (path + `--version` prefix `codex-cli`) because the
+  PATH `codex` on the dev machine is an unrelated npm static-site
+  generator — a same-named decoy is not accepted.
+- **Read-only is enforced by the CLI itself** (`-c sandbox_mode=read-only`
+  plus `--ephemeral`), not by a polite prompt; a run must leave
+  `git status --short` empty.
+- **Costs and data**: a review sends the bounded diff/file content to your
+  configured Codex provider and consumes your own Codex quota/account.
+- Verified for real on 2026-10-16: one bounded review of a gate-hardening
+  commit (exit 0, ~7 min, 4 substantive findings — two were real gate
+  regressions, since fixed with regression contracts), so this is a proven
+  path, not "MODEL E2E UNVERIFIED". Evidence:
+  `docs/decisions/2026-10-16-codex.md`.
 
 ## 7. snap & verify: safe undo, honest completion
 
@@ -343,7 +377,9 @@ python harness-core/harness/cli.py verify status --exec <id>
   exactly one matching command; the raw token is printed once and never written
   to the audit log.
 - **Single hook.** The only `PreToolUse` hook is the Bash-scoped
-  `hooks/harness_gate.py` — no daemon, no background service.
+  `hooks/harness_gate.py` — no daemon, no background service, **zero default
+  model calls** (codex-review and the skill quality gate call no model
+  unless explicitly invoked).
 - **`claude --print` caveat.** Non-interactive `claude --print` does not
   execute `PreToolUse` hooks (verified 2026-10 on CC 2.1.x), so `ENFORCE`
   applies to interactive sessions.
