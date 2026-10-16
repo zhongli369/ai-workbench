@@ -163,6 +163,24 @@ def test_status_launch_benchmark(tmp_path):
     assert b.returncode == 0 and "L0" in b.stdout
 
 
+def test_launch_passthrough_extra_args(tmp_path):
+    """Regression (FINAL SEAL Agent A-D1): docs/multi-project.md told users to
+    pass --add-dir through launch, but argparse rejected it (exit 2). Extra
+    args after `--` must reach the printed launcher command unchanged."""
+    target = tmp_path / "wb"
+    assert install(target).returncode == 0
+    bare = run_wb("--target", str(target), "launch")
+    assert bare.returncode == 0
+    assert "--add-dir" not in bare.stdout
+    r = run_wb("--target", str(target), "launch", "--", "--add-dir", str(tmp_path / "proj"))
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "--add-dir" in r.stdout and str(tmp_path / "proj") in r.stdout
+    # REMAINDER also tolerates the explicit separator being absent when the
+    # first extra token does not look like an option
+    r2 = run_wb("--target", str(target), "launch", "plain-arg")
+    assert r2.returncode == 0 and "plain-arg" in r2.stdout
+
+
 def test_doctor_never_mutates_and_exits_clean(tmp_path):
     before = set(tmp_path.iterdir())
     r = run_wb("--target", str(tmp_path / "wb"), "doctor")
@@ -171,6 +189,31 @@ def test_doctor_never_mutates_and_exits_clean(tmp_path):
 
 
 # ---------------- uninstall ----------------
+
+def test_reinstall_preserves_manifest_ownership(tmp_path):
+    """Regression (FINAL SEAL Agent C-D1): an idempotent reinstall skipped
+    re-writing existing user files (PROJECTS.md) and rebuilt the manifest
+    from scratch — silently dropping their ownership, so a later uninstall
+    left them behind (violating the owns-only sweep contract). The reinstall
+    must MERGE the previous manifest's file list."""
+    target = tmp_path / "wb"
+    assert install(target).returncode == 0
+    projects = target / "PROJECTS.md"
+    assert projects.is_file()
+    before = json.loads((target / "install-manifest.json").read_text(encoding="utf-8"))["files"]
+    assert str(projects) in before
+    # simulate the user having edited PROJECTS.md (content must survive)
+    projects.write_text("# my projects\nAIMC -> F:/x\n", encoding="utf-8")
+    assert install(target).returncode == 0  # idempotent reinstall
+    after = json.loads((target / "install-manifest.json").read_text(encoding="utf-8"))["files"]
+    assert str(projects) in after, "reinstall lost PROJECTS.md ownership"
+    assert set(before) <= set(after), "reinstall truncated the manifest"
+    assert "AIMC" in projects.read_text(encoding="utf-8")  # user content intact
+    r = run_wb("--target", str(target), "uninstall", "--yes", "--purge-data")
+    assert r.returncode == 0
+    assert not projects.exists(), "owned PROJECTS.md survived uninstall"
+    assert not target.exists()
+
 
 def test_uninstall_removes_only_owned_files_and_preserves_data(tmp_path):
     target = tmp_path / "wb"

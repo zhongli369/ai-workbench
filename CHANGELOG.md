@@ -6,7 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [0.1.0-preview.4] — OPERATION ONE WORKSPACE — Unreleased
 
 One workspace, many projects: natural-language multi-project experience plus
-a full README rebuild. 403 offline contracts (171 harness-core + 232 tests).
+a full README rebuild. 439 offline contracts (201 harness-core + 238 tests).
 Development version — no GitHub Release is cut for this entry yet; the
 latest published release remains `v0.1.0-preview.3`.
 
@@ -68,7 +68,14 @@ latest published release remains `v0.1.0-preview.3`.
 ### Changed
 - `tests/multiproj/` is collected by the default `pytest tests/` run; repo
   totals reconciled everywhere (README ×2, this file, ci.yml, claims.json):
-  **403 offline contracts = 171 harness-core + 232 tests**.
+  **439 offline contracts = 201 harness-core + 238 tests**.
+- **Security scan bounded retry** (`tools/security_scan.py`): a transient
+  tool-side infra failure (scanner ran and exited non-zero, e.g. a trivy DB
+  download 404 from a registry mirror) is retried up to 2 times with a fixed
+  20 s delay. Timeouts, spawn failures and real results (clean/findings) are
+  never retried; the returned status is always the last attempt's real
+  status, so fail-closed semantics are unchanged. Motivated by a real CI
+  infra-failure on an otherwise-green PR.
 - `test_gate_is_not_vacuous` now asserts the figure gate stays *armed*
   (`figure_docs` configured) instead of requiring a non-empty figure
   whitelist — an empty whitelist is the honest state when the docs carry no
@@ -83,6 +90,33 @@ latest published release remains `v0.1.0-preview.3`.
 - **Checkpoint cross-project collision**: two projects using the same
   checkpoint exec name overwrote each other's flat store records; fixed by
   the scoped namespacing above.
+- **CRITICAL — ENFORCE gate shell-expansion bypass** (`harness-core/harness/gate.py`):
+  bash resolves `${IFS}`, `$IFS`, brace expansion (`{git,push}`), command
+  substitution (`$(...)`, backticks), empty quotes and backslash escapes at
+  runtime, but the gate matched enforce/audit patterns against the RAW
+  command string — so `git${IFS}push origin main` executed as a real
+  `git push` yet matched nothing and was ALLOWED under ENFORCE (found by
+  real fault injection). Patterns now match against a bounded set of
+  shell-normalized variants (fail-closed union: over-block, never
+  under-block); approvals and one-time tokens canonicalize both sides so an
+  approval still authorizes the same action spelled differently (incl.
+  Windows backslash paths). 30 regression contracts in
+  `harness-core/tests/test_gate_shell_expansion.py`.
+- **`launch` extra-arg passthrough** (`tools/workbench.py`): extra args after
+  `--` are forwarded to the launcher script (e.g.
+  `launch --run -- --add-dir "<path>"`); previously the documented
+  `--add-dir` form exited 2 (`unrecognized arguments`) and
+  `docs/multi-project.md` told users to type it. Doc corrected; regression
+  in the clean-room suite.
+- **Idempotent reinstall truncated the install manifest**: files the
+  reinstall did not rewrite (user-edited `PROJECTS.md`) lost their ownership
+  entry, so a later owns-only uninstall left them behind. The reinstall now
+  merges the previous manifest's file list (dropping paths that no longer
+  exist); regression proves reinstall → uninstall removes `PROJECTS.md`.
+- **`RELEASE_READINESS.md` superseded header**: the preview.1 freeze block
+  (216 files / 174 contracts) read as the current state; a superseded banner
+  now points to CHANGELOG + `docs/claims.json` for live numbers. Body kept
+  as historical record.
 
 ## [0.1.0-preview.3] — OPERATION ARSENAL — 2026-10-15
 

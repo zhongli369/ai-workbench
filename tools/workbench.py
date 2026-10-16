@@ -20,6 +20,7 @@ import argparse
 import json
 import os
 import platform
+import shlex
 import shutil
 import subprocess
 import sys
@@ -345,7 +346,21 @@ def cmd_install(args) -> int:
     gate_path = target / "harness-data" / "gate.json"
     if not args.no_harness and (dry or not gate_path.is_file()):
         _write(gate_path, json.dumps(GATE_DEFAULT, indent=2), written, dry)
-    # 4) manifest last
+    # 4) manifest last — merge the PREVIOUS manifest's file list so idempotent
+    # reinstall never loses ownership of files it did not rewrite this run
+    # (e.g. PROJECTS.md, user-authored but installed by us). Losing ownership
+    # made uninstall leave those files behind (owns-only sweep). Files that no
+    # longer exist on disk are dropped from the merged list.
+    if not dry and manifest_path.is_file():
+        try:
+            old_files = json.loads(manifest_path.read_text(encoding="utf-8")).get("files", [])
+        except (OSError, ValueError):
+            old_files = []
+        merged = set(written)
+        for f in old_files:
+            if Path(f).is_file():
+                merged.add(f)
+        written = sorted(merged)
     manifest = {"version": RC_VERSION, "installed_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
                 "scope": args.scope, "target": str(target), "ecc_pin": ECC_PIN,
                 "files": written}
@@ -377,13 +392,16 @@ def cmd_launch(args) -> int:
         print(f"[FAIL] 未安装: {target} (先 install)"); return 1
     ps1 = target / "launch" / "workbench.ps1"
     sh = target / "launch" / "workbench.sh"
+    extra = list(getattr(args, "extra", []) or [])
+    if extra and extra[0] == "--":
+        extra = extra[1:]
     if platform.system() == "Windows":
-        cmd = f'powershell -File "{ps1}"'
+        argv = ["powershell", "-File", str(ps1), *extra]
     else:
-        cmd = f'sh "{sh}"'
-    print(cmd)
+        argv = ["sh", str(sh), *extra]
+    print(" ".join(shlex.quote(a) for a in argv))
     if args.run:
-        return subprocess.call(str(ps1 if platform.system() == "Windows" else sh), shell=True)
+        return subprocess.call(argv)
     return 0
 
 
@@ -519,6 +537,8 @@ def main(argv=None) -> int:
     i.add_argument("--yes", action="store_true")
     l = sub.add_parser("launch")
     l.add_argument("--run", action="store_true", help="直接启动而非仅打印命令")
+    l.add_argument("extra", nargs=argparse.REMAINDER,
+                   help="透传给 claude 的额外参数 (置于 -- 之后, 如: launch -- --add-dir <path>)")
     sub.add_parser("status")
     c = sub.add_parser("capability", help="能力注册中心: list/inspect/enable/disable/doctor")
     c.add_argument("cap_cmd", choices=["list", "inspect", "enable", "disable", "status", "doctor"])

@@ -53,7 +53,7 @@
 | 1 | 一次启动, 多项目 | 已接通: 启动器设置 `CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1`; `/add-dir` 或 launch 透传 `--add-dir <project>` 加载目标项目 `CLAUDE.md`; 绝对路径 / `git -C` 跨项目操作 |
 | 2 | 目标项目规则正确加载 | 已接通: 工作区 `claudeMdExcludes: ["**/.claude/rules/ecc/**"]` 防止全局规则包遮蔽项目自己的 `CLAUDE.md` |
 | 3 | 精选 ECC 子集按需调用 | 任务级: 按任务加载 `Skill`/agent — 30 skills / 16 agents / 14 commands, pin 在 `vendor/ecc/` |
-| 4 | `harness-core` CLI（纯 stdlib, 确定性, 171 项契约） | 按需: `feedback` · `report` · `gate` · `telemetry` · `checkpoint` · `plan` · `verify` · `snap` |
+| 4 | `harness-core` CLI（纯 stdlib, 确定性, 201 项契约） | 按需: `feedback` · `report` · `gate` · `telemetry` · `checkpoint` · `plan` · `verify` · `snap` |
 | 5 | 跨会话失败记忆 **(实验性)** | 失败触发: `feedback record` 写入教训; `feedback query` 只在真正遇到失败时才查 — 新任务默认不查（机制契约级验证; in-vivo 收益未证明） |
 | 6 | 不可逆命令三档闸门 | 已接通: 唯一 `PreToolUse` hook（`hooks/harness_gate.py`）; 模式经 `gate mode` 切换 |
 | 7 | 编辑后验证环 | 按需: `verify run` / `verify status`; 配置 `.harness-verify.json` 位于目标项目内 |
@@ -87,7 +87,7 @@ python tools/workbench.py launch            # 打印确切启动命令
 <workbench>/                  ← 你的工作台根目录（--target）
 ├─ CLAUDE.md                  ← 会话策略: 成本策略、闸门规则、能力
 ├─ .claude/                   ← 工作区设置: PreToolUse 闸门 hook、claudeMdExcludes、ECC 子集
-├─ harness-core/              ← 纯 stdlib, 171 项契约工具包（feedback · gate · plan · checkpoint · verify · snap）
+├─ harness-core/              ← 纯 stdlib, 201 项契约工具包（feedback · gate · plan · checkpoint · verify · snap）
 ├─ hooks/harness_gate.py      ← 唯一的 PreToolUse 闸门 hook
 ├─ vendor/ecc/                ← everything-claude-code pin 2.0.0-rc.1（MIT, 见 NOTICE）
 ├─ capabilities/              ← 15 个按需能力的注册表 + wiring
@@ -298,7 +298,7 @@ flowchart LR
 
 ## 10. 真实证据
 
-- **403 项离线契约** = **171 harness-core** + **232 项 tests**（170 干净室安装/CLI + 15 项 `tests/multiproj/` 多项目隔离 + 47 项 `tests/test_wiring_mcp.py` mcp-config 接线; 该数字由 `tools/check_docs_drift.py` 对照 pytest 收集结果实时校验; 核心为纯 stdlib, 171 项契约且确定性）。
+- **439 项离线契约** = **201 harness-core** + **238 项 tests**（172 干净室安装/CLI + 15 项 `tests/multiproj/` 多项目隔离 + 47 项 `tests/test_wiring_mcp.py` mcp-config 接线 + 4 项 `tests/test_security_scan.py` 有界重试; 该数字由 `tools/check_docs_drift.py` 对照 pytest 收集结果实时校验; 核心为纯 stdlib, 201 项契约且确定性）。
 - **24 个 battle 测试**在 `tests/battle/`（5 个场景）端到端打真实 CLI; 结果计入 170 干净室子集。
 - **CI** — [ci.yml](.github/workflows/ci.yml): 契约覆盖 `windows-latest`/`ubuntu-latest`/`macos-latest` × Python 3.10–3.12, 另有静态检查（卫生、docs-drift gate、冻结的公开表面）与 CLI 冒烟。**安全** — [security.yml](.github/workflows/security.yml): `trivy` fs 扫描, 诚实退出语义（0 干净 / 1 发现 / 2 用法 / 3 基建故障）, release 路径永远拦截。
 - **Demo** — 三个可复现、可离线验收的演示在 [docs/demos.md](docs/demos.md): [Demo 1 — 一个工作台, 两个规则冲突的项目](docs/demos.md#demo-1) · [Demo 2 — 会话 A 记录的失败在会话 B 被复用](docs/demos.md#demo-2) · [Demo 3 — 多文件功能 + 按需能力](docs/demos.md#demo-3)。

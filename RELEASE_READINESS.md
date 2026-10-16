@@ -1,5 +1,11 @@
 # RELEASE READINESS — 0.1.0-preview.1
 
+> **SUPERSEDED — HISTORICAL RECORD.** This file documents the 2026-10-14
+> preview.1 freeze (216 files, 174 contracts). The current release state is
+> tracked in [CHANGELOG.md](CHANGELOG.md) (latest version) and the live
+> counts in [docs/claims.json](docs/claims.json); the numbers below are kept
+> as the historical record of that freeze, not the current state.
+
 > **RELEASE CANDIDATE FREEZE — 2026-10-14, OPERATION SHIP IT.**
 > The publishable set is frozen at the `fusion` HEAD. From this point only
 > release-blocking defects may be fixed; no new features, agents, benchmark

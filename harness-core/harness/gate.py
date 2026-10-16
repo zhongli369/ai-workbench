@@ -124,7 +124,10 @@ def approve(data_dir: Path, *, pattern: str, ttl: int = 600, note: str = "") -> 
     return entry
 
 
-def _is_approved(data_dir: Path, command: str, now: float | None = None) -> bool:
+def _is_approved(data_dir: Path, commands, now: float | None = None) -> bool:
+    """commands: normalized variant tuple from _normalize_shell — an approval
+    regex matching ANY variant authorizes the command (it is the same action
+    at runtime)."""
     now = now if now is not None else time.time()
     path = _approvals_file(data_dir)
     if not path.is_file():
@@ -139,7 +142,7 @@ def _is_approved(data_dir: Path, command: str, now: float | None = None) -> bool
         if a.get("expires_epoch", 0) < now:
             continue
         try:
-            if re.search(a.get("pattern", r"$^"), command):
+            if any(re.search(a.get("pattern", r"$^"), c) for c in commands):
                 return True
         except re.error:
             continue
@@ -155,6 +158,100 @@ def _hash_token(token: str) -> str:
 
 def _normalize_command(command: str) -> str:
     return " ".join(command.split())
+
+
+def _canonical_command(command: str) -> str:
+    """Deterministic single canonical form for token-scope comparison.
+    Both the runtime command and the granted action pass through the same
+    shell normalization, so an approval stays valid when spelled differently
+    (e.g. Windows backslash paths) while an expansion form of the bound
+    action still matches — and anything unrecognized fails closed (deny)."""
+    return _normalize_command(min(_normalize_shell(command),
+                                  key=lambda s: (len(s), s)))
+
+
+_NORMALIZE_MAX_PASSES = 8
+_NORMALIZE_MAX_VARIANTS = 32
+
+
+def _find_substitution(text: str) -> tuple[int, int, str] | None:
+    """Locate the first $(...) or `...` command substitution.
+
+    Returns (start, end, inner) where text[start:end] is the full span
+    (delimiters included) and inner is the content between them. Parenthesis
+    depth is counted for $(...); an unbalanced `$(` is left alone (bash would
+    reject the command anyway, so it cannot execute as a bypass).
+    """
+    i = text.find("$(")
+    if i >= 0:
+        depth = 0
+        for j in range(i + 1, len(text)):
+            if text[j] == "(":
+                depth += 1
+            elif text[j] == ")":
+                depth -= 1
+                if depth == 0:
+                    return i, j + 1, text[i + 2:j]
+    k = text.find("`")
+    if k >= 0:
+        close = text.find("`", k + 1)
+        if close >= 0:
+            return k, close + 1, text[k + 1:close]
+    return None
+
+
+def _normalize_shell_pass(text: str) -> set[str]:
+    """One normalization pass; returns 1-2 variants (see _normalize_shell)."""
+    span = _find_substitution(text)
+    if span is None:
+        bases = [text]
+    else:
+        start, end, inner = span
+        # Two fail-closed readings of a substitution: REMOVED (a space, so
+        # git$(printf ' ')push reads as "git push") and INLINED (inner kept,
+        # so echo $(rm -rf /) still exposes the nested rm to the patterns).
+        bases = [text[:start] + " " + text[end:],
+                 text[:start] + " " + inner + " " + text[end:]]
+    outs = set()
+    for b in bases:
+        # Parameter expansions ($IFS, ${IFS%...}, $HOME, $@, $1, ...): the
+        # runtime value is unknowable at gate time, so each collapses to a
+        # space — word-joining forms like git${IFS}push then read plainly.
+        b = re.sub(r"\$\{[A-Za-z_][A-Za-z0-9_]*[^}]*\}", " ", b)
+        b = re.sub(r"\$[A-Za-z_][A-Za-z0-9_]*", " ", b)
+        b = re.sub(r"\$[@*#?$!0-9-]", " ", b)
+        # Brace expansion {git,push} -> "git push" (both words kept; keeping
+        # more text can only widen matching, never narrow it).
+        b = re.sub(r"\{([^{}]*,[^{}]*)\}",
+                   lambda m: " " + m.group(1).replace(",", " ") + " ", b)
+        # Backslash escapes and quote characters never survive bash parsing;
+        # dropping them reveals the runtime word (g\it / g'i't -> git).
+        b = re.sub(r"\\([\s\S])", r"\1", b)
+        b = b.replace("'", "").replace('"', "")
+        outs.add(" ".join(b.split()))
+    return outs
+
+
+def _normalize_shell(command: str) -> tuple[str, ...]:
+    """Collapse shell expansion forms that bash resolves at runtime but a
+    raw-string regex never sees (git${IFS}push, {git,push}, git$(...)push,
+    backticks, g\\it push, g'i't push).
+
+    Returns a bounded set of normalized variants; a pattern matching ANY
+    variant is treated as matched (fail-closed union). The direction only
+    ever over-blocks, never under-blocks: normalization removes or unfolds
+    syntax, it never hides a plainly-written dangerous command. This is not
+    a shell parser — it is a conservative canonicalization for matching.
+    """
+    variants = {command}
+    for _ in range(_NORMALIZE_MAX_PASSES):
+        new: set[str] = set()
+        for v in variants:
+            new.update(_normalize_shell_pass(v))
+        if new == variants:
+            break
+        variants = set(sorted(new)[:_NORMALIZE_MAX_VARIANTS])
+    return tuple(sorted(variants))
 
 
 class _StoreLock:
@@ -274,7 +371,7 @@ def _consume_token(data_dir: Path, token: str, command: str,
                     return False, "token scope mismatch"
             except re.error:
                 return False, "token scope mismatch"
-        elif _normalize_command(command) != _normalize_command(grant.get("action", "")):
+        elif _canonical_command(command) != _canonical_command(grant.get("action", "")):
             return False, "token scope mismatch"
         if any(e.get("type") == "consume" and e.get("grant_id") == grant["grant_id"]
                for e in entries):
@@ -339,7 +436,11 @@ def evaluate(data_dir: Path, command: str, *,
         return {"decision": "allow", "mode": mode, "matched": None}
 
     patterns = cfg["enforce_patterns"] if mode == "enforce" else cfg["audit_patterns"]
-    matched = next((p for p in patterns if _safe_search(p, command)), None)
+    # Match against shell-normalized variants so expansion forms (e.g.
+    # git${IFS}push) cannot slip past a raw-string regex (fail-closed union).
+    variants = _normalize_shell(command)
+    matched = next((p for p in patterns
+                    if any(_safe_search(p, v) for v in variants)), None)
     if not matched:
         return {"decision": "allow", "mode": mode, "matched": None}
 
@@ -347,7 +448,7 @@ def evaluate(data_dir: Path, command: str, *,
         return {"decision": "audit", "mode": mode, "matched": matched}
 
     # enforce
-    if _is_approved(data_dir, command, now=now):
+    if _is_approved(data_dir, variants, now=now):
         return {"decision": "allow", "mode": mode, "matched": matched,
                 "reason": "valid approval"}
     if token:

@@ -63,7 +63,7 @@ Protocol written in the workspace `CLAUDE.md` — task grading (FAST/STANDARD/DE
 | 1 | One launch, many projects | Wired: launcher sets `CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1`; `/add-dir` or launch `--add-dir <project>` loads a target project's `CLAUDE.md`; absolute paths / `git -C` work across projects |
 | 2 | Correct rules per target project | Wired: workspace `claudeMdExcludes: ["**/.claude/rules/ecc/**"]` stops global rule packs from shadowing a project's own `CLAUDE.md` |
 | 3 | Curated ECC subset on demand | Task-grade: `Skill` / agent loading per task — 30 skills / 16 agents / 14 commands, pinned `vendor/ecc/` |
-| 4 | `harness-core` CLI (stdlib-only, deterministic, 171 contracts) | On-demand: `feedback` · `report` · `gate` · `telemetry` · `checkpoint` · `plan` · `verify` · `snap` |
+| 4 | `harness-core` CLI (stdlib-only, deterministic, 201 contracts) | On-demand: `feedback` · `report` · `gate` · `telemetry` · `checkpoint` · `plan` · `verify` · `snap` |
 | 5 | Cross-session failure memory **(experimental)** | Fail-triggered: `feedback record` writes a lesson; `feedback query` is consulted only when a real failure is hit — never by default on a fresh task (mechanism contract-verified; in-vivo gain unproven) |
 | 6 | Three-tier irreversible-command gate | Wired: single `PreToolUse` hook (`hooks/harness_gate.py`); mode via `gate mode` |
 | 7 | Post-edit verification loop | On-demand: `verify run` / `verify status`; config `.harness-verify.json` lives in the target project |
@@ -107,7 +107,7 @@ An installed root looks like this:
 <workbench>/                  ← your installed workbench root (--target)
 ├─ CLAUDE.md                  ← session policy: cost policy, gate rules, capabilities
 ├─ .claude/                   ← workspace settings: PreToolUse gate hook, claudeMdExcludes, ECC subset
-├─ harness-core/              ← stdlib, 171 contracts toolkit (feedback · gate · plan · checkpoint · verify · snap)
+├─ harness-core/              ← stdlib, 201 contracts toolkit (feedback · gate · plan · checkpoint · verify · snap)
 ├─ hooks/harness_gate.py      ← the single PreToolUse gate hook
 ├─ vendor/ecc/                ← everything-claude-code pin 2.0.0-rc.1 (MIT, see NOTICE)
 ├─ capabilities/              ← registry + wiring for the 15 on-demand capabilities
@@ -400,12 +400,13 @@ Roles:
 
 ## 10. Real evidence
 
-- **403 offline contracts** = **171 harness-core** + **232 tests** (170
+- **439 offline contracts** = **201 harness-core** + **238 tests** (172
   clean-room install/CLI + 15 multi-project isolation under
-  `tests/multiproj/` + 47 mcp-config wiring in `tests/test_wiring_mcp.py`;
+  `tests/multiproj/` + 47 mcp-config wiring in `tests/test_wiring_mcp.py` + 4
+  bounded-retry in `tests/test_security_scan.py`;
   this exact number is verified live by
   `tools/check_docs_drift.py` against the pytest collection; the core is
-  stdlib, 171 contracts and deterministic).
+  stdlib, 201 contracts and deterministic).
 - **24 battle tests** under `tests/battle/` (5 scenarios) hit the real CLI
   end-to-end; results are part of the 170 clean-room subset.
 - **CI** — [ci.yml](.github/workflows/ci.yml): contracts across
