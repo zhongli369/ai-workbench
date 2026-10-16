@@ -51,7 +51,7 @@ def test_registry_required_fields(reg):
     for c in reg["capabilities"]:
         missing = required - set(c)
         assert not missing, f"{c.get('id')}: missing {missing}"
-        assert c["health"].get("type") in {"file", "dir", "cli", "env", "manual"}
+        assert c["health"].get("type") in {"file", "dir", "cli", "env", "cli-version", "manual"}
 
 
 def test_registry_licenses_are_osi(reg):
@@ -180,3 +180,50 @@ def test_corrupt_state_fails_closed(tmp_path):
     r = run_wb("capability", "list", target=tmp_path)
     assert r.returncode == 1
     assert "损坏" in r.stdout
+
+
+# ---- cli-version health type (codex decoy guard) ------------------------------
+
+def _cap_mod():
+    tools_dir = str(RC_ROOT / "tools")
+    if tools_dir not in sys.path:
+        sys.path.insert(0, tools_dir)
+    import capability
+    return capability
+
+
+def test_cli_version_health_ok_with_prefix():
+    cap = _cap_mod()
+    h = {"type": "cli-version", "path": sys.executable, "prefix": "Python"}
+    status, detail = cap.check_health({"health": h}, Path("."))
+    assert status == "ok", detail
+    assert "Python" in detail
+
+
+def test_cli_version_health_rejects_decoy_prefix():
+    # Same-shaped binary answering --version with a DIFFERENT product name
+    # must not satisfy the check (real case: PATH `codex` is an unrelated
+    # npm static-site generator, not the OpenAI codex-cli).
+    cap = _cap_mod()
+    h = {"type": "cli-version", "path": sys.executable, "prefix": "codex-cli"}
+    status, detail = cap.check_health({"health": h}, Path("."))
+    assert status == "missing"
+    assert "codex-cli" in detail
+
+
+def test_cli_version_health_missing_file():
+    cap = _cap_mod()
+    h = {"type": "cli-version", "path": "no-such-dir-zzz/bin/x.exe", "prefix": "x"}
+    status, detail = cap.check_health({"health": h}, Path("."))
+    assert status == "missing"
+    assert detail == "no-such-dir-zzz/bin/x.exe"
+
+
+def test_cli_version_health_expands_env_var(monkeypatch):
+    import os
+    monkeypatch.setenv("AIWB_TEST_PYEXE", sys.executable)
+    form = "%AIWB_TEST_PYEXE%" if os.name == "nt" else "$AIWB_TEST_PYEXE"
+    cap = _cap_mod()
+    h = {"type": "cli-version", "path": form, "prefix": "Python"}
+    status, _ = cap.check_health({"health": h}, Path("."))
+    assert status == "ok"

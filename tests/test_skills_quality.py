@@ -1,9 +1,10 @@
 """Contracts for the skill quality gate (tools/check_skills.py).
 
-Positive contract: a clean hermetic tree passes; the REAL tree is exercised
-only for the one genuine defect the gate was built to catch — the registry's
+Positive contract: a clean hermetic tree passes, and the REAL tree must
+stay clean — the gate's founding live catch was the registry's
 "Curated ECC skills (27)" count-claim vs 30 mounted skill slots (registry
-<-> files drift no other gate verifies).
+<-> files drift no other gate verifies; fixed at integration, pinned by
+test_real_tree_is_clean).
 
 Negative contracts run against synthetic tmp roots so the semantics of EACH
 check group (metadata/schema, trigger routing, wiring integrity, hook
@@ -60,15 +61,16 @@ def _clean_root(tmp_path: Path) -> Path:
 
 # ------------------------------------------------------------- real tree
 
-def test_real_tree_reports_registry_count_defect():
-    """The gate's live catch: registry prose claims 'skills (27)' while 30
-    skill slots are mounted. No existing gate binds the registry `name`
-    count to the mounted corpus (check_docs_drift only binds README claims;
-    check_ecc_provenance only verifies the vendored snapshot manifest)."""
+def test_real_tree_is_clean():
+    """Standing regression for the gate's founding live catch: the registry
+    'Curated ECC skills (N)' count-claim must match the mounted skill slots
+    (was 27-vs-30 at introduction; fixed at integration). No other gate
+    binds the registry `name` count to the mounted corpus (check_docs_drift
+    only binds README claims; check_ecc_provenance only verifies the
+    vendored snapshot manifest). The firing semantics of C2 itself are
+    pinned by the synthetic tests below."""
     rep = gate.run(REPO)
-    assert not rep["ok"]
-    assert any("C2" in f and "27" in f and "30" in f for f in rep["failures"]), \
-        rep["failures"]
+    assert rep["ok"], "\n".join(rep["failures"])
 
 
 def test_real_tree_has_no_other_hard_failures():
@@ -437,7 +439,23 @@ def test_cli_exit_code_matches():
                         "--root", str(REPO), "--json"],
                        capture_output=True, text=True, encoding="utf-8",
                        timeout=60)
-    assert r.returncode == 1              # real count defect reported
+    assert r.returncode == 0              # real tree clean (count defect fixed)
+    rep = json.loads(r.stdout.strip())
+    assert rep["ok"], rep["failures"]
+
+
+def test_cli_exit_1_on_synthetic_failure(tmp_path):
+    import subprocess
+    root = _clean_root(tmp_path)
+    _registry(root, [{"id": "ecc-skills",
+                      "name": "Curated ECC skills (99)",
+                      "origin": "x", "wiring": "active",
+                      "mutex": [], "applies_to": ["standard"]}])
+    r = subprocess.run([sys.executable, str(REPO / "tools" / "check_skills.py"),
+                        "--root", str(root), "--json"],
+                       capture_output=True, text=True, encoding="utf-8",
+                       timeout=60)
+    assert r.returncode == 1
     rep = json.loads(r.stdout.strip())
     assert not rep["ok"]
     assert any("C2" in f for f in rep["failures"])

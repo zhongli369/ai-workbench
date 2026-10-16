@@ -3,6 +3,63 @@
 All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.1.0-preview.5] — OPERATION NEXT LEAP — Unreleased
+
+Verified external capabilities, integrated only where evidence shows real
+value: skill static quality gate SHIP, Codex second opinion SHIP (wiring
+only, default OFF), Playwright CLI duel REJECT (MCP kept).
+475 offline contracts (204 harness-core + 271 tests).
+Development version — no GitHub Release is cut for this entry yet; the
+latest published release remains `v0.1.0-preview.3`.
+
+### Added
+- **Skill static quality gate** (`tools/check_skills.py` + 29 contracts in
+  `tests/test_skills_quality.py`): offline, stdlib-only checks over the
+  mounted skill corpus — frontmatter metadata/schema, static trigger routing
+  (latin words + CJK bigram, minimum description pool), wiring integrity
+  (registry ↔ disk ↔ template, hook-injection guard), and duplication WARN
+  with registry-mutex suppression. Found a real defect on introduction:
+  registry claimed "Curated ECC skills (27)" while 30 slots are mounted
+  (fixed). Wired into CI static checks. Absorbed from
+  anthropics/claude-plugins-official skill-creator's zero-cost static ideas
+  only — no runtime, no eval loop. Static metadata routing only; proves
+  nothing about live triggering.
+- **Codex independent second opinion** (`capabilities/wiring/codex-review.skill.md`
+  + registry entry `codex-review`, default OFF): on-demand, bounded,
+  non-interactive review of one commit / branch diff / single file via the
+  user-installed codex-cli, with read-only enforced by the CLI's own
+  `sandbox_mode=read-only` (not by prompt). Health check is a new
+  `cli-version` type (path + `--version` prefix) because the PATH `codex`
+  on the dev machine is a decoy npm tool. Real E2E evidence: exit 0, 4
+  substantive findings, two of them real gate regressions (below). See
+  `docs/decisions/2026-10-16-codex.md`.
+- **`cli-version` health type** (`tools/capability.py` + 4 contracts):
+  full executable path (env-var expanded) must exist and answer `--version`
+  with the declared prefix — fail-closed against same-named decoy tools.
+
+### Fixed
+- **Gate authorization bound to the most-exposed shell variant** (found by
+  the codex second opinion above, 3 regression contracts): a one-time token
+  or approval bound to `git push origin main` previously also authorized
+  `git push origin main $(curl …|sh)` — the payload hid in the shortest
+  normalized reading. `_canonical_command` / `_is_approved` now use the
+  longest (most-exposed) variant only, and the 32-variant cap always keeps
+  both aggregate readings (all-substitutions-removed / all-inlined) instead
+  of trimming lexicographically.
+- **Registry count drift**: `ecc-skills` name "Curated ECC skills (27)" →
+  (30), caught by the new skill quality gate.
+
+### Decisions (no code change)
+- **Playwright CLI vs MCP duel — REJECT (keep MCP)**:
+  `@playwright/cli@0.1.22` reached only parity (4/4 PASS both sides) against
+  the wired `@playwright/mcp@0.0.83` on B1–B4 real-browser tasks; MCP was
+  faster wall-clock (persistent process vs per-command node spawn), CLI
+  output more compact but no token-savings claim made (no model logs
+  collected); CLI's `eval` subcommand name collides with the local gate
+  hook on Bash commands (standing integration tax). Verdict C: zero wiring
+  change, MCP remains the only browser path. See
+  `docs/decisions/2026-10-16-playwright-cli.md`.
+
 ## [0.1.0-preview.4] — OPERATION ONE WORKSPACE — Unreleased
 
 One workspace, many projects: natural-language multi-project experience plus

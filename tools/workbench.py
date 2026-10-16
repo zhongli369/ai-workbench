@@ -32,7 +32,7 @@ from capability import cmd_capability  # noqa: E402
 from wiring_mcp import wire_uninstall_sweep  # noqa: E402
 
 RC_ROOT = Path(__file__).resolve().parent.parent
-VERSION = "0.1.0-preview.4"  # single source of truth; bound to CHANGELOG by tools/check_docs_drift.py
+VERSION = "0.1.0-preview.5"  # single source of truth; bound to CHANGELOG by tools/check_docs_drift.py
 RC_VERSION = VERSION  # backward-compat alias (installer manifest / VERSION file)
 ECC_PIN = "928076cc08cbb31e8549cea2883b4f51811de1c8"
 ECC_PIN_VERSION = "2.0.0-rc.1"

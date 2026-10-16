@@ -24,6 +24,7 @@ Design rules:
 import json
 import os
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -161,6 +162,26 @@ def check_health(cap: dict, target: Path) -> tuple[str, str]:
         if val and Path(val).is_file():
             return "ok", val
         return "missing", f"{h.get('var', '')} 未设置或路径不存在"
+    if t == "cli-version":
+        # Full executable path (env-var expanded, e.g. %USERPROFILE%) that must
+        # exist AND answer --version with the given prefix. Guards against PATH
+        # decoys: a same-named unrelated tool on PATH is not a match.
+        raw = h.get("path", "")
+        p = Path(os.path.expandvars(raw))
+        if not p.is_file():
+            return "missing", raw
+        try:
+            out = subprocess.run(
+                [str(p), "--version"], capture_output=True, text=True, timeout=15
+            )
+            first = ((out.stdout or "") + (out.stderr or "")).strip().splitlines()
+            first = first[0].strip() if first else ""
+        except Exception:
+            return "missing", f"{p} 不可执行"
+        prefix = h.get("prefix", "")
+        if first.startswith(prefix):
+            return "ok", f"{p} ({first})"
+        return "missing", f"{p} --version -> {first!r}（期望前缀 {prefix!r}）"
     return "unknown", "manual (见 inspect 说明)"
 
 
