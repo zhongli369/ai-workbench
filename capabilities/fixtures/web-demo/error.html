@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AIWB web-demo error fixture</title>
+<link rel="icon" href="data:,">
+</head>
+<body>
+<p id="status">working</p>
+<script>
+document.body.dataset.boot = 'done';
+document.getElementById('status').textContent = 'working';
+/* DELIBERATE runtime error: uncaught TypeError (window.doesNotExist is undefined).
+   Everything after this line in this script never runs. The fixed fixture drops
+   the line; a driver should capture the uncaught error as evidence, then fix. */
+window.doesNotExist.boom();
+document.getElementById('status').textContent = 'completed';
+window.docsOk = true;
+</script>
+</body>
+</html>
