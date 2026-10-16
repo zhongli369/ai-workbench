@@ -49,7 +49,7 @@
     },
     {
       "id": "ecc-skills",
-      "name": "Curated ECC skills (27)",
+      "name": "Curated ECC skills (30)",
       "origin": "everything-claude-code (pinned snapshot)",
       "version": "2.0.0-rc.1",
       "license": "MIT",
@@ -318,6 +318,37 @@
         "file": ".mcp.json",
         "template": "playwright-mcp.skill.md",
         "dest": ".claude/skills/aiwb-playwright-mcp/SKILL.md"
+      }
+    },
+    {
+      "id": "codex-review",
+      "name": "Codex CLI independent second opinion (on-demand, read-only)",
+      "origin": "local tool wiring (user-installed OpenAI codex-cli; no plugin, no hooks)",
+      "version": "0.162.0-alpha.2",
+      "license": "Apache-2.0",
+      "applies_to": [
+        "review",
+        "second-opinion"
+      ],
+      "deps": [
+        "codex-cli (user-installed, outside PATH)"
+      ],
+      "cost_hint": "zero resident; zero default model calls; one bounded non-interactive review per explicit ask",
+      "trigger": "user explicitly asks '用 codex 审查' / 'codex 第二意见' / 'second opinion with codex' on a bounded target (one commit, branch diff, or single file)",
+      "mutex": [],
+      "security": "read-only enforced by the codex CLI itself (-c sandbox_mode=read-only), not by prompt; --ephemeral session; notify=[]; bounded scope per invocation; never reads/prints tokens, never touches global codex config",
+      "health": {
+        "type": "cli-version",
+        "path": "%USERPROFILE%/.codex/plugins/.plugin-appserver/codex.exe",
+        "prefix": "codex-cli"
+      },
+      "wiring": "skill-file (v1.1): enable requires health ok, then writes managed .claude/skills/aiwb-codex-review/SKILL.md (never auto-installs the tool itself)",
+      "default_enabled": false,
+      "evidence": "real E2E 2026-10-16: codex.exe exec review --commit 98bcdae --ephemeral -c sandbox_mode=read-only -> exit 0, 433s, 4 substantive findings incl. 2 real gate authorization regressions (fixed + 3 regression contracts); repo tree clean after run; PATH 'codex' on the dev machine is a decoy (npm static-site generator 0.2.3), so health checks the real binary by path + --version prefix; side effect disclosed: first run removed ~/.codex/auth.json (ChatGPT OAuth vs inline apikey mismatch), deepseek inline token unaffected; decision doc docs/decisions/2026-10-16-codex.md",
+      "wiring_action": {
+        "type": "skill-file",
+        "template": "codex-review.skill.md",
+        "dest": ".claude/skills/aiwb-codex-review/SKILL.md"
       }
     },
     {
