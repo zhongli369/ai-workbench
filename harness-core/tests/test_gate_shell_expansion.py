@@ -113,7 +113,9 @@ def test_token_with_windows_backslash_path_still_matches(ddir):
     # Regression: backslash-escape normalization must apply equally to the
     # granted action and the runtime command, or any Windows-path command
     # under ENFORCE loses its token (over-block breaking a legitimate flow).
-    cmd = r"C:\Users\op\python.exe -m pip publish"
+    # NOTE: must not use a C:\Users\<name> shape — the hygiene gate flags
+    # user-profile paths in the tree (CI static checks).
+    cmd = r"C:\tools\python312\python.exe -m pip publish"
     g = gate.approve_once(ddir, action=cmd)
     r = gate.evaluate(ddir, cmd, token=g["token"])
     assert r["decision"] == "allow", r.get("reason")
