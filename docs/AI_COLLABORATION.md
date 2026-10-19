@@ -91,7 +91,7 @@ NEXT:
 要求：
 
 - `TESTED` 写实际执行的命令和关键结果，例如
-  `python -m pytest tests/ -q -> 271 passed`；未执行写 `UNVERIFIED`。
+  `python -m pytest tests/ -q -> 279 passed`；未执行写 `UNVERIFIED`。
 - `RESULT` 不能把环境缺失、跳过或被 gate 拦截写成 PASS。
 - `NEXT` 只写下一位开发者真正需要做的事，不写泛泛计划。
 - 长任务优先复用已有 checkpoint；没有必要时不建立额外任务记录系统。

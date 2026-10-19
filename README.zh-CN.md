@@ -147,6 +147,7 @@ python harness-core/harness/cli.py gate mode --set enforce
 - **启动一次。** 工作台会话就是你的入口。用绝对路径、`git -C <project>` 或 `python -m pytest <project>` 操作任意项目。
 - **目标项目自己的规则在自己的树里生效。** 启动器设置 `CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1`; `/add-dir <project>`（或 launch 透传 `--add-dir <project>`）让 Claude Code 读取该项目的 `CLAUDE.md`。Demo 1 展示两个**规则互相矛盾**的项目如何保持隔离（见 [docs/demos.md](docs/demos.md)）。
 - **`claudeMdExcludes` 防止全局规则包遮蔽项目。** 工作区设置豁免 `**/.claude/rules/ecc/**`, 使项目自己的约定在其树内胜出, 而工作台全局工具仍然可用。
+- **默认 MCP = 0, 由启动器强制。** 启动器传 `--strict-mcp-config`, 全局/用户级 MCP 不会静默把数百个工具 schema 加进常驻上下文; 工作台自己的按需 `.mcp.json` 仅在存在时加载。用 `python tools/context_audit.py` 从真实 transcript 统计 schema 占用。此限制只适用于经 `workbench launch` 启动的会话; 直接运行 `claude` 仍会加载用户级 MCP。
 - **项目本地的 harness 数据。** `snap` 快照以 git ref 的形式存在**目标仓库**里（`refs/harness/snaps/`）, 验证配置（`.harness-verify.json`）位于任务目录 — 传 `--cwd <project>`。
 - **不扫盘、默认不写。** 项目识别靠用户告知或项目速查表 — 工作台从不扫盘找项目。唯一的 `PreToolUse` hook 是限定 Bash 的闸门; 没有任何脚本会静默修改目标项目。会话加载的某个项目的 `CLAUDE.md` 只是上下文, **不能**覆盖全局安全底线（不硬编码密钥、系统边界校验输入、错误显式处理、不可逆命令走闸门）。
 
@@ -324,8 +325,8 @@ flowchart LR
 
 ## 10. 真实证据
 
-- **475 项离线契约** = **204 harness-core** + **271 项 tests**（232 项顶层 —— 含 48 项 `tests/test_wiring_mcp.py` mcp-config 接线、29 项 `tests/test_skills_quality.py` 技能质量门、28 项 `tests/test_security_scan.py` 安全扫描 + 24 项 `tests/battle/` 实战 + 15 项 `tests/multiproj/` 多项目隔离; 该数字由 `tools/check_docs_drift.py` 对照 pytest 收集结果实时校验; 核心为纯 stdlib, 204 项契约且确定性）。
-- **24 个 battle 测试**在 `tests/battle/`（5 个场景）端到端打真实 CLI; 已计入上面 271 项测试之内。
+- **483 项离线契约** = **204 harness-core** + **279 项 tests**（240 项顶层 —— 含 48 项 `tests/test_wiring_mcp.py` mcp-config 接线、29 项 `tests/test_skills_quality.py` 技能质量门、28 项 `tests/test_security_scan.py` 安全扫描 + 24 项 `tests/battle/` 实战 + 15 项 `tests/multiproj/` 多项目隔离; 该数字由 `tools/check_docs_drift.py` 对照 pytest 收集结果实时校验; 核心为纯 stdlib, 204 项契约且确定性）。
+- **24 个 battle 测试**在 `tests/battle/`（5 个场景）端到端打真实 CLI; 已计入上面 279 项测试之内。
 - **CI** — [ci.yml](.github/workflows/ci.yml): 契约覆盖 `windows-latest`/`ubuntu-latest`/`macos-latest` × Python 3.10–3.12, 另有静态检查（卫生、docs-drift gate、冻结的公开表面）与 CLI 冒烟。**安全** — [security.yml](.github/workflows/security.yml): `trivy` fs 扫描, 诚实退出语义（0 干净 / 1 发现 / 2 用法 / 3 基建故障）, release 路径永远拦截。
 - **Demo** — 三个可复现、可离线验收的演示在 [docs/demos.md](docs/demos.md): [Demo 1 — 一个工作台, 两个规则冲突的项目](docs/demos.md#demo-1) · [Demo 2 — 会话 A 记录的失败在会话 B 被复用](docs/demos.md#demo-2) · [Demo 3 — 多文件功能 + 按需能力](docs/demos.md#demo-3)。
 - **发布** — `v0.1.0-preview.3` 以 GitHub prerelease 发布在[这里](https://github.com/zhongli369/ai-workbench/releases/tag/v0.1.0-preview.3), 附带 `zip` 与 `.sha256` 旁证。校验制品: `Get-FileHash ai-workbench-0.1.0-preview.3.zip -Algorithm SHA256`（或 `sha256sum`）并与旁证比对。

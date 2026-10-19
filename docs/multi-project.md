@@ -126,7 +126,7 @@ harness-core 契约测试保持全绿（当前 204 项, 以 live 收集为准）
 | `python -m pytest harness-core/tests -q` | passed（当前 204 项, 以 live 收集为准） |
 | `python -m pytest tests/test_cleanroom_install.py tests/test_docs_drift.py -q` | passed（干净室 + docs-drift; 具体项数以 live 运行为准） |
 
-计数以 live 收集为准并持续校验: docs/claims.json 钉死的 204 / 271 / 475 由
+计数以 live 收集为准并持续校验: docs/claims.json 钉死的 204 / 279 / 483 由
 `tools/check_docs_drift.py` 对照 pytest 收集结果实时核验。
 
 ## 7. 已知未修复 / 边界
