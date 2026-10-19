@@ -56,17 +56,19 @@ LAUNCH_SETTINGS_TMPL = {"claudeMdExcludes": ["**/.claude/rules/ecc/**"]}
 PS1_TMPL = """# AI Workbench launcher (generated {{TS}})
 Set-Location "{{ROOT_Q}}"
 $env:CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD = '1'
-$claudeArgs = @(
-    "--settings", "{{ROOT_Q}}\\launch\\vnext.settings.json",
-    "--strict-mcp-config"
-)
+$claudeArgs = @("--settings", "{{ROOT_Q}}\\launch\\vnext.settings.json")
 # Default MCP = 0.  A project's on-demand .mcp.json is the only config that
 # is loaded, and only when it actually exists.  Global/user MCP servers are
 # ignored by --strict-mcp-config.
 if (Test-Path -LiteralPath "{{ROOT_Q}}\\.mcp.json") {
-    $claudeArgs += @("--mcp-config", "{{ROOT_Q}}\\.mcp.json")
+    # --mcp-config is variadic.  Put it BEFORE a known option so a positional
+    # prompt passed after `launch -- "..."` is not consumed as another config
+    # file.  The shell template gets the same order by prepending.
+    $claudeArgs = @("--mcp-config", "{{ROOT_Q}}\\.mcp.json") + $claudeArgs
 }
+$claudeArgs += "--strict-mcp-config"
 claude @claudeArgs @args
+exit $LASTEXITCODE
 """
 
 SH_TMPL = """#!/usr/bin/env sh

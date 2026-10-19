@@ -8,7 +8,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Verified external capabilities, integrated only where evidence shows real
 value: skill static quality gate SHIP, Codex second opinion SHIP (wiring
 only, default OFF), Playwright CLI duel REJECT (MCP kept).
-480 offline contracts (204 harness-core + 276 tests).
+483 offline contracts (204 harness-core + 279 tests).
 Development version — no GitHub Release is cut for this entry yet; the
 latest published release remains `v0.1.0-preview.3`.
 

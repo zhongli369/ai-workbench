@@ -10,6 +10,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 RC = Path(__file__).resolve().parent.parent
 CLI = RC / "tools" / "workbench.py"
 
@@ -310,10 +312,56 @@ def test_launcher_defaults_to_zero_mcp_and_optin_project_config(tmp_path):
         assert ".mcp.json" in script
     assert "Test-Path -LiteralPath" in ps1
     assert '[ -f "' in sh
+    assert "exit $LASTEXITCODE" in ps1
     launch_settings = json.loads(
         (target / "launch" / "vnext.settings.json").read_text(encoding="utf-8"))
     assert "**/.claude/rules/ecc/**" in launch_settings["claudeMdExcludes"]
     assert not (target / ".mcp.json").exists(), "default install adds zero MCP"
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="PowerShell launcher probe")
+def test_powershell_launcher_keeps_positional_args_after_mcp_config(tmp_path):
+    """--mcp-config is variadic; it must not swallow a positional prompt."""
+    import os
+    import shutil
+    import subprocess
+
+    target = tmp_path / "wb"
+    assert install(target).returncode == 0
+    (target / ".mcp.json").write_text('{"mcpServers":{}}', encoding="utf-8")
+
+    fake = tmp_path / "fakebin"
+    fake.mkdir()
+    (fake / "claude.cmd").write_text(
+        "@echo off\n"
+        ":loop\n"
+        'if "%~1"=="" goto end\n'
+        "echo ARG=%~1\n"
+        "shift\n"
+        "goto loop\n"
+        ":end\n"
+        "exit /b 7\n",
+        encoding="ascii",
+    )
+    powershell = shutil.which("powershell") or shutil.which("pwsh")
+    assert powershell, "PowerShell not available"
+    env = os.environ.copy()
+    env["PATH"] = str(fake) + os.pathsep + env["PATH"]
+    r = subprocess.run(
+        [powershell, "-NoProfile", "-ExecutionPolicy", "Bypass",
+         "-File", str(target / "launch" / "workbench.ps1"),
+         "hello world", "--add-dir", "C:/测试 目录/project"],
+        capture_output=True, text=True, env=env, timeout=60,
+    )
+    args = [line[4:] for line in r.stdout.splitlines()
+            if line.startswith("ARG=")]
+    assert "--mcp-config" in args
+    i = args.index("--mcp-config")
+    assert args[i + 1].endswith(".mcp.json")
+    # A known option terminates the variadic list; the prompt stays positional.
+    assert "--settings" in args[i + 2:]
+    assert args[-3:] == ["hello world", "--add-dir", "C:/测试 目录/project"]
+    assert r.returncode == 7, r.stdout + r.stderr
 
 
 # ---------------- RC hygiene ----------------

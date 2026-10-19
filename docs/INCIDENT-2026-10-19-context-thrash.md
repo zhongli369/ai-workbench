@@ -2,8 +2,8 @@
 
 ## 结论（先看这里）
 
-这不是 "Skills 太多" 或 "Hook 输出太大"。真正占满上下文的是 **MCP 工具
-schema**：该会话的 API 请求附带了 **259 个工具定义**，其中全局注册的 REA
+这不是 "Skills 太多" 或 "Hook 输出太大"。主导项是 **MCP 工具 schema**：
+该会话的 API 请求附带了 **259 个工具定义**，其中全局注册的 REA
 （`rea-agents`）一个 server 就暴露 **207 个工具**。按 Claude Code 自己写入
 transcript 的 `api-request-shape` 统计：
 
@@ -21,7 +21,7 @@ transcript 的 `api-request-shape` 统计：
 **仅工具 schema 就吃掉了约 3/4 的上下文窗口**，压缩后的摘要只有 6,902 /
 7,473 / 7,404 tokens，剩下的空间几轮对话就会再次填满。这与客户端报错
 "context refilled to the limit within 3 turns of the previous compact,
-3 times in a row" 完全吻合。
+3 times in a row" 的方向一致。
 
 ## 证据
 
@@ -69,8 +69,9 @@ transcript 的 `api-request-shape` 统计：
 
 1. **启动器默认 MCP = 0**：生成的 `workbench.ps1` / `workbench.sh` 现在传
    `--strict-mcp-config`，忽略全局/用户级 MCP；仅当工作台根目录存在
-   `.mcp.json` 时才追加 `--mcp-config`。这保留了 Playwright 的按需接线，
-   同时不会重新打开全局大工具集。
+   `.mcp.json` 时才追加 `--mcp-config`（默认 `capability enable` 的目标就是
+   工作台安装根）。这保留了 Playwright 的按需接线，同时不会重新打开全局
+   大工具集。
 2. **只读上下文审计**：新增 `tools/context_audit.py`，从真实 transcript 的
    `api-request-shape`、`compact_boundary`、`instructions` attachment 统计
    工具 schema 与压缩事件；不输出消息正文、schema 正文或任何环境变量。
@@ -105,9 +106,14 @@ python tools/context_audit.py --cwd <project>
 期望：`request tools` 不再包含 `mcp__rea__*`；若仍需要 REA，只为单次会话
 提供 `--mcp-config`，并接受其 207 个工具的常驻成本，不要全局常开。
 
-## 未验证项
+## 已验证 / 仍待验证
 
-- **T3 已活体验证（headless probe）**：在临时空项目安装工作台并执行真实
+**测量口径**：259 工具来自交互事故会话（Claude Code 2.1.303）；
+0 个 MCP 工具来自独立的 headless probe（同一 2.1.303，但不同运行模式、
+不同原生工具数）。两者不是同一个 run，不能把差值直接当成交互会话的
+Token 节省百分比。
+
+- **T3 headless probe（已验证，范围有限）**：在临时空项目安装工作台并执行真实
   启动器，`--print` 请求只剩 **22 个原生工具、0 个 MCP 工具**，schema
   51,264 字符（~12,816 tokens，估算），压缩次数 0；对照事故会话的
   259 工具 / 896,681 字符 / 3 次自动压缩。T3 是 headless 模式，原生工具

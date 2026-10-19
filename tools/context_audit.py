@@ -35,6 +35,28 @@ from pathlib import Path
 
 CHARS_PER_TOKEN_EST = 4
 PROJECTS_DIR = Path.home() / ".claude" / "projects"
+# Encoding fallback may need to inspect other project directories; cap the
+# number of transcript *bodies* read so the audit stays bounded and does not
+# become an implicit crawl of unrelated projects.
+FALLBACK_SCAN_LIMIT = 50
+
+
+def _mtime(path: Path) -> float:
+    try:
+        return path.stat().st_mtime
+    except OSError:
+        return 0.0
+
+
+def display_path(value: str | Path) -> str:
+    """Redact the home prefix in human-readable output."""
+    text = str(value).replace("\\", "/")
+    home = str(Path.home()).replace("\\", "/").rstrip("/")
+    if text.lower() == home.lower():
+        return "~"
+    if text.lower().startswith(home.lower() + "/"):
+        return "~" + text[len(home):]
+    return text
 
 
 def project_key(cwd: Path) -> str:
@@ -56,10 +78,14 @@ def find_transcript(cwd: Path, session: str | None = None) -> Path | None:
             return files[0]
 
     # Encoding fallback: match the first-line ``cwd`` field.  This reads one
-    # short line per transcript, never the transcript body.
+    # short line per transcript, never the transcript body, and is capped to
+    # the most recent FALLBACK_SCAN_LIMIT transcripts.
     target = str(cwd.resolve()).lower()
     newest: tuple[float, Path] | None = None
-    for p in PROJECTS_DIR.glob("*/*.jsonl"):
+    candidates = sorted(
+        PROJECTS_DIR.glob("*/*.jsonl"), key=_mtime, reverse=True
+    )[:FALLBACK_SCAN_LIMIT]
+    for p in candidates:
         try:
             with p.open(encoding="utf-8", errors="replace") as f:
                 first = f.readline()
@@ -68,7 +94,7 @@ def find_transcript(cwd: Path, session: str | None = None) -> Path | None:
             continue
         if str(rec.get("cwd", "")).lower() != target:
             continue
-        mtime = p.stat().st_mtime
+        mtime = _mtime(p)
         if newest is None or mtime > newest[0]:
             newest = (mtime, p)
     return newest[1] if newest else None
@@ -91,6 +117,7 @@ def estimate_tokens(chars: int) -> int:
 
 def audit(transcript: Path) -> dict:
     best: dict | None = None
+    peak_tools = 0
     compacts: list[dict] = []
     instructions: dict[str, dict[str, int]] = {}
     snapshots = 0
@@ -114,6 +141,7 @@ def audit(transcript: Path) -> dict:
                 tools = shape.get("tools") if isinstance(shape, dict) else None
                 if not isinstance(tools, list):
                     continue
+                peak_tools = max(peak_tools, len(tools))
                 agg: dict[str, dict[str, int]] = defaultdict(
                     lambda: {"tools": 0, "chars": 0})
                 for tool in tools:
@@ -181,6 +209,7 @@ def audit(transcript: Path) -> dict:
     return {
         "transcript": str(transcript),
         "lines": lines,
+        "peak_tools": peak_tools,
         "request_shape": best,
         "compact_boundaries": compacts,
         "compact_count": len(compacts),
@@ -201,14 +230,15 @@ def audit(transcript: Path) -> dict:
 
 def render_text(rep: dict) -> str:
     out: list[str] = []
-    out.append(f"transcript: {rep['transcript']}")
+    out.append(f"transcript: {display_path(rep['transcript'])}")
     out.append(f"lines: {rep['lines']}")
     shape = rep.get("request_shape")
     if shape:
         out.append(
-            f"peak request tools: {shape['tools']} "
+            f"largest-schema request: {shape['tools']} tools "
             f"({shape['schema_chars']} schema chars, "
             f"~{shape['schema_tokens_est']} tokens EST)")
+        out.append(f"peak tool count across requests: {rep.get('peak_tools', shape['tools'])}")
         out.append(
             f"system prompt: {shape['system_chars']} chars, "
             f"~{shape['system_tokens_est']} tokens EST")
@@ -232,7 +262,7 @@ def render_text(rep: dict) -> str:
         for row in rep["instruction_injections"]:
             out.append(
                 f"  {row['injections']}x {row['chars']:>7} chars  "
-                f"{row['path']}")
+                f"{display_path(row['path'])}")
     out.append(
         f"prompt snapshots (diagnostic, not request context): "
         f"{rep['prompt_snapshots']}")

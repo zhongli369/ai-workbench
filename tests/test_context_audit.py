@@ -79,5 +79,29 @@ def test_cli_json_uses_explicit_transcript(tmp_path, capsys):
 
 
 def test_project_key_matches_claude_directory_encoding():
-    key = ca.project_key(Path(r"F:\Claude\ClaudeCodeProject\ai-workbench-rc"))
-    assert key == "F--Claude-ClaudeCodeProject-ai-workbench-rc"
+    key = ca.project_key(Path("C:/workspace/demo-project"))
+    assert key == "C--workspace-demo-project"
+
+
+def test_peak_tools_is_max_count_not_largest_schema(tmp_path):
+    p = tmp_path / "multi.jsonl"
+    recs = [
+        {"type": "api-request-shape", "shape": {"tools": [
+            {"name": "Bash", "description": "x" * 5000},
+        ]}},
+        {"type": "api-request-shape", "shape": {"tools": [
+            {"name": "Bash"}, {"name": "Read"}, {"name": "Write"},
+        ]}},
+    ]
+    p.write_text("\n".join(json.dumps(r) for r in recs) + "\n",
+                 encoding="utf-8")
+    rep = ca.audit(p)
+    assert rep["peak_tools"] == 3
+    # The breakdown still follows the request with the largest schema.
+    assert rep["request_shape"]["tools"] == 1
+
+
+def test_display_path_redacts_home_prefix():
+    shown = ca.display_path(Path.home() / "rules" / "demo.md")
+    assert shown == "~/rules/demo.md"
+    assert str(Path.home()) not in shown
