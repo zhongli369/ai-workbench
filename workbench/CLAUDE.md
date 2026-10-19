@@ -27,6 +27,7 @@ telemetry 由 CLI 自动记录, 永不为此产生额外模型回合。
 
 ## 能力发现 (按需, 不预载)
 
+- **MCP 默认 0**: 启动器传 `--strict-mcp-config`, 全局/用户级 MCP 不会进入会话; 仅当工作台根目录存在 `.mcp.json` 时按需加载。不要为了"方便"重新打开全局大工具集; 先跑 `python tools/context_audit.py` 看真实 schema 占用。
 - **Skills**: 语言模式 (python-patterns) / 测试 (python-testing, tdd-workflow) / 安全 (security-review, safety-guard) / 研究 (search-first, deep-research) / 规划 (plan-orchestrate) / 前端 (frontend-patterns) / 上下文与成本 (context-budget, cost-tracking) / 学习 (continuous-learning-v2) — 用 Skill 工具按任务加载
 - **Agents**: planner / architect / tdd-guide / code-reviewer / security-reviewer / build-error-resolver / python-reviewer / performance-optimizer / silent-failure-hunter / e2e-runner / harness-optimizer 等 — 仅 STANDARD+ 按需调用
 - **跨项目操作模型**: Skill `workbench`

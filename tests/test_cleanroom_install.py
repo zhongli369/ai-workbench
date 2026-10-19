@@ -282,13 +282,38 @@ def test_launcher_scripts_quote_paths_with_spaces(tmp_path):
     rp = str(target.resolve())
     rpx = rp.replace("\\", "/")
     assert f'Set-Location "{rp}"' in ps1
-    assert f'--settings "{rp}\\launch\\vnext.settings.json"' in ps1
+    assert "--settings" in ps1
+    assert f'"{rp}\\launch\\vnext.settings.json"' in ps1
     assert f'cd "{rpx}"' in sh
     assert f'--settings "{rpx}/launch/vnext.settings.json"' in sh
     # still nothing leaks the builder machine (rendered files may legitimately
     # contain this machine's TARGET path — hence the tmp_path lives under the
     # user dir; only the builder's own F:\\Claude must never appear)
     assert "F:\\Claude" not in ps1 and "F:\\Claude" not in sh
+
+
+def test_launcher_defaults_to_zero_mcp_and_optin_project_config(tmp_path):
+    """Default MCP = 0 is enforced, not merely documented.
+
+    --strict-mcp-config ignores every global/user MCP registration.  The
+    project's .mcp.json is loaded only when it exists (Playwright capability
+    writes it on demand), so on-demand wiring still works without re-opening
+    the global 200+-tool servers.
+    """
+    target = tmp_path / "wb"
+    r = install(target)
+    assert r.returncode == 0, r.stdout + r.stderr
+    ps1 = (target / "launch" / "workbench.ps1").read_text(encoding="utf-8")
+    sh = (target / "launch" / "workbench.sh").read_text(encoding="utf-8")
+    for script in (ps1, sh):
+        assert "--strict-mcp-config" in script
+        assert ".mcp.json" in script
+    assert "Test-Path -LiteralPath" in ps1
+    assert '[ -f "' in sh
+    launch_settings = json.loads(
+        (target / "launch" / "vnext.settings.json").read_text(encoding="utf-8"))
+    assert "**/.claude/rules/ecc/**" in launch_settings["claudeMdExcludes"]
+    assert not (target / ".mcp.json").exists(), "default install adds zero MCP"
 
 
 # ---------------- RC hygiene ----------------

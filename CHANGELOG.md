@@ -8,11 +8,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Verified external capabilities, integrated only where evidence shows real
 value: skill static quality gate SHIP, Codex second opinion SHIP (wiring
 only, default OFF), Playwright CLI duel REJECT (MCP kept).
-475 offline contracts (204 harness-core + 271 tests).
+480 offline contracts (204 harness-core + 276 tests).
 Development version — no GitHub Release is cut for this entry yet; the
 latest published release remains `v0.1.0-preview.3`.
 
 ### Added
+- **Context audit + strict MCP launch default** (`tools/context_audit.py`):
+  reports real tool-schema bytes by MCP server from Claude Code
+  `api-request-shape` records, plus compact boundaries and re-injected
+  instruction files. The generated launcher now passes
+  `--strict-mcp-config`; global/user MCP servers are ignored, and only the
+  workbench's on-demand `.mcp.json` is loaded when present.
 - **Skill static quality gate** (`tools/check_skills.py` + 29 contracts in
   `tests/test_skills_quality.py`): offline, stdlib-only checks over the
   mounted skill corpus — frontmatter metadata/schema, static trigger routing

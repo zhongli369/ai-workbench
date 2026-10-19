@@ -178,6 +178,12 @@ One installed workbench, many projects, no re-setup per project:
 - **`claudeMdExcludes` keeps global rule packs from shadowing a project.**
   The workspace settings exempt `**/.claude/rules/ecc/**`, so a project's own
   conventions win inside its tree while the workbench's global tools still apply.
+- **Default MCP is zero, enforced at launch.** The launcher passes
+  `--strict-mcp-config`, so global/user MCP registrations cannot silently add
+  hundreds of tool schemas to the resident context. The workbench's own
+  on-demand `.mcp.json` is loaded only when it exists. Use
+  `python tools/context_audit.py` to measure the actual schema cost from a
+  transcript.
 - **Project-local harness data.** `snap` snapshots are stored as git refs in
   the **target repository** (`refs/harness/snaps/`), and the verify config
   (`.harness-verify.json`) lives in the task directory — pass `--cwd <project>`.
@@ -436,7 +442,7 @@ Roles:
 
 ## 10. Real evidence
 
-- **475 offline contracts** = **204 harness-core** + **271 tests** (232
+- **480 offline contracts** = **204 harness-core** + **276 tests** (237
   top-level — incl. 48 mcp-config wiring in `tests/test_wiring_mcp.py`, 29
   skill-quality in `tests/test_skills_quality.py`, 28 security-scan in
   `tests/test_security_scan.py` + 24 battle under `tests/battle/` + 15
@@ -445,7 +451,7 @@ Roles:
   `tools/check_docs_drift.py` against the pytest collection; the core is
   stdlib, 204 contracts and deterministic).
 - **24 battle tests** under `tests/battle/` (5 scenarios) hit the real CLI
-  end-to-end; they are included in the 271 tests above.
+  end-to-end; they are included in the 276 tests above.
 - **CI** — [ci.yml](.github/workflows/ci.yml): contracts across
   `windows-latest`/`ubuntu-latest`/`macos-latest` × Python 3.10–3.12, plus
   static checks (hygiene, docs-drift gate, frozen public surface) and CLI

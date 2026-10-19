@@ -56,14 +56,30 @@ LAUNCH_SETTINGS_TMPL = {"claudeMdExcludes": ["**/.claude/rules/ecc/**"]}
 PS1_TMPL = """# AI Workbench launcher (generated {{TS}})
 Set-Location "{{ROOT_Q}}"
 $env:CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD = '1'
-claude --settings "{{ROOT_Q}}\\launch\\vnext.settings.json" @args
+$claudeArgs = @(
+    "--settings", "{{ROOT_Q}}\\launch\\vnext.settings.json",
+    "--strict-mcp-config"
+)
+# Default MCP = 0.  A project's on-demand .mcp.json is the only config that
+# is loaded, and only when it actually exists.  Global/user MCP servers are
+# ignored by --strict-mcp-config.
+if (Test-Path -LiteralPath "{{ROOT_Q}}\\.mcp.json") {
+    $claudeArgs += @("--mcp-config", "{{ROOT_Q}}\\.mcp.json")
+}
+claude @claudeArgs @args
 """
 
 SH_TMPL = """#!/usr/bin/env sh
 # AI Workbench launcher (generated {{TS}})
 cd "{{ROOT}}" || exit 1
 export CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1
-exec claude --settings "{{ROOT}}/launch/vnext.settings.json" "$@"
+set -- --settings "{{ROOT}}/launch/vnext.settings.json" --strict-mcp-config "$@"
+# Default MCP = 0.  Load the project's on-demand .mcp.json only if present;
+# --strict-mcp-config ignores global/user MCP servers.
+if [ -f "{{ROOT}}/.mcp.json" ]; then
+    set -- --mcp-config "{{ROOT}}/.mcp.json" "$@"
+fi
+exec claude "$@"
 """
 
 # Pure-markdown project quick-reference, authored at install when absent.
@@ -250,6 +266,28 @@ def cmd_doctor(args) -> int:
             rep.add("WARN", "用户 settings.json 不可解析", str(e)[:80])
     else:
         rep.add("PASS", "用户 settings.json: 不存在 (无冲突面)")
+
+    # Actual global MCP registration lives in ~/.claude.json (the legacy
+    # ~/.claude/mcp.json is not the active source for Claude Code 2.1.x).
+    # A single server can expose hundreds of tools; server count alone says
+    # nothing about resident schema cost.
+    claude_json = home / ".claude.json"
+    if claude_json.is_file():
+        try:
+            cj = json.loads(claude_json.read_text(encoding="utf-8"))
+            servers = cj.get("mcpServers") or {}
+            names = sorted(servers)
+            if names:
+                rep.add(
+                    "WARN",
+                    f"用户级 MCP: {len(names)} 个 ({', '.join(names)})",
+                    "直接 claude 会话会加载全部 MCP 工具 schema; "
+                    "workbench launch 默认 --strict-mcp-config, 只按需加载项目 .mcp.json; "
+                    "用 python tools/context_audit.py 实测 schema 占用")
+            else:
+                rep.add("PASS", "用户级 MCP: 0 个")
+        except (OSError, ValueError) as e:
+            rep.add("WARN", "用户 .claude.json 不可解析", str(e)[:80])
     print()
     return 1 if rep.failed else 0
 
