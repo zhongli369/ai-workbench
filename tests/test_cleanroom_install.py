@@ -410,6 +410,27 @@ def test_launcher_defaults_to_zero_mcp_and_optin_project_config(tmp_path):
     assert not (target / ".mcp.json").exists(), "default install adds zero MCP"
 
 
+def test_launcher_plugin_dir_is_optin_and_session_scoped(tmp_path):
+    """WORKBENCH_PLUGIN_DIR: thin adapter for loading a pinned local plugin
+    clone (e.g. superpowers) via --plugin-dir.  Must be OFF by default —
+    the rendered scripts contain only the conditional guard, and the flag
+    reaches claude solely through the env var (see
+    docs/open-source-adoption.md for the adoption decision and rollback)."""
+    target = tmp_path / "wb"
+    r = install(target)
+    assert r.returncode == 0, r.stdout + r.stderr
+    ps1 = (target / "launch" / "workbench.ps1").read_text(encoding="utf-8")
+    sh = (target / "launch" / "workbench.sh").read_text(encoding="utf-8")
+    for script in (ps1, sh):
+        assert "WORKBENCH_PLUGIN_DIR" in script
+        assert "--plugin-dir" in script
+    # default render: flag is behind the env-var guard in both shells
+    assert "$env:WORKBENCH_PLUGIN_DIR -and" in ps1
+    assert '[ -n "${WORKBENCH_PLUGIN_DIR:-}" ]' in sh
+    # session-scoped only: installer itself never writes a plugin dir
+    assert not list(target.rglob("*.claude-plugin")), "install adds zero plugins"
+
+
 @pytest.mark.skipif(sys.platform != "win32", reason="PowerShell launcher probe")
 def test_powershell_launcher_keeps_positional_args_after_mcp_config(tmp_path):
     """--mcp-config is variadic; it must not swallow a positional prompt."""

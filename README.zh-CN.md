@@ -325,7 +325,7 @@ flowchart LR
 
 ## 10. 真实证据
 
-- **535 项离线契约** = **253 harness-core** + **282 项 tests**（243 项顶层 —— 含 48 项 `tests/test_wiring_mcp.py` mcp-config 接线、29 项 `tests/test_skills_quality.py` 技能质量门、28 项 `tests/test_security_scan.py` 安全扫描 + 24 项 `tests/battle/` 实战 + 15 项 `tests/multiproj/` 多项目隔离; 该数字由 `tools/check_docs_drift.py` 对照 pytest 收集结果实时校验; 核心为纯 stdlib, 253 项契约且确定性）。
+- **536 项离线契约** = **253 harness-core** + **283 项 tests**（244 项顶层 —— 含 48 项 `tests/test_wiring_mcp.py` mcp-config 接线、29 项 `tests/test_skills_quality.py` 技能质量门、28 项 `tests/test_security_scan.py` 安全扫描 + 24 项 `tests/battle/` 实战 + 15 项 `tests/multiproj/` 多项目隔离; 该数字由 `tools/check_docs_drift.py` 对照 pytest 收集结果实时校验; 核心为纯 stdlib, 253 项契约且确定性）。
 - **24 个 battle 测试**在 `tests/battle/`（5 个场景）端到端打真实 CLI; 已计入上面 282 项测试之内。
 - **CI** — [ci.yml](.github/workflows/ci.yml): 契约覆盖 `windows-latest`/`ubuntu-latest`/`macos-latest` × Python 3.10–3.12, 另有静态检查（卫生、docs-drift gate、冻结的公开表面）与 CLI 冒烟。**安全** — [security.yml](.github/workflows/security.yml): `trivy` fs 扫描, 诚实退出语义（0 干净 / 1 发现 / 2 用法 / 3 基建故障）, release 路径永远拦截。
 - **Demo** — 三个可复现、可离线验收的演示在 [docs/demos.md](docs/demos.md): [Demo 1 — 一个工作台, 两个规则冲突的项目](docs/demos.md#demo-1) · [Demo 2 — 会话 A 记录的失败在会话 B 被复用](docs/demos.md#demo-2) · [Demo 3 — 多文件功能 + 按需能力](docs/demos.md#demo-3)。

@@ -444,7 +444,7 @@ Roles:
 
 ## 10. Real evidence
 
-- **535 offline contracts** = **253 harness-core** + **282 tests** (243
+- **536 offline contracts** = **253 harness-core** + **283 tests** (244
   top-level — incl. 48 mcp-config wiring in `tests/test_wiring_mcp.py`, 29
   skill-quality in `tests/test_skills_quality.py`, 28 security-scan in
   `tests/test_security_scan.py` + 24 battle under `tests/battle/` + 15
