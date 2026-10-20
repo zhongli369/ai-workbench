@@ -106,19 +106,61 @@ def clamp_reflections(n: int) -> int:
 # command representation
 # --------------------------------------------------------------------------- #
 
+def _split_windows_cmdline(text: str) -> list[str]:
+    """Split a Windows command line into argv tokens (quotes grouping/stripped).
+
+    On Windows the invoking shell (PowerShell / cmd / bash-on-Windows) has
+    ALREADY consumed the outer layer of quoting, so any quote characters that
+    survive in the string are grouping quotes, e.g. `-c "print(1)"` or a path
+    `"C:\\dir with space\\x.py"`. shlex.split(posix=False) keeps those quotes
+    as literal argv characters, which silently corrupts the spawned argv
+    (measured on this host: `python -c "print(1)"` became the literal code
+    `"print(1)"` and printed nothing while still exiting 0; a quoted space path
+    became three argv tokens and the child never executed, exit 2). This
+    tokenizer honours single/double quotes as grouping+boundary (so the space
+    inside a quoted path stays in one token) and strips the quote characters,
+    while keeping backslashes literal — matching what the Windows CRT argv
+    parser does with the same line.
+    """
+    tokens: list[str] = []
+    cur: list[str] = []
+    quote: str | None = None
+    for ch in text:
+        if quote is not None:
+            if ch == quote:
+                quote = None
+            else:
+                cur.append(ch)
+        elif ch in ('"', "'"):
+            quote = ch
+        elif ch.isspace():
+            if cur:
+                tokens.append("".join(cur))
+                cur = []
+        else:
+            cur.append(ch)
+    if cur:
+        tokens.append("".join(cur))
+    return tokens
+
+
 class VerifyCommand:
     """One authorized command: an argv list, never a shell string.
 
     Accept a list of argv tokens directly (recommended). A plain string is
-    `shlex.split` into argv tokens (posix=False on Windows to keep paths and
-    quotes local). Either way the subprocess is spawned in LIST form with no
-    shell, so shell metacharacters (| ; > &) stay literal argv and can never
-    become pipes or redirects. Empty argv is rejected.
+    split into argv tokens: shlex on POSIX, a Windows-style quote-grouping
+    tokenizer on Windows (see _split_windows_cmdline). Either way the
+    subprocess is spawned in LIST form with no shell, so shell metacharacters
+    (| ; > &) stay literal argv and can never become pipes or redirects.
+    Empty argv is rejected.
     """
 
     def __init__(self, cmd: str | list[str]):
         if isinstance(cmd, str):
-            self.argv = shlex.split(cmd, posix=(os.name != "nt"))
+            if os.name == "nt":
+                self.argv = _split_windows_cmdline(cmd)
+            else:  # pragma: no cover - POSIX/macOS keeps the historical splitter
+                self.argv = shlex.split(cmd, posix=True)
             if not self.argv:
                 raise ValueError("verify command split to empty argv")
         elif isinstance(cmd, (list, tuple)):
