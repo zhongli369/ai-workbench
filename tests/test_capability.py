@@ -120,7 +120,15 @@ def test_mutex_enforced_on_enable(tmp_path):
         f = bin_dir / "agent-browser"
         f.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
         f.chmod(0o755)
-    env = {"PATH": str(bin_dir) + os.pathsep + os.environ.get("PATH", "")}
+    # Hermetic PATH: fakebin + bare system dirs only. Inheriting the machine
+    # PATH leaks a real node/npm into the playwright-mcp readiness gate below
+    # (test intent: "the fake env has no node/npm/browser") and breaks on any
+    # machine that actually has node installed.
+    if os.name == "nt":
+        base_path = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32")
+    else:
+        base_path = "/usr/bin" + os.pathsep + "/bin"
+    env = {"PATH": str(bin_dir) + os.pathsep + base_path}
     assert run_wb("capability", "enable", "agent-browser",
                   target=tmp_path, env_extra=env).returncode == 0
     r = run_wb("capability", "enable", "playwright-mcp", target=tmp_path, env_extra=env)
