@@ -1,8 +1,14 @@
-"""PreToolUse hook (Bash matcher) — harness irreversible-action gate.
+"""PreToolUse hook (Bash/PowerShell matcher) — harness irreversible-action gate.
 
 Wire in .claude/settings.json:
-  {"hooks": {"PreToolUse": [{"matcher": "Bash", "hooks": [
+  {"hooks": {"PreToolUse": [{"matcher": "Bash|PowerShell", "hooks": [
     {"type": "command", "command": "python <abs>/hooks/harness_gate.py"}]}]}}
+
+Both Bash and PowerShell tools are gated: PowerShell was previously a full
+bypass (the hook returned 0 for any non-Bash tool), allowing `git push` etc.
+to run in ENFORCE with no approval. The tool name is forwarded to
+gate.evaluate(), which applies PS-specific recursive-delete patterns and
+case-insensitive matching on that path.
 
 Semantics (see harness/gate.py docstring — read it before trusting this):
   DISABLED : pass-through, zero log.
@@ -33,7 +39,7 @@ def main() -> int:
     except (json.JSONDecodeError, ValueError):
         return 0  # unparseable hook input: nothing to gate
 
-    if payload.get("tool_name") != "Bash":
+    if payload.get("tool_name") not in ("Bash", "PowerShell"):
         return 0
     command = (payload.get("tool_input") or {}).get("command") or ""
     if not command:
@@ -42,13 +48,15 @@ def main() -> int:
     mode_override = os.environ.get("HARNESS_GATE_MODE") or None
     token = os.environ.get("HARNESS_GATE_TOKEN") or None
     data_dir = dd.resolve_data_dir(flag=None, env=os.environ.get("HARNESS_DATA_DIR"))
-    result = gate.evaluate(data_dir, command, token=token, mode_override=mode_override)
+    tool = payload.get("tool_name") or "Bash"
+    result = gate.evaluate(data_dir, command, token=token,
+                           mode_override=mode_override, tool=tool)
 
     if result["decision"] in ("audit", "block", "block-error") or result["matched"]:
         gate.log_decision(data_dir, mode=result["mode"],
                           decision=result["decision"],
                           command=command, matched=result.get("matched"),
-                          token_hash=result.get("token"))
+                          token_hash=result.get("token"), tool=tool)
 
     if result["decision"] == "block":
         print(

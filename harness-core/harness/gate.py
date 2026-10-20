@@ -43,6 +43,22 @@ DEFAULT_ENFORCE_PATTERNS = [
     r"\b(npm|pip|yarn|pnpm)\s+publish\b",
     r"\b(kubectl|helm|terraform)\s+(apply|delete|destroy)\b",
 ]
+# PowerShell-only additions. bash's `rm -rf` is not valid PowerShell syntax —
+# the recursive-delete vocabulary there is Remove-Item (-Recurse), whose aliases
+# are ri/rd/rm/del/erase. These patterns are appended ONLY on the PowerShell
+# tool path (they must never change the bash matching set / backward compat).
+DEFAULT_PS_ENFORCE_PATTERNS = [
+    # Canonical cmdlet: Remove-Item -Recurse deletes a WHOLE TREE even without
+    # -Force, so the Recurse flag alone gates it. The alternation covers every
+    # legal PS prefix abbreviation (r/re/rec/recu/recur/recurs) plus the full
+    # name; a trailing \b rejects -Recursive etc. (not a prefix).
+    r"\bremove-item\b[^|;]*\s-(r|re|rec|recu|recur|recurs|recurse)\b",
+    # Aliases require BOTH recurse + force flags (either order), mirroring
+    # bash's rm -rf / rm -fr combined-flag semantics. [^|;]* never crosses a
+    # statement separator, so an unrelated command cannot supply the flag.
+    r"\b(ri|rd|rm|del|erase)\b[^|;]*\s-(r|re|rec|recu|recur|recurs|recurse)\b[^|;]*\s-f",
+    r"\b(ri|rd|rm|del|erase)\b[^|;]*\s-f[^|;]*\s-(r|re|rec|recu|recur|recurs|recurse)\b",
+]
 _lock = threading.Lock()
 _TOKENS_LOCK_TIMEOUT = 2.0  # seconds; fail closed on timeout
 
@@ -430,9 +446,14 @@ def _consume_token(data_dir: Path, token: str, command: str,
 
 def log_decision(data_dir: Path, *, mode: str, decision: str,
                  command: str, matched: str | None,
-                 token_hash: str | None = None) -> None:
+                 token_hash: str | None = None,
+                 tool: str | None = None) -> None:
     entry = {"ts": _now_iso(), "mode": mode, "decision": decision,
              "command": command[:300], "matched": matched}
+    if tool:
+        # Which CC tool carried the command (Bash/PowerShell); without it the
+        # audit log cannot attribute decisions to a shell (observability gap).
+        entry["tool"] = tool
     if token_hash:
         entry["token"] = token_hash[:12]  # hash prefix only, never raw
     try:
@@ -448,8 +469,16 @@ def log_decision(data_dir: Path, *, mode: str, decision: str,
 def evaluate(data_dir: Path, command: str, *,
              token: str | None = None,
              mode_override: str | None = None,
-             now: float | None = None) -> dict:
-    """Decide what should happen for one Bash command.
+             now: float | None = None,
+             tool: str = "Bash") -> dict:
+    """Decide what should happen for one shell command.
+
+    `tool` names the Claude Code tool that will execute it: "Bash" (default)
+    keeps the byte-for-byte historical behavior; "PowerShell" additionally
+    enforces the PS recursive-delete patterns and matches all patterns case-
+    insensitively (PowerShell cmdlets are not case-sensitive). The remaining
+    risk classes (git push / reset --hard / clean -f, publish, k8s) are shell-
+    agnostic and fire for both.
 
     Returns {"decision", "mode", "matched"} with decision in:
       "allow"        — proceed (unmatched, or disabled, or approved)
@@ -476,11 +505,17 @@ def evaluate(data_dir: Path, command: str, *,
         return {"decision": "allow", "mode": mode, "matched": None}
 
     patterns = cfg["enforce_patterns"] if mode == "enforce" else cfg["audit_patterns"]
+    flags = re.IGNORECASE if tool == "PowerShell" else 0
+    if tool == "PowerShell":
+        # Append, never replace: the shell-agnostic classes must stay active,
+        # and only the PS vocabulary is additive for this tool. Re-matching is
+        # case-insensitive, so REMOVE-ITEM / -RECURSE / -FORCE all hit.
+        patterns = [*patterns, *DEFAULT_PS_ENFORCE_PATTERNS]
     # Match against shell-normalized variants so expansion forms (e.g.
     # git${IFS}push) cannot slip past a raw-string regex (fail-closed union).
     variants = _normalize_shell(command)
     matched = next((p for p in patterns
-                    if any(_safe_search(p, v) for v in variants)), None)
+                    if any(_safe_search(p, v, flags) for v in variants)), None)
     if not matched:
         return {"decision": "allow", "mode": mode, "matched": None}
 
@@ -506,8 +541,8 @@ def evaluate(data_dir: Path, command: str, *,
     return {"decision": "block", "mode": mode, "matched": matched}
 
 
-def _safe_search(pattern: str, text: str) -> bool:
+def _safe_search(pattern: str, text: str, flags: int = 0) -> bool:
     try:
-        return re.search(pattern, text) is not None
+        return re.search(pattern, text, flags) is not None
     except re.error:
         return False

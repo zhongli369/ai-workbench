@@ -217,16 +217,19 @@ def test_s3_boundary_claim_guard_is_cli_internal(tmp_path):
 
     The harness wiring ships no PostToolUse/Stop hook that auto-runs
     `verify status` (verified in the repo: the only PreToolUse hook is
-    hooks/harness_gate.py). We assert the observable fact that WITHOUT a
-    CLI invocation there is no record and no gate effect -- i.e. the gate is
-    consultative, not coercive. A model that never calls the CLI cannot be
-    mechanically stopped by this component.
+    hooks/harness_gate.py, plus the SessionEnd observability hook
+    hooks/session_metrics.py — neither consults verify). We assert the
+    observable fact that WITHOUT a CLI invocation there is no record and no
+    gate effect -- i.e. the gate is consultative, not coercive. A model that
+    never calls the CLI cannot be mechanically stopped by this component.
     """
-    hooks = [p.name for p in Path(__file__).resolve().parents[2].glob("hooks/*.py")]
-    assert hooks == ["harness_gate.py"], f"unexpected hook set: {hooks}"
-    hook_src = Path(__file__).resolve().parents[2] / "hooks" / "harness_gate.py"
-    assert "verify" not in hook_src.read_text(encoding="utf-8"), \
-        "harness_gate.py unexpectedly consults verify"
+    hooks_dir = Path(__file__).resolve().parents[2] / "hooks"
+    hook_names = sorted(p.name for p in hooks_dir.glob("*.py"))
+    assert hook_names == ["harness_gate.py", "session_metrics.py"], \
+        f"unexpected hook set: {hook_names}"
+    for name in hook_names:
+        src = (hooks_dir / name).read_text(encoding="utf-8")
+        assert "verify" not in src, f"{name} unexpectedly consults verify"
     # can_claim_done has no persistence of its own: freshly computed each call
     repo = git_repo(tmp_path / "repo")
     write(repo / "x.txt", b"hi\n")

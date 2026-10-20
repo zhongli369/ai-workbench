@@ -19,6 +19,8 @@ import re
 import sys
 from pathlib import Path
 
+import pytest
+
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "harness-core"))
 
@@ -106,7 +108,15 @@ def test_summarize_is_a_pure_read(tmp_path):
 
 
 def test_all_bench_runners_label_traffic():
-    for rel in ("tools/bench/run_arm.py", "tools/bench/run_sdk_arm.py",
-                "tools/bench/run_t3_pair.py"):
-        src = (REPO / rel).read_text(encoding="utf-8")
-        assert "HARNESS_BENCH" in src, f"{rel}: bench traffic unlabeled"
+    runners = [REPO / rel for rel in
+               ("tools/bench/run_arm.py", "tools/bench/run_sdk_arm.py",
+                "tools/bench/run_t3_pair.py")]
+    present = [p for p in runners if p.is_file()]
+    if not present:
+        pytest.skip("bench runners are not shipped in the installed payload; "
+                    "this contract is enforced in the dev repo")
+    assert len(present) == len(runners), \
+        f"partial bench runner set: missing {[str(p) for p in runners if p not in present]}"
+    for p in runners:
+        src = p.read_text(encoding="utf-8")
+        assert "HARNESS_BENCH" in src, f"{p.name}: bench traffic unlabeled"

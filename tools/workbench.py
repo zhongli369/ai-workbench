@@ -45,8 +45,14 @@ SETTINGS_TMPL = {
     "claudeMdExcludes": ["**/.claude/rules/ecc/**"],
     "hooks": {
         "PreToolUse": [
-            {"matcher": "Bash", "hooks": [
+            {"matcher": "Bash|PowerShell", "hooks": [
                 {"type": "command", "command": "python {{ROOT}}/hooks/harness_gate.py"}]}
+        ],
+        "SessionEnd": [
+            {"hooks": [
+                {"type": "command",
+                 "command": "python {{ROOT}}/hooks/session_metrics.py",
+                 "timeout": 30}]}
         ]
     },
 }
@@ -149,6 +155,46 @@ def _render(text: str, target: Path) -> str:
     return (text.replace("{{ROOT}}", root)
                 .replace("{{ROOT_Q}}", str(target.resolve()))
                 .replace("{{TS}}", time.strftime("%Y-%m-%d")))
+
+
+def _merge_settings(existing: dict, rendered: dict) -> dict:
+    """Merge a user's existing .claude/settings.json into the fresh render.
+
+    Same user-data rule as PROJECTS.md / gate.json: reinstall refreshes
+    installer-owned keys exactly but never clobbers keys the user added.
+      - top-level key only the user has           -> kept
+      - env: dict                                 -> union, installer wins on
+                                                     its own keys only
+      - hooks: per-event entry lists              -> installer entries first,
+                                                     user entries appended,
+                                                     exact-duplicate entries
+                                                     dropped (no accumulation)
+      - list values (e.g. claudeMdExcludes)       -> union, installer first
+      - anything the installer owns               -> rendered value wins
+    """
+    merged = dict(rendered)
+    for key, value in existing.items():
+        if key not in rendered:
+            merged[key] = value
+        elif key == "env" and isinstance(value, dict) and isinstance(rendered.get("env"), dict):
+            merged["env"] = {**value, **rendered["env"]}
+        elif key == "hooks" and isinstance(value, dict) and isinstance(rendered.get("hooks"), dict):
+            m_hooks = {ev: list(entries) for ev, entries in rendered["hooks"].items()}
+            for ev, entries in value.items():
+                owned = m_hooks.setdefault(ev, [])
+                if not isinstance(entries, list):
+                    continue
+                for entry in entries:
+                    if entry not in owned:
+                        owned.append(entry)
+            merged["hooks"] = m_hooks
+        elif isinstance(value, list) and isinstance(rendered.get(key), list):
+            union = list(rendered[key])
+            for item in value:
+                if item not in union:
+                    union.append(item)
+            merged[key] = union
+    return merged
 
 
 def _default_target() -> Path:
@@ -375,8 +421,23 @@ def cmd_install(args) -> int:
     # 2) rendered configs
     settings = SETTINGS_TMPL if not args.no_harness else {
         k: v for k, v in SETTINGS_TMPL.items() if k not in ("env", "hooks")}
-    _write(target / ".claude" / "settings.json",
-           _render(json.dumps(settings, indent=2), target), written, dry)
+    settings_path = target / ".claude" / "settings.json"
+    settings_rendered = _render(json.dumps(settings, indent=2), target)
+    if settings_path.is_file():
+        # settings.json is user data (same rule as PROJECTS.md / gate.json):
+        # refresh installer-owned keys, preserve everything the user added.
+        try:
+            existing = json.loads(settings_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            existing = None
+        if isinstance(existing, dict):
+            settings_rendered = json.dumps(
+                _merge_settings(existing, json.loads(settings_rendered)), indent=2)
+        elif not dry:
+            backup = settings_path.with_name(settings_path.name + ".user-bak")
+            backup.write_text(settings_path.read_text(encoding="utf-8"),
+                              encoding="utf-8")
+    _write(settings_path, settings_rendered, written, dry)
     _write(target / "launch" / "vnext.settings.json",
            json.dumps(LAUNCH_SETTINGS_TMPL, indent=2), written, dry)
     _write(target / "launch" / "workbench.ps1", _render(PS1_TMPL, target), written, dry)
