@@ -17,6 +17,7 @@ Design rules:
     files not listed in install-manifest.json.
 """
 import argparse
+import hashlib
 import json
 import os
 import platform
@@ -396,6 +397,46 @@ def _write(path: Path, content: str, written: list[str], dry: bool):
         path.write_text(content, encoding="utf-8")
 
 
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+# Files with their own preservation semantics (settings merge / write-only-when-
+# absent) — user edits there are never overwritten, so no drift backup needed.
+_USER_DATA_RELPATHS = {
+    "PROJECTS.md",
+    ".claude/settings.json",
+    "harness-data/gate.json",
+}
+
+
+def _protect_drifted(target: Path, old_hashes: dict, dry: bool) -> list[str]:
+    """Back up installer-managed files the user modified since the last install.
+
+    R7 incident: reinstall silently overwrote a locally-edited managed skill
+    file (gateguard/SKILL.md) — the manifest recorded only paths, not content.
+    Now the manifest stores per-file sha256; before rewriting, any managed file
+    whose disk content differs from what the installer last wrote is copied to
+    ``<file>.user-bak`` (matching the settings.json.user-bak precedent) so the
+    user's edit survives the canonical refresh. Legacy manifests without
+    hashes fail open for one run (nothing recorded yet to compare against).
+    """
+    drifted = []
+    for fstr, recorded in old_hashes.items():
+        p = Path(fstr)
+        try:
+            rel = str(p.relative_to(target)).replace(os.sep, "/")
+        except ValueError:
+            continue  # manifest path outside this target (moved install)
+        if rel in _USER_DATA_RELPATHS or not p.is_file():
+            continue
+        if _sha256(p) != recorded:
+            drifted.append(p)
+            if not dry:
+                shutil.copy2(p, p.with_name(p.name + ".user-bak"))
+    return drifted
+
+
 _SKIP_DIRS = {"__pycache__", ".pytest_cache", ".git", ".hypothesis"}
 
 
@@ -423,9 +464,13 @@ def cmd_install(args) -> int:
         return 1
 
     manifest_path = target / MANIFEST
+    old_hashes: dict = {}
+    legacy_manifest = False
     if manifest_path.is_file():
         old = json.loads(manifest_path.read_text(encoding="utf-8"))
         print(f"[INFO] 已安装 v{old.get('version')} ({old.get('installed_at')}) — 幂等刷新文件")
+        old_hashes = old.get("hashes", {})
+        legacy_manifest = "hashes" not in old
     elif target.exists() and any(target.iterdir()):
         if not args.force:
             print(f"[FAIL] 目标非空且无安装清单: {target}\n"
@@ -446,6 +491,14 @@ def cmd_install(args) -> int:
         except OSError as e:
             print(f"[FAIL] 无法创建目标目录: {target}\n       {e}")
             return 1
+
+    # 0) drift protection: back up user-modified managed files BEFORE any
+    #    rewrite (see _protect_drifted). Silent for untouched installs.
+    drifted = _protect_drifted(target, old_hashes, dry)
+    for p in drifted:
+        print(f"[WARN] 受管文件有本地修改，已备份 -> {p.name}.user-bak ({p})")
+    if legacy_manifest:
+        print("[INFO] 旧清单无文件哈希记录，本次重装起启用本地修改备份保护")
 
     written: list[str] = []
     # 1) static trees from RC (--no-harness: ECC-only payload for bench arms —
@@ -510,9 +563,12 @@ def cmd_install(args) -> int:
             if Path(f).is_file():
                 merged.add(f)
         written = sorted(merged)
+    hashes = {}
+    if not dry:
+        hashes = {f: _sha256(Path(f)) for f in written if Path(f).is_file()}
     manifest = {"version": RC_VERSION, "installed_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
                 "scope": args.scope, "target": str(target), "ecc_pin": ECC_PIN,
-                "files": written}
+                "files": written, "hashes": hashes}
     if not dry:
         manifest_path.parent.mkdir(parents=True, exist_ok=True)
         manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")

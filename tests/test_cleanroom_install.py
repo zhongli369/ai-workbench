@@ -318,6 +318,67 @@ def test_reinstall_preserves_manifest_ownership(tmp_path):
     assert not target.exists()
 
 
+def test_reinstall_backs_up_user_drifted_managed_file(tmp_path):
+    """Regression (R7 incident): reinstall used to silently overwrite a locally
+    edited managed file (runtime gateguard/SKILL.md lost its local drift with
+    no backup). The manifest now records per-file sha256; when a managed file's
+    disk content differs from what the installer last wrote, the reinstall must
+    (a) preserve the user's version as <file>.user-bak, (b) restore canonical
+    content, (c) say so on stdout — without prompting."""
+    target = tmp_path / "wb"
+    assert install(target).returncode == 0
+    skill = next((target / ".claude" / "skills").rglob("SKILL.md"))
+    skill.write_text("USER LOCAL EDIT\n", encoding="utf-8")
+    r = install(target)
+    assert r.returncode == 0, r.stdout + r.stderr
+    bak = skill.with_name(skill.name + ".user-bak")
+    assert bak.is_file(), "drifted managed file overwritten without backup"
+    assert bak.read_text(encoding="utf-8") == "USER LOCAL EDIT\n"
+    assert skill.read_text(encoding="utf-8") != "USER LOCAL EDIT\n", \
+        "canonical content not restored"
+    assert ".user-bak" in r.stdout, "drift backup not surfaced on stdout"
+    # uninstall must not sweep the backup (it is user data, not owned)
+    r2 = run_wb("--target", str(target), "uninstall", "--yes", "--purge-data")
+    assert r2.returncode == 0
+
+
+def test_reinstall_without_drift_creates_no_backup(tmp_path):
+    """A plain idempotent reinstall (no local edits) must stay silent: no
+    .user-bak files, no drift warnings — normal refresh is never interrupted."""
+    target = tmp_path / "wb"
+    assert install(target).returncode == 0
+    r = install(target)
+    assert r.returncode == 0
+    assert not list(target.rglob("*.user-bak")), \
+        f"spurious drift backups: {list(target.rglob('*.user-bak'))}"
+    assert "旧清单无文件哈希" not in r.stdout  # hashes recorded since 1st install
+
+
+def test_legacy_manifest_without_hashes_fails_open_once(tmp_path):
+    """Manifests written before drift protection have no hashes: the first
+    reinstall after upgrade cannot know what the user edited, so it must NOT
+    invent backups (fail open, current behavior) — but must record hashes so
+    every later reinstall is protected."""
+    target = tmp_path / "wb"
+    assert install(target).returncode == 0
+    mpath = target / "install-manifest.json"
+    manifest = json.loads(mpath.read_text(encoding="utf-8"))
+    del manifest["hashes"]  # simulate pre-R7.1 manifest
+    mpath.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    skill = next((target / ".claude" / "skills").rglob("SKILL.md"))
+    skill.write_text("USER LOCAL EDIT\n", encoding="utf-8")
+    r = install(target)
+    assert r.returncode == 0
+    assert "旧清单无文件哈希" in r.stdout  # one-time notice
+    assert not list(target.rglob("*.user-bak"))  # fail open: no invented backup
+    assert json.loads(mpath.read_text(encoding="utf-8"))["hashes"], \
+        "hashes not recorded for future reinstalls"
+    # and the NEXT reinstall is protected
+    skill.write_text("SECOND EDIT\n", encoding="utf-8")
+    assert install(target).returncode == 0
+    assert skill.with_name(skill.name + ".user-bak").is_file()
+
+
 def test_uninstall_removes_only_owned_files_and_preserves_data(tmp_path):
     target = tmp_path / "wb"
     assert install(target).returncode == 0
