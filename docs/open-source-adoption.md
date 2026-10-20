@@ -84,3 +84,39 @@ runtime 侧（先快照 `snap save`）：
 - open-gsd/gsd-core 新仓：网络受限未完成克隆；原仓归档+迁移期已足以排除。
 - superpowers 在交互会话的 SessionStart 注入（~800 tok）：`--print` 下未见注入，
   交互模式以实测为准（设计上不影响决策）。
+
+## R7 增补（2026-10-20）：轻量接入核查八点与现行集成清单
+
+### 核查八点（任何新开源能力接入前逐项过；不满足即阻塞，不绕过）
+
+1. **上游来源**：官方/原作者仓；TLS 校验直连克隆，镜像只作下载加速不作信任根。
+2. **版本固定**：pin commit/tag（不用分支头），记录核实方式（ls-remote 比对）。
+3. **许可证核查**：MIT / Apache-2.0 / BSD 可 vendor；GPL 系只按需外部调用，不 vendor。
+4. **Windows 兼容**：实机验证无 bash 环境下启动器与 hooks 行为（静默降级可接受，报错阻塞不可）。
+5. **按需加载**：一律会话级 `WORKBENCH_PLUGIN_DIR` + `--plugin-dir`；LEAN 默认不加载可选插件；不写用户级 settings。
+6. **Token 与启动开销**：接入前后各跑一次 `--output-format stream-json --verbose` init 探针，记录插件清单与注入规模。
+7. **回滚**：会话级 = 清环境变量；vendor 级 = 删目录；rc 级 = revert 提交。回滚不得需要额外工具。
+8. **作用域**：LEAN（默认）/ POWER / 仅业务项目会话，三选一并记录；默认"仅业务项目会话"。
+
+### 现行集成（探针实证 2026-10-20）
+
+| 插件 | 上游 | Pin | License | 加载方式 | 作用域 |
+|---|---|---|---|---|---|
+| superpowers | obra/superpowers | v7.0.0 @ bb92a77 | MIT | POWER 启动器置 `WORKBENCH_PLUGIN_DIR` 指向插件目录本身 | POWER |
+| frontend-design | anthropics/claude-plugins-official | a0b04d9 | Apache-2.0 | 用户显式设 `WORKBENCH_PLUGIN_DIR` 后在业务项目目录启动 | 仅业务项目会话 |
+
+实证方法：`--print --output-format stream-json --verbose` 单轮探针，读 init 事件
+plugins 清单。当日结果：LEAN = 仅内置插件；POWER = superpowers + 内置；
+显式会话 = frontend-design + 内置。
+
+### R7 边界事件与修复（防再犯记录）
+
+- **事件**：frontend-design vendored 在 `vendor/plugins/` 后，POWER 会话同时加载了
+  superpowers 与 frontend-design（stream-json init 探针实测发现，代码声明层面不可见）。
+- **根因**：`--plugin-dir` 指向父目录时 claude 加载其**每个子目录**；
+  POWER 启动器恰好把 `WORKBENCH_PLUGIN_DIR` 设成了 `vendor/plugins` 父目录。
+- **修复**：tools/workbench.py 的 POWER_PS1_TMPL / POWER_SH_TMPL 改为指向
+  `vendor/plugins/superpowers` 目录本身（探针路径同步改为该目录下的
+  `.claude-plugin/plugin.json`）；经安装器重部署 runtime 后三探针复测通过。
+- **教训**：凡承诺"只加载 X"的启动器，`--plugin-dir` 必须指向 X 的目录本身，
+  不得指向任何父目录。
