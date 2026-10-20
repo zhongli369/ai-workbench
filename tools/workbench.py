@@ -107,8 +107,11 @@ exec claude "$@"
 POWER_PS1_TMPL = """# AI Workbench POWER launcher (generated {{TS}}) — LEAN + pinned Superpowers.
 # Use for complex debugging / multi-file features / TDD / staged plans / risky
 # changes.  Everyday tasks: use workbench.ps1 (LEAN) instead.
-$plugins = "{{ROOT_Q}}\\vendor\\plugins"
-if (Test-Path -LiteralPath "$plugins\\superpowers\\.claude-plugin\\plugin.json") {
+# Point --plugin-dir at the superpowers plugin dir ITSELF, not vendor\\plugins:
+# a parent dir makes claude load EVERY child plugin vendored there (R7 fix —
+# vendored siblings like frontend-design must stay opt-in, never auto-POWER).
+$plugins = "{{ROOT_Q}}\\vendor\\plugins\\superpowers"
+if (Test-Path -LiteralPath "$plugins\\.claude-plugin\\plugin.json") {
     $env:WORKBENCH_PLUGIN_DIR = $plugins
 } else {
     Write-Host "workbench-power: vendor\\plugins\\superpowers missing (pinned clone not installed); falling back to LEAN. See docs/open-source-adoption.md"
@@ -121,8 +124,11 @@ POWER_SH_TMPL = """#!/usr/bin/env sh
 # AI Workbench POWER launcher (generated {{TS}}) — LEAN + pinned Superpowers.
 # Use for complex debugging / multi-file features / TDD / staged plans / risky
 # changes.  Everyday tasks: use workbench.sh (LEAN) instead.
-plugins="{{ROOT}}/vendor/plugins"
-if [ -f "${plugins}/superpowers/.claude-plugin/plugin.json" ]; then
+# Point --plugin-dir at the superpowers plugin dir ITSELF, not vendor/plugins:
+# a parent dir makes claude load EVERY child plugin vendored there (R7 fix —
+# vendored siblings like frontend-design must stay opt-in, never auto-POWER).
+plugins="{{ROOT}}/vendor/plugins/superpowers"
+if [ -f "${plugins}/.claude-plugin/plugin.json" ]; then
     export WORKBENCH_PLUGIN_DIR="${plugins}"
 else
     echo "workbench-power: vendor/plugins/superpowers missing (pinned clone not installed); falling back to LEAN. See docs/open-source-adoption.md" >&2
