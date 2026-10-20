@@ -24,9 +24,9 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: install test dependency (tomli backport only needed on py3.10)
         run: python -m pip install --disable-pip-version-check -q pytest "tomli; python_version < '3.11'"
-      - name: harness-core contracts (204)
+      - name: harness-core contracts (253)
         run: python -m pytest harness-core/tests/ -q
-      - name: tests contracts (279)
+      - name: tests contracts (282)
         run: python -m pytest tests/ -q
 
   static:

@@ -8,11 +8,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Verified external capabilities, integrated only where evidence shows real
 value: skill static quality gate SHIP, Codex second opinion SHIP (wiring
 only, default OFF), Playwright CLI duel REJECT (MCP kept).
-483 offline contracts (204 harness-core + 279 tests).
+535 offline contracts (253 harness-core + 282 tests).
 Development version — no GitHub Release is cut for this entry yet; the
 latest published release remains `v0.1.0-preview.3`.
 
 ### Added
+- **SessionEnd metrics hook** (`hooks/session_metrics.py` + 9 contracts):
+  one structured metric line per session from the transcript (counter-only,
+  content-free), appended to `harness-data/session-metrics.jsonl` with
+  cross-process append locking on Windows, message.id dedup, CJK-safe ASCII
+  output, and never-blocks-exit semantics. Wired into the installed
+  settings template (`timeout: 30`).
+- **Deterministic correctness bench** (`tools/bench/deterministic/run_bench.py`):
+  zero-LLM, offline bench of the real gate hook E2E (Bash/PowerShell),
+  `verify run`, and `checkpoint` crash recovery against this checkout — 20
+  assertion cases, exit 0 only when all pass.
 - **Context audit + strict MCP launch default** (`tools/context_audit.py`):
   reports real tool-schema bytes by MCP server from Claude Code
   `api-request-shape` records, plus compact boundaries and re-injected
@@ -44,6 +54,13 @@ latest published release remains `v0.1.0-preview.3`.
   with the declared prefix — fail-closed against same-named decoy tools.
 
 ### Fixed
+- **PowerShell bypassed the ENFORCE gate** (P0): the PreToolUse hook only
+  handled `Bash`, so `git push` / `Remove-Item -Recurse` ran in ENFORCE
+  with no approval. The hook matcher is now `Bash|PowerShell`, the tool name
+  is forwarded to `gate.evaluate()` (which appends PS recursive-delete
+  patterns and matches case-insensitively on that path), and the audit log
+  carries the `tool` field. Locked by 14 contracts in
+  `harness-core/tests/test_gate_powershell.py`.
 - **Gate authorization bound to the most-exposed shell variant** (found by
   the codex second opinion above, 3 regression contracts): a one-time token
   or approval bound to `git push origin main` previously also authorized
@@ -54,6 +71,30 @@ latest published release remains `v0.1.0-preview.3`.
   of trimming lexicographically.
 - **Registry count drift**: `ecc-skills` name "Curated ECC skills (27)" →
   (30), caught by the new skill quality gate.
+- **Session-metrics token counting took the first streaming snapshot**:
+  duplicate assistant events share one `message.id`, and for ~43% of
+  duplicate groups (190/438 measured across 12 production transcripts) the
+  first event is a `(0,0,0,0)` placeholder — first-seen dedup undercounted
+  tokens (worst subagent transcript ~27×). Aggregation now takes the LAST
+  snapshot per `message.id` (sequences verified monotonically
+  non-decreasing, so last == per-id max). 2 streaming-semantics contracts.
+- **`verify run --cmd` distorted quoted arguments on Windows**:
+  `shlex.split(posix=False)` keeps quotes, so `--cmd 'python -c "…"'`
+  silently ran the wrong code yet exited 0 (false PASS) and quoted paths
+  with spaces were split apart (command never ran). Windows now splits via
+  `_split_windows_cmdline`; POSIX unchanged. 10 contracts.
+- **Reinstall clobbered user edits to `.claude/settings.json`**: the
+  installer regenerated its rendered template wholesale. It now merges —
+  installer-owned keys refresh exactly, user keys (env vars, permissions,
+  extra hook entries, extra `claudeMdExcludes`) are preserved, hook entries
+  never accumulate, and an unparseable existing file is backed up as
+  `settings.json.user-bak` before the fresh render. Same user-data rule as
+  `PROJECTS.md` / `gate.json`. 2 contracts.
+- **Gate security matrix locked**: 14 contracts pin the block/allow
+  contract for quoting/escaping, command chains, cross-shell wrappers
+  (`powershell -Command`, `cmd /c`, `bash -lc`), prefix-abbreviated PS
+  flags and alias vocabularies — 61-case review found no real bypass; the
+  matrix keeps it that way.
 
 ### Decisions (no code change)
 - **Playwright CLI vs MCP duel — REJECT (keep MCP)**:
