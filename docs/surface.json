@@ -17,6 +17,9 @@
           "flags": {
             "--json": {
               "choices": null
+            },
+            "--allow-missing-browser": {
+              "choices": null
             }
           },
           "positionals": {
@@ -26,6 +29,7 @@
                 "inspect",
                 "enable",
                 "disable",
+                "status",
                 "doctor"
               ]
             },
@@ -68,7 +72,11 @@
               "choices": null
             }
           },
-          "positionals": {}
+          "positionals": {
+            "extra": {
+              "choices": null
+            }
+          }
         },
         "status": {
           "flags": {},
@@ -94,6 +102,80 @@
         }
       },
       "commands": {
+        "checkpoint": {
+          "flags": {},
+          "positionals": {}
+        },
+        "checkpoint begin": {
+          "flags": {
+            "--exec": {
+              "choices": null
+            },
+            "--stage": {
+              "choices": null
+            },
+            "--index": {
+              "choices": null
+            }
+          },
+          "positionals": {}
+        },
+        "checkpoint list": {
+          "flags": {},
+          "positionals": {}
+        },
+        "checkpoint load": {
+          "flags": {
+            "--exec": {
+              "choices": null
+            }
+          },
+          "positionals": {}
+        },
+        "checkpoint replay": {
+          "flags": {
+            "--exec": {
+              "choices": null
+            }
+          },
+          "positionals": {}
+        },
+        "checkpoint save": {
+          "flags": {
+            "--exec": {
+              "choices": null
+            },
+            "--stage": {
+              "choices": null
+            },
+            "--index": {
+              "choices": null
+            },
+            "--status": {
+              "choices": [
+                "started",
+                "done",
+                "failed",
+                "blocked"
+              ]
+            },
+            "--payload": {
+              "choices": null
+            },
+            "--payload-file": {
+              "choices": null
+            }
+          },
+          "positionals": {}
+        },
+        "checkpoint verify": {
+          "flags": {
+            "--exec": {
+              "choices": null
+            }
+          },
+          "positionals": {}
+        },
         "feedback": {
           "flags": {},
           "positionals": {}
@@ -246,6 +328,24 @@
           },
           "positionals": {}
         },
+        "plan": {
+          "flags": {
+            "--archetype": {
+              "choices": null
+            },
+            "--save": {
+              "choices": null
+            },
+            "--exec": {
+              "choices": null
+            }
+          },
+          "positionals": {
+            "task": {
+              "choices": null
+            }
+          }
+        },
         "report": {
           "flags": {
             "--project-id": {
@@ -257,8 +357,128 @@
           },
           "positionals": {}
         },
+        "snap": {
+          "flags": {},
+          "positionals": {}
+        },
+        "snap diff": {
+          "flags": {
+            "--cwd": {
+              "choices": null
+            }
+          },
+          "positionals": {
+            "snap_id": {
+              "choices": null
+            }
+          }
+        },
+        "snap list": {
+          "flags": {
+            "--cwd": {
+              "choices": null
+            },
+            "--exec": {
+              "choices": null
+            }
+          },
+          "positionals": {}
+        },
+        "snap prune": {
+          "flags": {
+            "--cwd": {
+              "choices": null
+            },
+            "--exec": {
+              "choices": null
+            },
+            "--keep": {
+              "choices": null
+            }
+          },
+          "positionals": {}
+        },
+        "snap restore": {
+          "flags": {
+            "--cwd": {
+              "choices": null
+            },
+            "--apply": {
+              "choices": null
+            },
+            "--token": {
+              "choices": null
+            }
+          },
+          "positionals": {
+            "snap_id": {
+              "choices": null
+            }
+          }
+        },
+        "snap save": {
+          "flags": {
+            "--cwd": {
+              "choices": null
+            },
+            "--exec": {
+              "choices": null
+            },
+            "--note": {
+              "choices": null
+            }
+          },
+          "positionals": {}
+        },
+        "snap verify": {
+          "flags": {
+            "--cwd": {
+              "choices": null
+            }
+          },
+          "positionals": {
+            "snap_id": {
+              "choices": null
+            }
+          }
+        },
         "telemetry": {
           "flags": {},
+          "positionals": {}
+        },
+        "verify": {
+          "flags": {},
+          "positionals": {}
+        },
+        "verify run": {
+          "flags": {
+            "--exec": {
+              "choices": null
+            },
+            "--stage": {
+              "choices": null
+            },
+            "--cwd": {
+              "choices": null
+            },
+            "--project-id": {
+              "choices": null
+            },
+            "--cmd": {
+              "choices": null
+            },
+            "--token": {
+              "choices": null
+            }
+          },
+          "positionals": {}
+        },
+        "verify status": {
+          "flags": {
+            "--exec": {
+              "choices": null
+            }
+          },
           "positionals": {}
         }
       }
@@ -330,7 +550,7 @@
       "HARNESS_DATA_DIR"
     ],
     "pre_tool_use_matchers": [
-      "Bash"
+      "Bash|PowerShell"
     ]
   },
   "history": [
@@ -343,6 +563,11 @@
       "ts": "2026-10-14T06:33:40+00:00",
       "bump": "minor",
       "rationale": "telemetry.jsonl gains per-row source label (cli/bench/synthetic) for self-exclusion (P1.5); additive"
+    },
+    {
+      "ts": "2026-10-20T06:05:09+00:00",
+      "bump": "major",
+      "rationale": "P0 safety-gap: PreToolUse gate matcher widened Bash->Bash|PowerShell (PowerShell previously bypassed ENFORCE); SessionEnd session-metrics hook added to installed settings template"
     }
   ]
 }
