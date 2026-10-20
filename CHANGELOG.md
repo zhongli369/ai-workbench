@@ -8,11 +8,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Verified external capabilities, integrated only where evidence shows real
 value: skill static quality gate SHIP, Codex second opinion SHIP (wiring
 only, default OFF), Playwright CLI duel REJECT (MCP kept).
-535 offline contracts (253 harness-core + 282 tests).
+536 offline contracts (253 harness-core + 283 tests).
 Development version — no GitHub Release is cut for this entry yet; the
 latest published release remains `v0.1.0-preview.3`.
 
 ### Added
+- **Opt-in session-scoped plugin adapter** (`WORKBENCH_PLUGIN_DIR`, launcher
+  templates + 1 contract): loads a pinned local plugin clone (e.g.
+  obra/superpowers) via `--plugin-dir` — zero install, zero global state,
+  unset to roll back. Adoption decision and evidence:
+  `docs/open-source-adoption.md`.
 - **SessionEnd metrics hook** (`hooks/session_metrics.py` + 9 contracts):
   one structured metric line per session from the transcript (counter-only,
   content-free), appended to `harness-data/session-metrics.jsonl` with

@@ -73,6 +73,13 @@ if (Test-Path -LiteralPath "{{ROOT_Q}}\\.mcp.json") {
     $claudeArgs = @("--mcp-config", "{{ROOT_Q}}\\.mcp.json") + $claudeArgs
 }
 $claudeArgs += "--strict-mcp-config"
+# Opt-in (default off): session-scoped plugin loading from a LOCAL pinned
+# clone, e.g. obra/superpowers.  Set WORKBENCH_PLUGIN_DIR to a folder whose
+# children are plugin dirs (or to a single plugin dir).  Zero install, zero
+# global state; unset the var to roll back.  See docs/open-source-adoption.md.
+if ($env:WORKBENCH_PLUGIN_DIR -and (Test-Path -LiteralPath $env:WORKBENCH_PLUGIN_DIR)) {
+    $claudeArgs = @("--plugin-dir", $env:WORKBENCH_PLUGIN_DIR) + $claudeArgs
+}
 claude @claudeArgs @args
 exit $LASTEXITCODE
 """
@@ -86,6 +93,13 @@ set -- --settings "{{ROOT}}/launch/vnext.settings.json" --strict-mcp-config "$@"
 # --strict-mcp-config ignores global/user MCP servers.
 if [ -f "{{ROOT}}/.mcp.json" ]; then
     set -- --mcp-config "{{ROOT}}/.mcp.json" "$@"
+fi
+# Opt-in (default off): session-scoped plugin loading from a LOCAL pinned
+# clone, e.g. obra/superpowers.  Set WORKBENCH_PLUGIN_DIR to a folder whose
+# children are plugin dirs (or to a single plugin dir).  Zero install, zero
+# global state; unset the var to roll back.  See docs/open-source-adoption.md.
+if [ -n "${WORKBENCH_PLUGIN_DIR:-}" ] && [ -d "${WORKBENCH_PLUGIN_DIR}" ]; then
+    set -- --plugin-dir "${WORKBENCH_PLUGIN_DIR}" "$@"
 fi
 exec claude "$@"
 """
