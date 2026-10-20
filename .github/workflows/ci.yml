@@ -26,7 +26,7 @@ jobs:
         run: python -m pip install --disable-pip-version-check -q pytest "tomli; python_version < '3.11'"
       - name: harness-core contracts (253)
         run: python -m pytest harness-core/tests/ -q
-      - name: tests contracts (283)
+      - name: tests contracts (284)
         run: python -m pytest tests/ -q
 
   static:

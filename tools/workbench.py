@@ -104,6 +104,32 @@ fi
 exec claude "$@"
 """
 
+POWER_PS1_TMPL = """# AI Workbench POWER launcher (generated {{TS}}) — LEAN + pinned Superpowers.
+# Use for complex debugging / multi-file features / TDD / staged plans / risky
+# changes.  Everyday tasks: use workbench.ps1 (LEAN) instead.
+$plugins = "{{ROOT_Q}}\\vendor\\plugins"
+if (Test-Path -LiteralPath "$plugins\\superpowers\\.claude-plugin\\plugin.json") {
+    $env:WORKBENCH_PLUGIN_DIR = $plugins
+} else {
+    Write-Host "workbench-power: vendor\\plugins\\superpowers missing (pinned clone not installed); falling back to LEAN. See docs/open-source-adoption.md"
+}
+& "{{ROOT_Q}}\\launch\\workbench.ps1" @args
+exit $LASTEXITCODE
+"""
+
+POWER_SH_TMPL = """#!/usr/bin/env sh
+# AI Workbench POWER launcher (generated {{TS}}) — LEAN + pinned Superpowers.
+# Use for complex debugging / multi-file features / TDD / staged plans / risky
+# changes.  Everyday tasks: use workbench.sh (LEAN) instead.
+plugins="{{ROOT}}/vendor/plugins"
+if [ -f "${plugins}/superpowers/.claude-plugin/plugin.json" ]; then
+    export WORKBENCH_PLUGIN_DIR="${plugins}"
+else
+    echo "workbench-power: vendor/plugins/superpowers missing (pinned clone not installed); falling back to LEAN. See docs/open-source-adoption.md" >&2
+fi
+exec "{{ROOT}}/launch/workbench.sh" "$@"
+"""
+
 # Pure-markdown project quick-reference, authored at install when absent.
 # It is a NAME -> ABSOLUTE-PATH cheat-sheet the human edits by hand — NOT a
 # database, no reader, no background scanner. Must stay machine-neutral:
@@ -456,6 +482,8 @@ def cmd_install(args) -> int:
            json.dumps(LAUNCH_SETTINGS_TMPL, indent=2), written, dry)
     _write(target / "launch" / "workbench.ps1", _render(PS1_TMPL, target), written, dry)
     _write(target / "launch" / "workbench.sh", _render(SH_TMPL, target), written, dry)
+    _write(target / "launch" / "workbench-power.ps1", _render(POWER_PS1_TMPL, target), written, dry)
+    _write(target / "launch" / "workbench-power.sh", _render(POWER_SH_TMPL, target), written, dry)
     _write(target / "VERSION", RC_VERSION + "\n", written, dry)
     # 3) data dir + gate default (never overwrite existing gate.json on reinstall)
     gate_path = target / "harness-data" / "gate.json"

@@ -29,7 +29,7 @@
 |---|---|---|---|
 | 单项目内改代码 / 测试 / 交付 | ✔（CC 本身） | | |
 | 60+ agents / 240+ skills 目录 | | ✔（上游项目） | |
-| 精选 ECC 子集, 按需非常驻 | | | ✔ **(30+16+14)** skills/agents/commands, 已 pin |
+| 精选 ECC 子集, 按需非常驻 | | | ✔ **(11+1+14)** skills/agents/commands, 已 pin |
 | 一个工作台操作多项目 | | | ✔（自研） |
 | 跨会话失败记忆 + 重错 oracle *(实验性)* | | | ✔（自研；in-vivo 收益未证明） |
 | FAST / STANDARD / DEEP / RECOVERY 成本策略 | | | ✔（自研, 指引性质） |
@@ -52,7 +52,7 @@
 |---|---|---|
 | 1 | 一次启动, 多项目 | 已接通: 启动器设置 `CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1`; `/add-dir` 或 launch 透传 `--add-dir <project>` 加载目标项目 `CLAUDE.md`; 绝对路径 / `git -C` 跨项目操作 |
 | 2 | 目标项目规则正确加载 | 已接通: 工作区 `claudeMdExcludes: ["**/.claude/rules/ecc/**"]` 防止全局规则包遮蔽项目自己的 `CLAUDE.md` |
-| 3 | 精选 ECC 子集按需调用 | 任务级: 按任务加载 `Skill`/agent — 30 skills / 16 agents / 14 commands, pin 在 `vendor/ecc/` |
+| 3 | 精选 ECC 子集按需调用 | 任务级: 按任务加载 `Skill`/agent — 11 skills / 1 agent / 14 commands, pin 在 `vendor/ecc/` |
 | 4 | `harness-core` CLI（纯 stdlib, 确定性, 253 项契约） | 按需: `feedback` · `report` · `gate` · `telemetry` · `checkpoint` · `plan` · `verify` · `snap` |
 | 5 | 跨会话失败记忆 **(实验性)** | 失败触发: `feedback record` 写入教训; `feedback query` 只在真正遇到失败时才查 — 新任务默认不查（机制契约级验证; in-vivo 收益未证明） |
 | 6 | 不可逆命令三档闸门 | 已接通: 唯一 `PreToolUse` hook（`hooks/harness_gate.py`）; 模式经 `gate mode` 切换 |
@@ -325,7 +325,7 @@ flowchart LR
 
 ## 10. 真实证据
 
-- **536 项离线契约** = **253 harness-core** + **283 项 tests**（244 项顶层 —— 含 48 项 `tests/test_wiring_mcp.py` mcp-config 接线、29 项 `tests/test_skills_quality.py` 技能质量门、28 项 `tests/test_security_scan.py` 安全扫描 + 24 项 `tests/battle/` 实战 + 15 项 `tests/multiproj/` 多项目隔离; 该数字由 `tools/check_docs_drift.py` 对照 pytest 收集结果实时校验; 核心为纯 stdlib, 253 项契约且确定性）。
+- **537 项离线契约** = **253 harness-core** + **284 项 tests**（245 项顶层 —— 含 48 项 `tests/test_wiring_mcp.py` mcp-config 接线、29 项 `tests/test_skills_quality.py` 技能质量门、28 项 `tests/test_security_scan.py` 安全扫描 + 24 项 `tests/battle/` 实战 + 15 项 `tests/multiproj/` 多项目隔离; 该数字由 `tools/check_docs_drift.py` 对照 pytest 收集结果实时校验; 核心为纯 stdlib, 253 项契约且确定性）。
 - **24 个 battle 测试**在 `tests/battle/`（5 个场景）端到端打真实 CLI; 已计入上面 282 项测试之内。
 - **CI** — [ci.yml](.github/workflows/ci.yml): 契约覆盖 `windows-latest`/`ubuntu-latest`/`macos-latest` × Python 3.10–3.12, 另有静态检查（卫生、docs-drift gate、冻结的公开表面）与 CLI 冒烟。**安全** — [security.yml](.github/workflows/security.yml): `trivy` fs 扫描, 诚实退出语义（0 干净 / 1 发现 / 2 用法 / 3 基建故障）, release 路径永远拦截。
 - **Demo** — 三个可复现、可离线验收的演示在 [docs/demos.md](docs/demos.md): [Demo 1 — 一个工作台, 两个规则冲突的项目](docs/demos.md#demo-1) · [Demo 2 — 会话 A 记录的失败在会话 B 被复用](docs/demos.md#demo-2) · [Demo 3 — 多文件功能 + 按需能力](docs/demos.md#demo-3)。

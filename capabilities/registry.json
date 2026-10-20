@@ -49,7 +49,7 @@
     },
     {
       "id": "ecc-skills",
-      "name": "Curated ECC skills (30)",
+      "name": "Curated ECC skills (11 kept; 19 duplicates disabled in R5, see docs/open-source-adoption.md)",
       "origin": "everything-claude-code (pinned snapshot)",
       "version": "2.0.0-rc.1",
       "license": "MIT",
@@ -72,7 +72,7 @@
     },
     {
       "id": "ecc-agents",
-      "name": "Curated ECC agents (16)",
+      "name": "Curated ECC agents (1 kept; 15 duplicates disabled in R5, see docs/open-source-adoption.md)",
       "origin": "everything-claude-code (pinned snapshot)",
       "version": "2.0.0-rc.1",
       "license": "MIT",

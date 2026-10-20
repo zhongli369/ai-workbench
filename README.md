@@ -35,7 +35,7 @@ and routes irreversible commands through a **three-tier gate**.
 |---|---|---|---|
 | Edit / test / ship inside one project | ✔ (that is CC itself) | | |
 | 60+ agents / 240+ skills catalog | | ✔ (upstream project) | |
-| Curated ECC subset, on-demand not resident | | | ✔ **(30+16+14)** skills/agents/commands, pinned |
+| Curated ECC subset, on-demand not resident | | | ✔ **(11+1+14)** skills/agents/commands, pinned |
 | One workspace operating many projects | | | ✔ (self-developed) |
 | Cross-session failure memory + repeat-error oracle *(experimental)* | | | ✔ (self-developed; in-vivo gain unproven) |
 | FAST / STANDARD / DEEP / RECOVERY cost policy | | | ✔ (self-developed, guidance) |
@@ -62,7 +62,7 @@ Protocol written in the workspace `CLAUDE.md` — task grading (FAST/STANDARD/DE
 |---|---|---|
 | 1 | One launch, many projects | Wired: launcher sets `CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1`; `/add-dir` or launch `--add-dir <project>` loads a target project's `CLAUDE.md`; absolute paths / `git -C` work across projects |
 | 2 | Correct rules per target project | Wired: workspace `claudeMdExcludes: ["**/.claude/rules/ecc/**"]` stops global rule packs from shadowing a project's own `CLAUDE.md` |
-| 3 | Curated ECC subset on demand | Task-grade: `Skill` / agent loading per task — 30 skills / 16 agents / 14 commands, pinned `vendor/ecc/` |
+| 3 | Curated ECC subset on demand | Task-grade: `Skill` / agent loading per task — 11 skills / 1 agent / 14 commands, pinned `vendor/ecc/` |
 | 4 | `harness-core` CLI (stdlib-only, deterministic, 253 contracts) | On-demand: `feedback` · `report` · `gate` · `telemetry` · `checkpoint` · `plan` · `verify` · `snap` |
 | 5 | Cross-session failure memory **(experimental)** | Fail-triggered: `feedback record` writes a lesson; `feedback query` is consulted only when a real failure is hit — never by default on a fresh task (mechanism contract-verified; in-vivo gain unproven) |
 | 6 | Three-tier irreversible-command gate | Wired: single `PreToolUse` hook (`hooks/harness_gate.py`); mode via `gate mode` |
@@ -444,7 +444,7 @@ Roles:
 
 ## 10. Real evidence
 
-- **536 offline contracts** = **253 harness-core** + **283 tests** (244
+- **537 offline contracts** = **253 harness-core** + **284 tests** (245
   top-level — incl. 48 mcp-config wiring in `tests/test_wiring_mcp.py`, 29
   skill-quality in `tests/test_skills_quality.py`, 28 security-scan in
   `tests/test_security_scan.py` + 24 battle under `tests/battle/` + 15

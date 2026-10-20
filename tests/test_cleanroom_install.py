@@ -69,7 +69,8 @@ def test_install_renders_all_paths_and_never_leaks_personal_paths(tmp_path):
     # rendered files (settings/launch/manifest) legitimately contain the target
     # path of THIS machine; copied payload files must contain no machine paths.
     rendered = {"install-manifest.json", "settings.json", "vnext.settings.json",
-                "workbench.ps1", "workbench.sh"}
+                "workbench.ps1", "workbench.sh",
+                "workbench-power.ps1", "workbench-power.sh"}
     for p in target.rglob("*"):
         if p.is_file() and p.suffix in {".json", ".ps1", ".sh", ".md", ".py"}:
             t = p.read_text(encoding="utf-8", errors="replace")
@@ -78,9 +79,18 @@ def test_install_renders_all_paths_and_never_leaks_personal_paths(tmp_path):
             if p.name in rendered or "harness-data" in p.parts:
                 continue
             assert "14679" not in t, p  # copied payload must be machine-neutral
-    # components present
-    assert len(list((target / ".claude" / "agents").glob("*.md"))) == 16
-    assert len(list((target / ".claude" / "skills").iterdir())) >= 29
+    # components present — R5 slim contract (docs/open-source-adoption.md):
+    # LEAN ships only the kept set; the 19 duplicate skills and 15 duplicate
+    # agents moved to workbench/disabled/ and must NOT be installed.
+    agents = {p.name for p in (target / ".claude" / "agents").glob("*.md")}
+    assert agents == {"security-reviewer.md"}
+    skills = {p.name for p in (target / ".claude" / "skills").iterdir()}
+    assert skills == {"gateguard", "safety-guard", "failure-oracle",
+                      "experience-capture", "workbench", "ecc-guide",
+                      "python-patterns", "python-testing", "error-handling",
+                      "coding-standards", "security-review"}
+    assert not (target / ".claude" / "skills.disabled").exists()
+    assert not (target / ".claude" / "agents.disabled").exists()
     assert (target / "vendor" / "ecc" / "LICENSE").is_file()
     assert (target / "harness-core" / "harness" / "cli.py").is_file()
     assert json.loads((target / "harness-data" / "gate.json").read_text())["mode"] == "audit"
@@ -408,6 +418,27 @@ def test_launcher_defaults_to_zero_mcp_and_optin_project_config(tmp_path):
         (target / "launch" / "vnext.settings.json").read_text(encoding="utf-8"))
     assert "**/.claude/rules/ecc/**" in launch_settings["claudeMdExcludes"]
     assert not (target / ".mcp.json").exists(), "default install adds zero MCP"
+
+
+def test_launcher_power_wrapper_delegates_through_lean(tmp_path):
+    """POWER mode = LEAN launcher + WORKBENCH_PLUGIN_DIR pointed at the
+    pinned vendor/plugins clone.  The wrapper must (a) probe the pinned
+    superpowers plugin manifest before setting the env var, (b) fall back
+    to LEAN with a message when absent, (c) delegate to the LEAN launcher
+    so there is exactly one launch path to maintain."""
+    target = tmp_path / "wb"
+    r = install(target)
+    assert r.returncode == 0, r.stdout + r.stderr
+    ps1 = (target / "launch" / "workbench-power.ps1").read_text(encoding="utf-8")
+    sh = (target / "launch" / "workbench-power.sh").read_text(encoding="utf-8")
+    for script in (ps1, sh):
+        assert "vendor" in script and "plugins" in script
+        assert "superpowers" in script and ".claude-plugin" in script
+        assert "WORKBENCH_PLUGIN_DIR" in script
+        assert "workbench.p" in script or "workbench.sh" in script  # delegates to LEAN
+    assert "Test-Path" in ps1 and "workbench.ps1" in ps1
+    assert '[ -f ' in sh and "workbench.sh" in sh
+    assert "F:\\Claude" not in ps1 and "F:\\Claude" not in sh  # machine-neutral
 
 
 def test_launcher_plugin_dir_is_optin_and_session_scoped(tmp_path):

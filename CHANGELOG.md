@@ -8,9 +8,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Verified external capabilities, integrated only where evidence shows real
 value: skill static quality gate SHIP, Codex second opinion SHIP (wiring
 only, default OFF), Playwright CLI duel REJECT (MCP kept).
-536 offline contracts (253 harness-core + 283 tests).
+537 offline contracts (253 harness-core + 284 tests).
 Development version — no GitHub Release is cut for this entry yet; the
 latest published release remains `v0.1.0-preview.3`.
+
+### Changed
+- **R5 slim (LEAN by default, POWER on demand)**: payload reduced to 11
+  kept skills + 1 kept agent (security-reviewer); the 19 duplicate skills
+  and 15 duplicate agents moved to `workbench/disabled/` (not deleted —
+  `git mv` back to restore). `workbench/CLAUDE.md` slimmed (task-grading,
+  agent-dispatch and auto-plan/checkpoint workflow removed; safety floor
+  and multi-project protocol kept). New `launch/workbench-power.ps1|sh`
+  load the pinned Superpowers clone from `vendor/plugins/` via the
+  `WORKBENCH_PLUGIN_DIR` adapter; LEAN launchers never load it.
+  SessionEnd metrics hook KEPT (per-session ledger with session_id /
+  human_msgs is not covered by `/cost`; zero measured maintenance cost).
 
 ### Added
 - **Opt-in session-scoped plugin adapter** (`WORKBENCH_PLUGIN_DIR`, launcher
