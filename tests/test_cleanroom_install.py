@@ -86,6 +86,42 @@ def test_install_renders_all_paths_and_never_leaks_personal_paths(tmp_path):
     assert json.loads((target / "harness-data" / "gate.json").read_text())["mode"] == "audit"
 
 
+def test_install_wires_bash_powershell_gate_and_session_end_metrics(tmp_path):
+    """R1 settings wiring (P0 safety-gap + observability): the rendered
+    .claude/settings.json must (a) gate BOTH Bash and PowerShell via the
+    PreToolUse hook — PowerShell previously bypassed the gate entirely — and
+    (b) register the SessionEnd metrics hook with a bounded timeout. Both
+    commands must resolve to THIS install target's absolute paths, never a
+    template hole or a builder-machine path."""
+    target = tmp_path / "wb"
+    r = install(target)
+    assert r.returncode == 0, r.stdout + r.stderr
+    settings = json.loads((target / ".claude" / "settings.json").read_text(encoding="utf-8"))
+    hooks = settings["hooks"]
+    root = str(target.resolve()).replace("\\", "/")
+    # PreToolUse gate covers both shells; exactly ONE harness_gate command
+    pre = hooks.get("PreToolUse") or []
+    assert pre, "no PreToolUse hook group in rendered settings"
+    matchers = sorted({m.get("matcher") for m in pre})
+    assert "Bash|PowerShell" in matchers, matchers
+    gate_cmds = [h.get("command", "") for m in pre
+                 for h in m.get("hooks", []) if "harness_gate.py" in h.get("command", "")]
+    assert gate_cmds == [f"python {root}/hooks/harness_gate.py"], gate_cmds
+    # SessionEnd metrics hook registered with a bounded timeout
+    se = hooks.get("SessionEnd") or []
+    assert se, "no SessionEnd hook group in rendered settings"
+    ses_cmds = [(h.get("command", ""), h.get("timeout")) for m in se
+                for h in m.get("hooks", []) if "session_metrics.py" in h.get("command", "")]
+    assert len(ses_cmds) == 1, ses_cmds
+    cmd, timeout = ses_cmds[0]
+    assert cmd == f"python {root}/hooks/session_metrics.py", cmd
+    assert timeout == 30, timeout
+    # no template hole leaked into the wiring; hook script exists in target
+    assert "{{ROOT}}" not in gate_cmds[0] and "{{ROOT}}" not in cmd
+    assert (target / "hooks" / "harness_gate.py").is_file()
+    assert (target / "hooks" / "session_metrics.py").is_file()
+
+
 def test_installed_harness_cli_roundtrip_and_gate_enforce(tmp_path):
     target = tmp_path / "wb"
     assert install(target).returncode == 0
@@ -149,6 +185,61 @@ def test_reinstall_is_idempotent_and_preserves_user_gate_config(tmp_path):
     assert r.returncode == 0 and "幂等" in r.stdout
     assert json.loads(gate.read_text(encoding="utf-8"))["mode"] == "enforce"
     assert projects.read_text(encoding="utf-8") == "# my own projects\n"
+
+
+def test_reinstall_preserves_user_settings_keys(tmp_path):
+    """R3 acceptance: user additions to .claude/settings.json (env vars,
+    permissions, extra hook entries, extra claudeMdExcludes) survive a
+    reinstall; installer-owned keys are refreshed exactly; hooks never
+    accumulate. settings.json follows the same user-data rule as PROJECTS.md
+    and gate.json (see test_reinstall_is_idempotent_and_preserves_user_gate_config).
+    """
+    target = tmp_path / "wb"
+    assert install(target).returncode == 0
+    spath = target / ".claude" / "settings.json"
+    s = json.loads(spath.read_text(encoding="utf-8"))
+    s["env"]["USER_CUSTOM_KEY"] = "keep-me"
+    s["permissions"] = {"allow": ["Bash(git status)"]}
+    s["claudeMdExcludes"].append("**/my-private/**")
+    s["hooks"]["PreToolUse"].append(
+        {"matcher": "Write",
+         "hooks": [{"type": "command", "command": "python x.py"}]})
+    s["hooks"]["UserPromptSubmit"] = [
+        {"hooks": [{"type": "command", "command": "python y.py"}]}]
+    spath.write_text(json.dumps(s, indent=2), encoding="utf-8")
+    assert install(target).returncode == 0  # reinstall
+    d = json.loads(spath.read_text(encoding="utf-8"))
+    # installer-owned keys refreshed exactly
+    assert d["env"]["HARNESS_DATA_DIR"].endswith("/harness-data")
+    pt = d["hooks"]["PreToolUse"]
+    gate_entries = [e for e in pt if e.get("matcher") == "Bash|PowerShell"]
+    assert len(gate_entries) == 1 and len(gate_entries[0]["hooks"]) == 1
+    assert len(d["hooks"]["SessionEnd"]) == 1
+    assert len(d["hooks"]["SessionEnd"][0]["hooks"]) == 1
+    assert d["hooks"]["SessionEnd"][0]["hooks"][0]["timeout"] == 30
+    # user keys preserved
+    assert d["env"]["USER_CUSTOM_KEY"] == "keep-me"
+    assert d["permissions"] == {"allow": ["Bash(git status)"]}
+    assert "**/my-private/**" in d["claudeMdExcludes"]
+    assert "**/.claude/rules/ecc/**" in d["claudeMdExcludes"]
+    assert any(e.get("matcher") == "Write" for e in pt)
+    assert d["hooks"]["UserPromptSubmit"] == [
+        {"hooks": [{"type": "command", "command": "python y.py"}]}]
+
+
+def test_reinstall_backs_up_unparseable_settings(tmp_path):
+    """A corrupt/user-mangled settings.json is never silently destroyed: the
+    reinstall writes a fresh render but preserves the old file as a backup."""
+    target = tmp_path / "wb"
+    assert install(target).returncode == 0
+    spath = target / ".claude" / "settings.json"
+    spath.write_text("{not json", encoding="utf-8")
+    assert install(target).returncode == 0
+    d = json.loads(spath.read_text(encoding="utf-8"))  # fresh valid render
+    assert d["env"]["HARNESS_DATA_DIR"]
+    baks = list((target / ".claude").glob("settings.json.user-bak*"))
+    assert len(baks) == 1
+    assert baks[0].read_text(encoding="utf-8") == "{not json"
 
 
 # ---------------- status / launch / benchmark ----------------
