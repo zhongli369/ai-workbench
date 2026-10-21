@@ -20,7 +20,8 @@ latest published release remains `v0.1.0-preview.3`.
   agent-dispatch and auto-plan/checkpoint workflow removed; safety floor
   and multi-project protocol kept). New `launch/workbench-power.ps1|sh`
   load the pinned Superpowers clone from `vendor/plugins/` via the
-  `WORKBENCH_PLUGIN_DIR` adapter; LEAN launchers never load it.
+  `WORKBENCH_PLUGIN_DIR` adapter (pointed at the plugin directory itself —
+  see the R7 boundary fix below); LEAN launchers never load it.
   SessionEnd metrics hook KEPT (per-session ledger with session_id /
   human_msgs is not covered by `/cost`; zero measured maintenance cost).
 
@@ -123,6 +124,49 @@ latest published release remains `v0.1.0-preview.3`.
   hook on Bash commands (standing integration tax). Verdict C: zero wiring
   change, MCP remains the only browser path. See
   `docs/decisions/2026-10-16-playwright-cli.md`.
+
+### Maintenance close-out (R7 / R7.1 / R7.2 / FINAL, 2026-10-20 → 10-21)
+
+- **R7 plugin-boundary fix**: the POWER launcher templates pointed
+  `WORKBENCH_PLUGIN_DIR` at the `vendor/plugins` *parent* directory, and
+  `--plugin-dir` loads every child of the directory it is given — so
+  frontend-design (vendored for an unrelated round) was silently merged into
+  POWER sessions (found by stream-json init probes; invisible at the
+  declaration layer). Templates now point at `vendor/plugins/superpowers`
+  itself; probes after redeploy: LEAN = built-ins only, POWER = superpowers,
+  explicit session = frontend-design. Eight-point adoption checklist and
+  incident record in `docs/open-source-adoption.md`.
+- **R7.1 installer drift protection**: the install manifest now records a
+  per-file sha256; a locally modified managed file is backed up to
+  `<file>.user-bak` before a reinstall refreshes it to canonical (root-cause
+  fix for the R7 payload-resync incident). Legacy hash-less manifests fail
+  open once, then protection is active. 3 regression contracts; totals
+  reconciled to 540 offline contracts (253 harness-core + 287 tests) across
+  README ×2 / this file / ci.yml / claims.json.
+- **R7.1 hermetic capability test**: `test_mutex_enforced_on_enable` built its
+  fake PATH by prepending to the inherited machine PATH, so on machines with
+  a real Node.js the playwright-mcp readiness gate passed and the mutex
+  assertion failed (pre-existing, environment-induced; reproduced on pristine
+  HEAD). PATH is now fakebin + bare system dirs; assertions unchanged.
+- **R7.1 maintenance mode**: `docs/MAINTENANCE.md` freezes feature expansion
+  (four allowed change classes: security defects, upstream compatibility,
+  confirmed bugs, recurring generic gaps) and registers `r6-slim @1b91f1c` as
+  an **independent experimental candidate — net benefit unproven, not merged,
+  not deployed, off by default**.
+- **R7.2 MCP Inspector PoC — PASS, zero harness code**:
+  `@modelcontextprotocol/inspector@2.11.0` verified as an external on-demand
+  MCP debugging CLI (real `tools/call` get-sum(2,3)=5; exit 1 for connection
+  failure vs exit 5 for structured tool/validation errors; no model API, no
+  user-config writes, no LEAN/POWER change). Usage and candidate status
+  recorded in `docs/open-source-adoption.md`; project-local install preferred
+  over repeated `npx` (~0.7s vs ~86s warm).
+- **FINAL documentation unification**: README.md / README.zh-CN.md rebuilt
+  around the real capability classes (default-on / explicit-on-demand /
+  disabled-kept) with live-verified commands; `workbench/CLAUDE.md` 71 → 83
+  lines (explicit-plugin parent-dir trap, workbench responsibility boundary,
+  maintenance-mode discipline, gate mode not model-changeable); candidate
+  status table (Active / Verified / Deferred / Rejected / N/A) recorded in
+  `docs/open-source-adoption.md`.
 
 ## [0.1.0-preview.4] — OPERATION ONE WORKSPACE — Unreleased
 

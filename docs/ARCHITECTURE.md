@@ -4,24 +4,25 @@
 ┌─────────────────────────────────────────────────────────────────┐
 │  ONE launched Claude Code session (the workbench)               │
 │                                                                 │
-│  CLAUDE.md (L0, ~1.7k chars)                                    │
+│  CLAUDE.md (LEAN session policy, 83 lines)                      │
 │   ├─ safety invariants (verify before done, no secrets, gate)   │
-│   ├─ FAST / STANDARD / DEEP cost policy                         │
+│   ├─ multi-project protocol + explicit-plugin rules             │
 │   └─ capability INDEX only — bodies load on demand              │
 │                                                                 │
 │  ┌───────────────┐  ┌────────────────┐  ┌────────────────────┐  │
-│  │ 27 ECC skills │  │ 16 ECC agents  │  │ 14 ECC commands    │  │
-│  │ +3 own skills │  │ (on demand)    │  │ (on demand)        │  │
+│  │ 11 skills     │  │ 1 agent        │  │ 14 commands        │  │
+│  │ (curated set) │  │ (on demand)    │  │ (on demand)        │  │
 │  └───────────────┘  └────────────────┘  └────────────────────┘  │
-│           ▲ inherited (MIT, pinned snapshot, vendor/ecc)        │
+│     ▲ curated subset (MIT, pinned snapshot, vendor/ecc);        │
+│     ▲ 19 skills + 15 agents kept disabled (workbench/disabled/) │
 │                                                                 │
 │  ┌───────────────────────────────────────────────────────────┐  │
-│  │ harness-core (self-developed, stdlib, 26 contracts)       │  │
+│  │ harness-core (self-developed, stdlib, 253 contracts)      │  │
 │  │  feedback store ── query ── report ── promote (human)     │  │
 │  │  gate: disabled / audit / enforce (fail-closed)           │  │
 │  │  telemetry ledger (local JSONL, zero network)             │  │
 │  └───────────────────────────────────────────────────────────┘  │
-│           ▲ PreToolUse hook (hooks/harness_gate.py)             │
+│     ▲ PreToolUse hook (harness_gate.py; Bash|PowerShell)        │
 └─────────────┬───────────────────────────────────────────────────┘
               │ absolute paths / git -C / python -m pytest <dir>
     ┌─────────┴──────────┬──────────────────┬────────────────┐
@@ -41,7 +42,7 @@
 | layer | install unit | purpose | can be used alone? |
 |---|---|---|---|
 | harness-core | `harness-core/` | failure memory, gate, telemetry | **yes** — plain CLI, no Claude Code needed |
-| workbench | `.claude/` + CLAUDE.md + launch | CC workspace config, cost policy, capabilities | yes (without harness it just lacks memory/gate) |
+| workbench | `.claude/` + CLAUDE.md + launch | CC workspace config, session policy, capabilities | yes (without harness it just lacks memory/gate) |
 | combined | full install | the intended product | — |
 
 ## Data flow of the failure-memory loop
@@ -51,7 +52,7 @@ session A: failure occurs
    → record (source: user-correction | human-verified | model-inference)
    → JSONL append (candidate)
    → [human review] promote → verified/promoted
-session B: same error class appears (2nd occurrence — never on first sight)
+session B: an observed failure occurs (fail-triggered — never on a fresh task)
    → query --keyword → ranked by source authority
    → apply the mitigation, not the same retry
    → record outcome

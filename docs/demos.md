@@ -110,8 +110,8 @@ PASS; close-up on the JSONL file proving persistence.
 ## Demo 3 — Multi-file feature, capabilities on demand
 
 **The claim.** A real multi-file feature (two new subcommands with
-acceptance tests) completes in the workbench with its cost policy holding:
-no agent swarm for a STANDARD task, skills load only if needed.
+acceptance tests) completes in the workbench under the LEAN policy:
+no agent swarm by default, skills load only if needed.
 
 **The command:**
 

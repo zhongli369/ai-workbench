@@ -29,8 +29,8 @@ hooks (read-only, duplicate-hook risk report).
    **Read it, then accept yourself.** This is your decision; nothing in this
    distribution can or should pre-answer it.
 3. Confirm the workspace loaded: the session's context should reflect the
-   workbench CLAUDE.md (ask: "what cost policy tiers do you have?" — expect
-   FAST / STANDARD / DEEP).
+   workbench CLAUDE.md (ask: "what modes do you have?" — expect LEAN as the
+   default and POWER as an explicit opt-in).
 
 Status on reference machine: **PENDING** (awaiting user's first interactive launch).
 

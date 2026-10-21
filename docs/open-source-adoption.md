@@ -40,7 +40,7 @@ superpowers 的价值点在复杂长任务的过程纪律（TDD/计划/验收）
 | 16 个专家 agents | 原生 Task + `--agents` + superpowers 编排 skills | **禁用大部分**；security-reviewer 可留 | PoC C 组；原生 `--agents` 二进制确认 |
 | 30 个自研 skills（tdd-workflow/plan-orchestrate/deep-research/prompt-optimizer/iterative-retrieval/parallel-execution-optimizer/rules-distill/hookify-rules/context-budget/cost-tracking/memo-* 等） | superpowers 15 skills（TDD/systematic-debugging/writing-plans/executing-plans/verification-before-completion/code-review/worktrees/parallel-agents） | **禁用重复项**（见下"禁用清单"） | superpowers v7.0.0 实机注册 15/15 |
 | DEEP 规划与状态（harness plan/checkpoint/verify 日常使用） | 原生 plan mode + `--resume/--continue/--fork-session` + 原生 auto-memory + superpowers writing-plans/executing-plans | **禁用日常使用**；代码保留，需要机械验收门时按需调 | 原生功能二进制确认（2.1.304） |
-| 统计（session_metrics hook + telemetry + cost-tracking/report） | 原生 `/cost` `/usage` + OTel 导出 + ccusage（npx 读 transcript） | **禁用 hook**（settings 移除 SessionEnd 条目即可回滚） | 原生覆盖；hook 代码保留 |
+| 统计（session_metrics hook + telemetry + cost-tracking/report） | 原生 `/cost` `/usage` + OTel 导出 + ccusage（npx 读 transcript） | **保留 hook**（R5 最终裁决：session_id / human_msgs 逐会话台账 `/cost` 不覆盖，实测零维护成本）；cost-tracking skill 禁用 | 原生覆盖大部分；hook 保留接线 |
 | 上下文检索（repo-scan/codebase-onboarding/iterative-retrieval） | 原生 Explore agent + 原生 LSP（2.1.x 内置）；大型库再 serena | **禁用**；serena 按需 | `--bare` help 实锤原生 LSP |
 | 评测（tools/bench 确定性 20 断言 + eval-harness/benchmark skills） | LLM 评测 → promptfoo（按需 npx）；确定性 bench 无替代需求 | **bench 保留**，eval skills 禁用 | promptfoo MIT/0.124.1 |
 | harness-bench-run（独立付费项目） | — | **不动** | 边界约定 |
@@ -75,7 +75,7 @@ runtime 侧（先快照 `snap save`）：
   ecc-guide, python-patterns, python-testing, error-handling, coding-standards,
   security-review（上游无安全专项）
 - `.claude/agents/` 同法：保留 security-reviewer；其余移入 agents.disabled/
-- settings.json：移除 SessionEnd→session_metrics 条目（hook 代码保留）
+- settings.json：~~移除 SessionEnd→session_metrics 条目~~ **已撤销** —— R5 最终裁决保留该 hook（理由见上"替代决策表"统计行）
 - CLAUDE.md：删除任务分级/Agent 调度/失败史触发细则段，保留安全底线+多项目协议
 
 ## 未实测标记
@@ -120,3 +120,51 @@ plugins 清单。当日结果：LEAN = 仅内置插件；POWER = superpowers + �
   `.claude-plugin/plugin.json`）；经安装器重部署 runtime 后三探针复测通过。
 - **教训**：凡承诺"只加载 X"的启动器，`--plugin-dir` 必须指向 X 的目录本身，
   不得指向任何父目录。
+
+## R7.2 增补（2026-10-20）：MCP Inspector = 外部 / 按需 / 已验证
+
+- **定位**：外部按需 MCP 调试 CLI。**不**装入工作台、**不**注册为默认 MCP、
+  **不**改动 LEAN/POWER 启动器、零行 Harness 代码、零常驻进程。
+- **上游与版本**：官方 `modelcontextprotocol/inspector`，
+  `@modelcontextprotocol/inspector@2.11.0`（npm 镜像可解析，TLS 校验未关）。
+- **PoC 证据**（`%TEMP%` 隔离目录 + 隔离 npm cache 安装；官方示例服务器
+  `@modelcontextprotocol/server-everything@2.0.0`；全程无模型 API 调用）：
+  - `tools/list`：17 个工具，exit 0（冷启动约 0.6s）。
+  - `tools/call get-sum a=2 b=3`：真实返回 **5**，exit 0（约 0.7s）——
+    不是仅凭工具列表判成功。
+  - 故障分级实测：连接失败 exit 1（"Connection closed" + 被孵进程 stderr
+    透传）；工具/参数错误 exit 5（tool_not_found / validation 的结构化 JSON）。
+  - 零残留：不创建 `~/.mcp-inspector`，不写用户级配置；PoC 目录已清理。
+- **用法**（真实命令，在需要调试的业务项目内执行）：
+
+  ```powershell
+  # 偶发尝鲜：npx 直调（温缓存下仍约 86s，不适合日常）
+  npx --yes @modelcontextprotocol/inspector@2.11.0 --cli node <server.js> --method tools/list
+
+  # 推荐：项目内本地安装后直调（约 0.7s；node_modules 约 86MB）
+  npm install --save-dev @modelcontextprotocol/inspector@2.11.0
+  node_modules\.bin\mcp-inspector --cli node <server.js> --method tools/list
+  node_modules\.bin\mcp-inspector --cli node <server.js> --method tools/call --tool-name get-sum --tool-arg a=2 --tool-arg b=3
+  ```
+
+- **已知边界**：`--catalog` 与 ad-hoc 命令不兼容；`-e` 是 inspector 自身的
+  环境变量旗标（给被测服务器传代码请用脚本文件，不要用 `node -e` 内联）。
+
+## 候选状态总表（2026-10-21 收官登记）
+
+| 候选 | 状态 | 依据 |
+|---|---|---|
+| Superpowers v7.0.0 @bb92a77 | **Active / On-demand**（POWER 启动器） | PoC 计量 + 三轮 stream-json 探针（上文） |
+| frontend-design @a0b04d9 | **Verified / Explicit**（会话级显式启用） | 探针实证；R7 边界事件修复后复测通过 |
+| MCP Inspector 2.11.0 | **External / On-demand / Verified** | R7.2 PoC（上文） |
+| Playwright MCP | **Deferred** | registry 登记为 off；无真实浏览器自动化需求 |
+| Context7 | **Deferred** | 未评测；无真实文档检索需求 |
+| Promptfoo | **Deferred** | 无 LLM 评测需求与预算 |
+| Beads | **Rejected** | 用户裁决登记，未做评测 |
+| Spec Kit | **Rejected** | 用户裁决登记，未做评测 |
+| Claude Code Action | **N/A** | 无 CI 内自动会话场景，用户裁决登记 |
+
+状态含义：**Active** = 现行集成；**Verified** = 技术可行性已实证；
+**Explicit** = 仅用户显式启用；**External** = 不进入工作台本体；
+**Deferred** = 出现真实需求时按核查八点重评；**Rejected** = 不采用；
+**N/A** = 场景不适用。

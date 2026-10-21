@@ -1,5 +1,10 @@
 # FAST / STANDARD / DEEP — what is actually verified (2026-10-13)
 
+> **SUPERSEDED (R5, 2026-10-20): the FAST/STANDARD/DEEP tier policy was
+> removed from the session payload.** This file is kept as the historical
+> evidence record for the retired policy. The current session policy is
+> `workbench/CLAUDE.md` (LEAN default; POWER on demand).
+
 The three tiers are a **prompt-level policy with transcript-auditable
 behavior**, not a runtime enforcement mechanism. This document separates
 what is *structurally guaranteed* from what is *measured behavior*, and

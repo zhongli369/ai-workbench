@@ -8,7 +8,8 @@
 AI Workbench 是面向 Claude Code 的轻量、可治理、按需加载的工程工作台：
 一个工作台操作多个项目，能力按任务加载，不可逆命令经过三层 gate。
 当前版本以 `tools/workbench.py` 的 `VERSION` 为准；能力清单以
-`capabilities/registry.json` 为准。
+`capabilities/registry.json` 为准。本仓库处于维护模式，仅四类修改允许
+（见 `docs/MAINTENANCE.md`）。
 
 ## 必读
 

@@ -1,4 +1,4 @@
-# Capability Evidence Register (2026-10-14; ARSENAL additions 2026-10-15)
+# Capability Evidence Register (2026-10-14; ARSENAL additions 2026-10-15; R5/R7 status sync 2026-10-21)
 
 Directive §5 product-value audit: what AI Workbench adds over native Claude
 Code + ECC, judged only on recorded evidence. Every enhancement lists its
@@ -11,7 +11,7 @@ stable advantages.
 | Capability | Origin | Workbench's role |
 |---|---|---|
 | Edit / test / ship loop, tool use, planning | **Claude Code native** | none — not counted as our value |
-| 60+ agents / 240+ skills catalog, rules | **ECC upstream** (MIT) | curated subset (30 skills / 16 agents / 14 commands), pinned snapshot, on-demand loading |
+| 60+ agents / 240+ skills catalog, rules | **ECC upstream** (MIT) | curated subset (11 skills / 1 agent / 14 commands active; a further 19 skills + 15 agents kept disabled under `workbench/disabled/`), pinned snapshot, on-demand loading |
 | Workspace snapshot algorithm (`harness snap`) | **cline@789f79e4** (Apache-2.0) | reimplemented stdlib-only (no vendored code); safety rules redesigned per directive (never `reset --hard` / `clean -fd`) |
 | Post-edit verify loop (`harness verify`) | **aider@5dc9490b** (Apache-2.0) | reimplemented stdlib-only; gate-consulted, bounded reflections |
 | Supply-chain scanning (release gate) | **trivy** (Apache-2.0, binary fetched at CI time, never vendored) | pinned version+sha256 wrapper with honest exit semantics |
@@ -20,8 +20,8 @@ stable advantages.
 Self-developed: harness-core (feedback store, gate, report, telemetry,
 checkpoints, plan scaffold, verify loop, workspace snapshots), release
 supply-chain gate, installer/launcher/uninstaller,
-FAST/STANDARD/DEEP cost policy, capability registry + wiring, bench
-infrastructure (internal).
+FAST/STANDARD/DEEP cost policy (retired in R5), capability registry +
+wiring, bench infrastructure (internal).
 
 ## 2. Mechanism-by-mechanism evidence
 
@@ -46,8 +46,8 @@ infrastructure (internal).
 
 ### Gate (three-tier irreversible-command control) — **DEFAULT ON (AUDIT)**
 
-- **Trigger**: every PreToolUse Bash call in interactive sessions (ENFORCE
-  blocks configured high-risk patterns unless pre-approved).
+- **Trigger**: every PreToolUse Bash/PowerShell call in interactive sessions
+  (ENFORCE blocks configured high-risk patterns unless pre-approved).
 - **Evidence**: structural — 64 harness-core contracts (fail-closed on
   unreadable config; AUDIT never consults tokens; one-time `awt-` tokens
   single-use/TTL/replay-safe). Interactive acceptance (G8) is user-pending.
@@ -82,12 +82,15 @@ infrastructure (internal).
 - **Cost**: none measured (t6.1 fusion-empty $0.0726 ≈ native $0.0892).
 - **Product status**: the policy is sound; it is not a moat.
 
-### FAST/STANDARD/DEEP cost policy — **DEFAULT ON**
+### FAST/STANDARD/DEEP cost policy — **RETIRED (R5, 2026-10-20)**
 
 - **Evidence**: trivial 0.87× / multi-file feature 0.84× / bugfix 1.22× /
   test-diagnosis 1.81× (all N=1). Mixed but honest; the 1.22× residual is
   turn-count behavior, tracked as G4.
-- **Product status**: kept; published with negative cells included.
+- **Product status**: **removed from the session payload in the R5
+  slim-down** (LEAN default; controlled harness-bench runs later showed heavy
+  default injection netting negative, SE family -0.486). Kept here as
+  historical record; the current session policy is `workbench/CLAUDE.md`.
 
 ### Planning / agent routing — **NOT EVIDENCED**
 
@@ -225,7 +228,7 @@ infrastructure (internal).
 |---|---|---|
 | Gate AUDIT | **on** | zero token cost, safety observability; ENFORCE is user's choice |
 | On-demand ECC index | **on (passive)** | zero cost until used; resident tax avoided |
-| FAST/STANDARD/DEEP | **on** | measured mixed but policy encodes the 2.33× lesson |
+| FAST/STANDARD/DEEP | **retired (R5)** | removed from the session payload; LEAN default now |
 | Oracle | **on-demand only** | 6 experiments, 0 real reads; no attributable benefit |
 | Planning/routing extras | **absent** | native CC behavior suffices; nothing to default |
 | Telemetry | **on (local)** | self-excluding; powers the failure-pattern report |
